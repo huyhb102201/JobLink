@@ -33,3 +33,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/onboarding/skills',  [OnboardingController::class, 'showSkills'])->name('onb.skills.show');
     Route::post('/onboarding/skills', [OnboardingController::class, 'storeSkills'])->name('onb.skills.store');
 });
+
+
+// routes/web.php
+use App\Http\Controllers\MessageController;
+
+Route::middleware('auth')->group(function() {
+    // Freelancer vào chat (job_id)
+    Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
+
+    // Chủ job vào chat với freelancer cụ thể
+    Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
+
+    // Gửi tin nhắn
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+});

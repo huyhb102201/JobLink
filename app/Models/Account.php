@@ -15,16 +15,41 @@ class Account extends Authenticatable
     public $timestamps = true; // có created_at/updated_at
 
     protected $fillable = [
-        'account_type_id','firebase_uid','name','avatar_url','provider','provider_id',
-        'email','password','status','last_login_at','email_verified_at',
-        'oauth_access_token','oauth_refresh_token','oauth_expires_at',
-        'last_login_ip','login_provider_last',
+        'account_type_id',
+        'firebase_uid',
+        'name',
+        'avatar_url',
+        'provider',
+        'provider_id',
+        'email',
+        'password',
+        'status',
+        'last_login_at',
+        'email_verified_at',
+        'oauth_access_token',
+        'oauth_refresh_token',
+        'oauth_expires_at',
+        'last_login_ip',
+        'login_provider_last',
     ];
 
-    protected $hidden = ['password','oauth_access_token','oauth_refresh_token'];
+    protected $hidden = ['password', 'oauth_access_token', 'oauth_refresh_token'];
 
-    protected $dates = ['last_login_at','email_verified_at','oauth_expires_at','created_at','updated_at'];
+    protected $dates = ['last_login_at', 'email_verified_at', 'oauth_expires_at', 'created_at', 'updated_at'];
 
     // Laravel mặc định dùng cột 'email' làm username; nếu muốn đổi có thể override:
     // public function getAuthIdentifierName(){ return 'account_id'; }
+
+    // Trả về tên cột dùng làm identifier
+    public function getAuthIdentifierName()
+    {
+        return 'account_id';
+    }
+
+    // Trả về giá trị identifier
+    public function getAuthIdentifier()
+    {
+        return $this->account_id;
+    }
+
 }
