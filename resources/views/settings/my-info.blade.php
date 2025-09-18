@@ -6,7 +6,6 @@
     <h5 class="mb-4">My Info</h5>
     <form action="{{ route('settings.myinfo.update') }}" method="POST" class="vstack gap-3">
       @csrf @method('PUT')
-
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Họ tên</label>
@@ -38,4 +37,17 @@
     </form>
   </div>
 </section>
+@if(session('ok'))
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      Swal.fire({
+        icon: 'success',
+        title: 'Thành công',
+        text: '{{ session('ok') }}',
+        confirmButtonText: 'OK'
+      });
+    });
+  </script>
+@endif
+
 @endsection
