@@ -132,5 +132,37 @@ class SocialController extends Controller
 
         return redirect()->intended(route('home'))->with('status', 'Chọn vai trò thành công!');
     }
+    public function githubRedirect()
+    {
+        return Socialite::driver('github')->redirect();
+    }
 
+    public function githubCallback(Request $request)
+{
+    $gh = Socialite::driver('github')->stateless()->user();
+
+    // Fallback email nếu user ẩn email trên GitHub
+    $email = $gh->getEmail()
+        ?? ($gh->user['email'] ?? null)
+        ?? ($gh->getNickname() ? $gh->getNickname().'@users.noreply.github.com' : null);
+
+    $payload = [
+        'provider'     => 'github',
+        'provider_id'  => (string) $gh->getId(),
+        'email'        => $email,
+        'name'         => $gh->getName() ?: $gh->getNickname() ?: 'GitHub User',
+        'avatar_url'   => $gh->getAvatar(),
+        'username'     => $gh->getNickname(),   // nếu muốn lưu username
+    ];
+
+    $account = $this->upsertAccountFromOAuth($payload, $request);
+
+    Auth::login($account, true);
+
+    if ((int) $account->account_type_id === 5) { // ví dụ: 5 = Guest/chưa chọn vai trò
+        return redirect()->route('role.select');
+    }
+
+    return redirect()->intended('/');
+}
 }

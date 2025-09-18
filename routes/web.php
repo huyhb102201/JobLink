@@ -22,9 +22,10 @@ Route::post('/logout', [SocialController::class, 'logout'])->middleware('auth')-
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
-Route::get('/debug-google-redirect', function () {
-    return config('services.google.redirect');
-});
+// Github Login
+Route::get('auth/github/redirect', [SocialController::class, 'githubRedirect'])->name('github.redirect');
+Route::get('auth/github/callback', [SocialController::class, 'githubCallback']);
+
 
 Route::middleware('auth')->group(function () {
     // đã có:
