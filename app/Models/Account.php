@@ -51,5 +51,13 @@ class Account extends Authenticatable
     {
         return $this->account_id;
     }
+    public function profile()
+    {
+        return $this->hasOne(Profile::class, 'account_id', 'account_id');
+    }
+    public function type()
+{
+    return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
+}
 
 }
