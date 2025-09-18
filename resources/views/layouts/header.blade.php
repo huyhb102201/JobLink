@@ -51,70 +51,79 @@
                 </li>
 
                 @auth
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown"
-                            role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            @php
-                                // Lấy user + quan hệ type
-                                $acc = Auth::user()->loadMissing('type');   // NEW
-                                $name = $acc->profile?->fullname ?: $acc->name ?: 'Tài khoản';
-                                $initials = collect(explode(' ', $name))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
-                                $avatar = $acc->avatar_url;
-                                $src = $avatar ? (preg_match('/^https?:\/\//', $avatar) ? $avatar : asset($avatar)) : null;
-                            @endphp
-
-                            @if($src)
-                                <img src="{{ $src }}" referrerpolicy="no-referrer" class="rounded-circle"
-                                    style="width:28px;height:28px;object-fit:cover;">
-                            @else
-                                <span class="avatar-circle">{{ $initials }}</span>
-                            @endif
-
-                            <span class="d-none d-lg-inline">{{ $name }}</span>
-                        </a>
-
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" style="min-width:230px;"
-                            aria-labelledby="userDropdown">
-
-                            {{-- HIỂN THỊ LOẠI TÀI KHOẢN (từ account_types) --}}
-                            @php
-                                $typeName = $acc->type->name ?? 'Guest';
-                                $typeCode = $acc->type->code ?? 'GUEST';
-                            @endphp
-                            <li class="px-3 py-2 text-muted small d-flex align-items-center gap-2"> {{-- NEW --}}
-                                <i class="bi bi-patch-check"></i>
-                                Loại tài khoản:
-                                <span class="badge bg-light text-dark">{{ $typeName }}</span>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider my-2">
-                            </li> {{-- NEW --}}
-
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2"
-                                    href="{{ route('settings.myinfo') }}">
-                                    <i class="bi bi-person-circle"></i> Cài đặt tài khoản
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2" href="">
-                                    <i class="bi bi-speedometer2"></i> Bảng điều khiển
-                                </a>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <form action="{{ route('logout') }}" method="POST" class="m-0">
-                                    @csrf
-                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2">
-                                        <i class="bi bi-box-arrow-right"></i> Đăng xuất
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
+                    {{-- ... dropdown người dùng của bạn giữ nguyên ... --}}
+                @else {{-- <— THÊM NHÁNH NÀY (hoặc dùng @guest ... @endguest) --}} <li class="nav-item"><a
+                        class="nav-link" href="{{ route('login') }}">Đăng nhập</a></li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary ms-lg-2" href="">Đăng ký</a>
+                        {{-- nếu dự án không có route('register') thì dùng url('/register') hoặc ẩn nút --}}
                     </li>
                 @endauth
+                    @auth
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown"
+                                role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                @php
+                                    // Lấy user + quan hệ type
+                                    $acc = Auth::user()->loadMissing('type');   // NEW
+                                    $name = $acc->profile?->fullname ?: $acc->name ?: 'Tài khoản';
+                                    $initials = collect(explode(' ', $name))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+                                    $avatar = $acc->avatar_url;
+                                    $src = $avatar ? (preg_match('/^https?:\/\//', $avatar) ? $avatar : asset($avatar)) : null;
+                                @endphp
+
+                                @if($src)
+                                    <img src="{{ $src }}" referrerpolicy="no-referrer" class="rounded-circle"
+                                        style="width:28px;height:28px;object-fit:cover;">
+                                @else
+                                    <span class="avatar-circle">{{ $initials }}</span>
+                                @endif
+
+                                <span class="d-none d-lg-inline">{{ $name }}</span>
+                            </a>
+
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" style="min-width:230px;"
+                                aria-labelledby="userDropdown">
+
+                                {{-- HIỂN THỊ LOẠI TÀI KHOẢN (từ account_types) --}}
+                                @php
+                                    $typeName = $acc->type->name ?? 'Guest';
+                                    $typeCode = $acc->type->code ?? 'GUEST';
+                                @endphp
+                                <li class="px-3 py-2 text-muted small d-flex align-items-center gap-2"> {{-- NEW --}}
+                                    <i class="bi bi-patch-check"></i>
+                                    Loại tài khoản:
+                                    <span class="badge bg-light text-dark">{{ $typeName }}</span>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider my-2">
+                                </li> {{-- NEW --}}
+
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2"
+                                        href="{{ route('settings.myinfo') }}">
+                                        <i class="bi bi-person-circle"></i> Cài đặt tài khoản
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2" href="">
+                                        <i class="bi bi-speedometer2"></i> Bảng điều khiển
+                                    </a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <form action="{{ route('logout') }}" method="POST" class="m-0">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2">
+                                            <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    @endauth
 
             </ul>
         </div>
