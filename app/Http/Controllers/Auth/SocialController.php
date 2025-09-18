@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use App\Models\AccountType;   // thêm dòng này trên đầu file
 
 class SocialController extends Controller
 {
@@ -74,95 +75,98 @@ class SocialController extends Controller
     // --- Helper: tạo/cập nhật bản ghi accounts ---
     protected function upsertAccountFromOAuth(array $p, Request $request): Account
     {
-        // 1) Ưu tiên tìm theo provider+provider_id
         $acc = Account::where('provider', $p['provider'])
             ->where('provider_id', $p['provider_id'])
             ->first();
 
-        // 2) Nếu chưa có và có email -> gộp tài khoản theo email
         if (!$acc && !empty($p['email'])) {
             $acc = Account::where('email', $p['email'])->first();
         }
 
         if (!$acc) {
-            // tạo mới
             $acc = new Account();
-            $acc->account_type_id = 5;                 // ví dụ default "chưa chọn vai trò"
+            $acc->account_type_id = $this->typeIdByCode('GUEST'); // <-- thay vì 5 cứng
             $acc->status = 1;
         }
 
-        // fill/update
         $acc->provider = $p['provider'];
         $acc->provider_id = $p['provider_id'];
         $acc->name = $p['name'];
-        $acc->email = $p['email'];          // có thể null
+        $acc->email = $p['email'];
         $acc->avatar_url = $p['avatar_url'];
         $acc->email_verified_at = $p['email'] ? now() : null;
         $acc->last_login_at = now();
         $acc->login_provider_last = $p['provider'];
         $acc->last_login_ip = $request->ip();
 
-        // social login không cần password
+        // nếu còn mới (chưa save lần nào) đảm bảo vẫn set là GUEST
         if (!$acc->exists) {
-            $acc->account_type_id = 5; // guest
+            $acc->account_type_id = $this->typeIdByCode('GUEST');
             $acc->status = 1;
             $acc->password = null;
         }
 
-
         $acc->save();
-
         return $acc;
     }
+
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'role' => 'required|in:client,freelancer',
-        ]);
-
+        $data = $request->validate(['role' => 'required|in:client,freelancer']);
         $user = Auth::user();
 
-        $map = [
-            'client' => 3,
-            'freelancer' => 1,
+        $mapCode = [
+            'client' => 'CLIENT',
+            'freelancer' => 'F_BASIC', // hoặc code nào bạn quy ước cho freelancer mặc định
         ];
 
-        $user->account_type_id = $map[$data['role']];
+        $user->account_type_id = $this->typeIdByCode($mapCode[$data['role']]);
         $user->save();
 
         return redirect()->intended(route('home'))->with('status', 'Chọn vai trò thành công!');
     }
+
     public function githubRedirect()
     {
         return Socialite::driver('github')->redirect();
     }
 
     public function githubCallback(Request $request)
-{
-    $gh = Socialite::driver('github')->stateless()->user();
+    {
+        $gh = Socialite::driver('github')->stateless()->user();
 
-    // Fallback email nếu user ẩn email trên GitHub
-    $email = $gh->getEmail()
-        ?? ($gh->user['email'] ?? null)
-        ?? ($gh->getNickname() ? $gh->getNickname().'@users.noreply.github.com' : null);
+        // Fallback email nếu user ẩn email trên GitHub
+        $email = $gh->getEmail()
+            ?? ($gh->user['email'] ?? null)
+            ?? ($gh->getNickname() ? $gh->getNickname() . '@users.noreply.github.com' : null);
 
-    $payload = [
-        'provider'     => 'github',
-        'provider_id'  => (string) $gh->getId(),
-        'email'        => $email,
-        'name'         => $gh->getName() ?: $gh->getNickname() ?: 'GitHub User',
-        'avatar_url'   => $gh->getAvatar(),
-        'username'     => $gh->getNickname(),   // nếu muốn lưu username
-    ];
+        $payload = [
+            'provider' => 'github',
+            'provider_id' => (string) $gh->getId(),
+            'email' => $email,
+            'name' => $gh->getName() ?: $gh->getNickname() ?: 'GitHub User',
+            'avatar_url' => $gh->getAvatar(),
+            'username' => $gh->getNickname(),   // nếu muốn lưu username
+        ];
 
-    $account = $this->upsertAccountFromOAuth($payload, $request);
+        $account = $this->upsertAccountFromOAuth($payload, $request);
 
-    Auth::login($account, true);
+        Auth::login($account, true);
 
-    if ((int) $account->account_type_id === 5) { // ví dụ: 5 = Guest/chưa chọn vai trò
-        return redirect()->route('role.select');
+        if ((int) $account->account_type_id === 5) { // ví dụ: 5 = Guest/chưa chọn vai trò
+            return redirect()->route('role.select');
+        }
+
+        return redirect()->intended('/');
     }
 
-    return redirect()->intended('/');
-}
+    private function typeIdByCode(string $code): int
+    {
+        $code = strtoupper($code);
+
+        // cache 1h để đỡ query lại nhiều lần
+        return cache()->remember("acct_type_id_$code", 3600, function () use ($code) {
+            return (int) AccountType::where('code', $code)->value('account_type_id');
+        }) ?: 5; // fallback cuối cùng nếu bảng rỗng hoặc thiếu code
+    }
 }
