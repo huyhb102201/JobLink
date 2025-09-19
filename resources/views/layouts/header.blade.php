@@ -55,7 +55,7 @@
                 @else {{-- <— THÊM NHÁNH NÀY (hoặc dùng @guest ... @endguest) --}} <li class="nav-item"><a
                         class="nav-link" href="{{ route('login') }}">Đăng nhập</a></li>
                     <li class="nav-item">
-                        <a class="btn btn-primary ms-lg-2" href="">Đăng ký</a>
+                        <a class="btn btn-primary ms-lg-2" href="{{ route('register.role.show') }}">Đăng ký</a>
                         {{-- nếu dự án không có route('register') thì dùng url('/register') hoặc ẩn nút --}}
                     </li>
                 @endauth

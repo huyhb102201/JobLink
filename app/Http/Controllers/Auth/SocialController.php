@@ -33,36 +33,13 @@ class SocialController extends Controller
         $account = $this->upsertAccountFromOAuth($payload, $request);
 
         Auth::login($account, true);
-        if ((int) $account->account_type_id === 5) {
+        if ((int) $account->account_type_id === $this->typeIdByCode('GUEST')) {
             return redirect()->route('role.select');
-        }                           // session login
+        }                          // session login
         return redirect()->intended('/');                      // về trang chủ
     }
 
     // --- FACEBOOK ---
-    public function facebookRedirect()
-    {
-        return Socialite::driver('facebook')->redirect();
-    }
-
-    public function facebookCallback(Request $request)
-    {
-        $f = Socialite::driver('facebook')->stateless()->user();
-
-        $payload = [
-            'provider' => 'facebook',
-            'provider_id' => $f->getId(),
-            'email' => $f->getEmail(),                  // có thể NULL
-            'name' => $f->getName() ?: 'User ' . Str::random(6),
-            'avatar_url' => $f->getAvatar(),
-        ];
-
-        $account = $this->upsertAccountFromOAuth($payload, $request);
-
-        Auth::login($account, true);
-        return redirect()->intended('/');
-    }
-
     // --- Đăng xuất ---
     public function logout(Request $request)
     {
@@ -153,7 +130,7 @@ class SocialController extends Controller
 
         Auth::login($account, true);
 
-        if ((int) $account->account_type_id === 5) { // ví dụ: 5 = Guest/chưa chọn vai trò
+        if ((int) $account->account_type_id === $this->typeIdByCode('GUEST')) {
             return redirect()->route('role.select');
         }
 
