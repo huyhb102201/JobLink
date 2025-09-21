@@ -116,9 +116,10 @@ Route::get('/email/verify', function () {
 
 // Route xử lý khi user click link trong mail
 Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
-    $request->fulfill(); // sẽ cập nhật email_verified_at = now()
+    $request->fulfill();
     return redirect('/')->with('status', 'Xác minh email thành công!');
-})->middleware(['auth', 'signed'])->name('verification.verify');
+})->middleware(['auth', 'signed:relative'])->name('verification.verify');
+
 
 // Route gửi lại email xác minh
 Route::post('/email/verification-notification', function () {

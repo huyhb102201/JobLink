@@ -1,7 +1,6 @@
 <?php
-
 namespace App\Providers;
-
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\ServiceProvider;
 // ❗️ THÊM import đúng cho URL facade:
 use Illuminate\Support\Facades\URL;
@@ -24,5 +23,16 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
             URL::forceRootUrl(config('app.url')); // ép Laravel generate đúng host
         }
+        VerifyEmail::createUrlUsing(function ($notifiable) {
+        return URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(120),
+            [
+                'id' => $notifiable->getKey(),
+                'hash' => sha1($notifiable->getEmailForVerification()),
+            ],
+            absolute: false,
+        );
+    });
     }
 }
