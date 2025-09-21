@@ -114,9 +114,19 @@ class RegisterController extends Controller
         // 5) Đăng nhập & xác minh email
         Auth::login($account);
         session()->forget('register_role');
-        $account->sendEmailVerificationNotification();
+        Auth::login($account);
+        session()->forget('register_role');
+
+        try {
+            $account->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            \Log::error('Verify email failed: ' . $e->getMessage());
+            // có thể flash thông báo nhẹ nếu muốn
+        }
 
         return redirect()->route('verification.notice');
+
+
     }
     /**
      * Chuẩn hoá username: bỏ dấu, về lowercase, chỉ giữ a-z0-9_. và cắt 50 ký tự.

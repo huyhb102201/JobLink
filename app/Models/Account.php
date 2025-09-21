@@ -5,8 +5,9 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable; // để dùng guard web (session)
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens; // nếu sau này cần API token
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-class Account extends Authenticatable
+class Account extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, Notifiable;
 

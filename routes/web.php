@@ -14,7 +14,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\RegisterController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-
+use Illuminate\Support\Facades\Mail;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -136,4 +136,44 @@ Route::get('/test-mail', function () {
           ->subject('Test SendGrid thành công');
     });
     return 'Đã gửi thử mail!';
+});
+Route::get('/debug-mail', function () {
+    dd(config('mail.mailers.smtp'));
+});
+
+Route::get('/debug-sendgrid', function () {
+    return [
+        'factory_exists' => class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridTransportFactory::class),
+        'transport_class' => get_class(app('mailer')->getSymfonyTransport()),
+        'mailer_config' => config('mail.mailers.smtp'),
+    ];
+});
+Route::get('/sg-check', function () {
+    return response()->json([
+        'SendgridTransportFactory' =>
+            class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridTransportFactory::class),
+        'SendgridApiTransportFactory' =>
+            class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridApiTransportFactory::class),
+        'mailer_config' => config('mail.mailers.smtp'),
+    ]);
+});
+Route::get('/sg-transport', function () {
+    $t = app('mailer')->getSymfonyTransport();
+    return get_class($t);
+});
+// Mong đợi: Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridApiTransport
+
+use SendGrid\Mail\Mail as SGMail;
+
+Route::get('/test-sg-sdk', function () {
+    $mail = new SGMail();
+    $mail->setFrom(config('mail.from.address'), config('mail.from.name'));
+    $mail->setSubject('Test SendGrid SDK OK');
+    $mail->addTo('22004027@st.vlute.edu.vn', 'Bạn');
+    $mail->addContent('text/plain', 'Gửi qua SDK, không dùng SMTP/Mailer.');
+
+    $sg = new \SendGrid(env('SENDGRID_API_KEY'));
+    $resp = $sg->send($mail);
+
+    return 'Status: '.$resp->statusCode();
 });
