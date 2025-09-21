@@ -60,5 +60,9 @@ class Account extends Authenticatable implements MustVerifyEmail
 {
     return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
 }
-
+    public function sendEmailVerificationNotification()
+    {
+        // Gửi bằng SendGrid SDK thay vì Mailer
+        app(\App\Services\VerifyEmailService::class)->send($this);
+    }
 }
