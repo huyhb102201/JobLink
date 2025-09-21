@@ -26,6 +26,8 @@
   <link href="{{ asset('assets/css/main.css') }}" rel="stylesheet">
   <!-- Sweet Alert -->
      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
 </head>
 
 <body>
@@ -33,6 +35,13 @@
   @include('layouts.header')
 
   @yield('content')
+
+  <!-- Preloader -->
+  <div id="preloader"></div>
+
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
+      class="bi bi-arrow-up-short"></i></a>
 
   {{-- Footer --}}
   @include('layouts.footer')

@@ -9,8 +9,9 @@ class JobController extends Controller
 {
     public function index()
     {
-        // Lấy tất cả job (hoặc theo user)
-        $jobs = Job::with('account')->orderBy('created_at', 'desc')->get();
+        $jobs = Job::with('account')
+            ->orderBy('created_at', 'desc')
+            ->paginate(6); // mỗi trang 6 job
 
         return view('jobs.index', compact('jobs'));
     }

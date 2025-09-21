@@ -1,22 +1,22 @@
 @extends('layouts.app')
 @section('title', 'JobLink - Freelancer')
 @section('content')
-    <main class="main">
-        <!-- Page Title -->
-        <div class="page-title">
-            <div class="container d-lg-flex justify-content-between align-items-center">
-                <h1 class="mb-2 mb-lg-0">Danh sách freelancer</h1>
-                <nav class="breadcrumbs">
-                    <ol>
-                        <li><a href="{{ route('home') }}">Trang chủ</a></li>
-                        <li class="current">Freelancer</li>
-                    </ol>
-                </nav>
-            </div>
-        </div><!-- End Page Title -->
+  <main class="main">
+    <!-- Page Title -->
+    <div class="page-title">
+      <div class="container d-lg-flex justify-content-between align-items-center">
+        <h1 class="mb-2 mb-lg-0">Danh sách freelancer</h1>
+        <nav class="breadcrumbs">
+          <ol>
+            <li><a href="{{ route('home') }}">Trang chủ</a></li>
+            <li class="current">Freelancer</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
 
-        <!-- Blog Posts Section -->
-        <section id="services" class="services section">
+    <!-- Blog Posts Section -->
+    <section id="services" class="services section">
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
 
@@ -139,25 +139,25 @@
 
     </section><!-- /Blog Posts Section -->
 
-        <!-- Blog Pagination Section -->
-        <section id="blog-pagination" class="blog-pagination section">
+    <!-- Blog Pagination Section -->
+    <section id="blog-pagination" class="blog-pagination section">
 
-            <div class="container">
-                <div class="d-flex justify-content-center">
-                    <ul>
-                        <li><a href="#"><i class="bi bi-chevron-left"></i></a></li>
-                        <li><a href="#">1</a></li>
-                        <li><a href="#" class="active">2</a></li>
-                        <li><a href="#">3</a></li>
-                        <li><a href="#">4</a></li>
-                        <li>...</li>
-                        <li><a href="#">10</a></li>
-                        <li><a href="#"><i class="bi bi-chevron-right"></i></a></li>
-                    </ul>
-                </div>
-            </div>
+      <div class="container">
+        <div class="d-flex justify-content-center">
+          <ul>
+            <li><a href="#"><i class="bi bi-chevron-left"></i></a></li>
+            <li><a href="#">1</a></li>
+            <li><a href="#" class="active">2</a></li>
+            <li><a href="#">3</a></li>
+            <li><a href="#">4</a></li>
+            <li>...</li>
+            <li><a href="#">10</a></li>
+            <li><a href="#"><i class="bi bi-chevron-right"></i></a></li>
+          </ul>
+        </div>
+      </div>
 
-        </section><!-- /Blog Pagination Section -->
+    </section><!-- /Blog Pagination Section -->
 
-    </main>
+  </main>
 @endsection

@@ -698,20 +698,20 @@
 
         <div class="swiper init-swiper">
           <script type="application/json" class="swiper-config">
-                            {
-                              "loop": true,
-                              "speed": 600,
-                              "autoplay": {
-                                "delay": 5000
-                              },
-                              "slidesPerView": "auto",
-                              "pagination": {
-                                "el": ".swiper-pagination",
-                                "type": "bullets",
-                                "clickable": true
+                              {
+                                "loop": true,
+                                "speed": 600,
+                                "autoplay": {
+                                  "delay": 5000
+                                },
+                                "slidesPerView": "auto",
+                                "pagination": {
+                                  "el": ".swiper-pagination",
+                                  "type": "bullets",
+                                  "clickable": true
+                                }
                               }
-                            }
-                          </script>
+                            </script>
 
           <div class="swiper-wrapper">
 
@@ -975,10 +975,5 @@
     </section><!-- /Faq Section -->
 
   </main>
-
-  <!-- Scroll Top -->
-  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i
-      class="bi bi-arrow-up-short"></i></a>
-
-
+  
 @endsection

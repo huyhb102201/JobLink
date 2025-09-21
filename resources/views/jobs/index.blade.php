@@ -15,198 +15,103 @@
             </div>
         </div><!-- End Page Title -->
 
-        <!-- Blog Posts Section -->
+        <!-- Job List Section -->
         <section id="blog-posts" class="blog-posts section">
+            <div class="container" id="jobs-list">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    @foreach($jobs as $job)
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                {{-- Ảnh job --}}
+                                <img src="{{ $job->image ?? asset('assets/img/blog/blog-1.jpg') }}" class="card-img-top"
+                                    alt="{{ $job->title }}">
 
-            <div class="container">
-                <div class="row gy-4">
+                                <div class="card-body d-flex flex-column">
+                                    {{-- Category --}}
+                                    <span class="badge bg-primary mb-2">{{ $job->category ?? 'Khác' }}</span>
 
-                    <div class="col-lg-4">
-                        <article>
+                                    {{-- Tiêu đề job --}}
+                                    <h5 class="card-title">
+                                        <a href="#" class="text-decoration-none">{{ $job->title }}</a>
+                                    </h5>
 
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-1.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Politics</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Dolorum optio tempore voluptas dignissimos</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Maria Doe</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Jan 1, 2022</time>
+                                    {{-- Mô tả ngắn --}}
+                                    <p class="card-text text-truncate">
+                                        {{ Str::limit($job->description, 120) }}
                                     </p>
+
+                                    {{-- Thông tin job --}}
+                                    <ul class="list-unstyled mt-auto mb-3">
+                                        <li class="mb-1">
+                                            <i class="bi bi-currency-dollar me-1"></i>
+                                            <strong>Ngân sách:</strong> {{ number_format($job->budget, 0, ',', '.') }}
+                                            {{ $job->payment_type }}
+                                        </li>
+                                        <li class="mb-1">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            <strong>Trạng thái:</strong> {{ ucfirst($job->status) }}
+                                        </li>
+                                        <li>
+                                            <i class="bi bi-calendar-event me-1"></i>
+                                            <strong>Hạn cuối:</strong>
+                                            {{ \Carbon\Carbon::parse($job->deadline)->format('d/m/Y H:i') }}
+                                        </li>
+                                    </ul>
+
+                                    {{-- Người đăng --}}
+                                    <div class="d-flex align-items-center mt-3 border-top pt-3">
+                                        <img src="{{ $job->account->avatar ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                            alt="{{ $job->account->name ?? 'Người đăng' }}" class="rounded-circle me-2"
+                                            width="40" height="40">
+
+                                        <div>
+                                            <p class="mb-0 fw-bold">{{ $job->account->name ?? 'Người đăng ẩn danh' }}</p>
+                                            <p class="mb-0 text-muted">
+                                                <time datetime="{{ $job->created_at }}">
+                                                    Đăng ngày {{ $job->created_at->format('d/m/Y') }}
+                                                </time>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Button xem chi tiết --}}
+                                <div class="card-footer bg-transparent border-top-0 pt-0 mt-2">
+                                    <a href="#" class="btn btn-sm btn-outline-primary w-100">
+                                        Xem chi tiết
+                                    </a>
                                 </div>
                             </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
-                    <div class="col-lg-4">
-                        <article>
-
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-2.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Sports</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Nisi magni odit consequatur autem nulla dolorem</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author-2.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Allisa Mayer</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Jun 5, 2022</time>
-                                    </p>
-                                </div>
-                            </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
-                    <div class="col-lg-4">
-                        <article>
-
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-3.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Entertainment</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Possimus soluta ut id suscipit ea ut in quo quia et soluta</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author-3.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Mark Dower</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Jun 22, 2022</time>
-                                    </p>
-                                </div>
-                            </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
-                    <div class="col-lg-4">
-                        <article>
-
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-4.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Sports</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Non rem rerum nam cum quo minus olor distincti</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author-4.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Lisa Neymar</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Jun 30, 2022</time>
-                                    </p>
-                                </div>
-                            </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
-                    <div class="col-lg-4">
-                        <article>
-
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-5.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Politics</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Accusamus quaerat aliquam qui debitis facilis consequatur</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author-5.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Denis Peterson</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Jan 30, 2022</time>
-                                    </p>
-                                </div>
-                            </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
-                    <div class="col-lg-4">
-                        <article>
-
-                            <div class="post-img">
-                                <img src="assets/img/blog/blog-6.jpg" alt="" class="img-fluid">
-                            </div>
-
-                            <p class="post-category">Entertainment</p>
-
-                            <h2 class="title">
-                                <a href="blog-details.html">Distinctio provident quibusdam numquam aperiam aut</a>
-                            </h2>
-
-                            <div class="d-flex align-items-center">
-                                <img src="assets/img/blog/blog-author-6.jpg" alt=""
-                                    class="img-fluid post-author-img flex-shrink-0">
-                                <div class="post-meta">
-                                    <p class="post-author">Mika Lendon</p>
-                                    <p class="post-date">
-                                        <time datetime="2022-01-01">Feb 14, 2022</time>
-                                    </p>
-                                </div>
-                            </div>
-
-                        </article>
-                    </div><!-- End post list item -->
-
+                        </div>
+                    @endforeach
                 </div>
+
             </div>
+        </section>
 
-        </section><!-- /Blog Posts Section -->
-
-        <!-- Blog Pagination Section -->
-        <section id="blog-pagination" class="blog-pagination section">
-
-            <div class="container">
-                <div class="d-flex justify-content-center">
-                    <ul>
-                        <li><a href="#"><i class="bi bi-chevron-left"></i></a></li>
-                        <li><a href="#">1</a></li>
-                        <li><a href="#" class="active">2</a></li>
-                        <li><a href="#">3</a></li>
-                        <li><a href="#">4</a></li>
-                        <li>...</li>
-                        <li><a href="#">10</a></li>
-                        <li><a href="#"><i class="bi bi-chevron-right"></i></a></li>
-                    </ul>
-                </div>
-            </div>
-
-        </section><!-- /Blog Pagination Section -->
-
+        <!-- Pagination Section -->
+        <div id="pagination-wrapper">
+            {{ $jobs->links('components.pagination') }}
+        </div>
     </main>
+
+    {{-- jQuery --}}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    {{-- AJAX pagination --}}
+    <script>
+        $(document).on('click', '.page-link', function (e) {
+            e.preventDefault();
+            let page = $(this).data('page');
+
+            $.ajax({
+                url: "/jobs?page=" + page,
+                type: "GET",
+                success: function (res) {
+                    $("#jobs-list").html($(res).find("#jobs-list").html());
+                    $("#pagination-wrapper").html($(res).find("#pagination-wrapper").html());
+                }
+            });
+        });
+    </script>
 @endsection
