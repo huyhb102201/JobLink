@@ -67,6 +67,8 @@
                                     // Lấy user + quan hệ type
                                     $acc = Auth::user()->loadMissing('type');   // NEW
                                     $name = $acc->profile?->fullname ?: $acc->name ?: 'Tài khoản';
+                                    $username = $acc->profile?->username;
+                                    $handle = $username ? '@' . $username : null;
                                     $initials = collect(explode(' ', $name))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
                                     $avatar = $acc->avatar_url;
                                     $src = $avatar ? (preg_match('/^https?:\/\//', $avatar) ? $avatar : asset($avatar)) : null;
@@ -79,7 +81,13 @@
                                     <span class="avatar-circle">{{ $initials }}</span>
                                 @endif
 
-                                <span class="d-none d-lg-inline">{{ $name }}</span>
+                                <span class="d-none d-lg-flex flex-column lh-sm text-start">
+                                    <span class="fw-semibold">{{ $name }}</span>
+                                    @if($handle)
+                                        <span class="text-muted small">{{ $handle }}</span>
+                                    @endif
+                                </span>
+
                             </a>
 
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" style="min-width:230px;"

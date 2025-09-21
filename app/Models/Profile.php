@@ -10,7 +10,7 @@ class Profile extends Model
     public $incrementing = true;
     protected $keyType = 'int';
 
-    protected $fillable = ['account_id','email','fullname','description','skill'];
+    protected $fillable = ['account_id','username','email','fullname','description','skill',];
 
     public function account() {
         return $this->belongsTo(Account::class, 'account_id', 'account_id');

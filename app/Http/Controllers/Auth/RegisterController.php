@@ -51,56 +51,113 @@ class RegisterController extends Controller
             ]);
         }
 
-        // 1) Validate dữ liệu
-        $data = $request->validate([
+        // 1) Validate cơ bản (chưa unique username ở đây để mình chủ động gợi ý trước)
+        $baseValidated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:accounts,email'],
+            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_.]+$/'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['required', 'in:CLIENT,F_BASIC'], // xác nhận lại role
+            'role' => ['required', 'in:CLIENT,F_BASIC'],
         ], [
-            'email.unique' => 'Email đã tồn tại trong hệ thống.',
             'password.confirmed' => 'Mật khẩu xác nhận không khớp.',
+            'username.regex' => 'Username chỉ gồm chữ, số, dấu _ hoặc .',
         ]);
 
-        // 2) Map role -> account_type_id theo code trong bảng account_types
-        // code: CLIENT/FREELANCER (bạn có thể đổi theo hệ thống của bạn)
-        $accountTypeId = AccountType::where('code', $role)->value('account_type_id');
+        // 2) Chuẩn hoá username & gợi ý nếu trùng
+        $rawUsername = $baseValidated['username'];
+        $sanitized = $this->sanitizeUsername($rawUsername);
 
-        if (!$accountTypeId) {
-            // fallback (tùy bạn): dùng GUEST nếu không tìm thấy
-            $accountTypeId = AccountType::where('code', 'GUEST')->value('account_type_id');
+        // Nếu người dùng gõ ký tự hợp lệ nhưng sau sanitize rỗng -> fallback từ email hoặc name
+        if ($sanitized === '') {
+            $local = explode('@', $baseValidated['email'])[0] ?? 'user';
+            $sanitized = $this->sanitizeUsername($local) ?: 'user';
         }
 
-        // 3) Tạo account + profile trong transaction
-        $account = DB::transaction(function () use ($data, $accountTypeId) {
+        // Nếu đã tồn tại, sinh gợi ý
+        $finalUsername = $this->suggestAvailableUsername($sanitized);
+
+        // Nếu gợi ý khác với cái user gửi (tức là bị trùng), trả về form với gợi ý
+        if ($finalUsername !== $sanitized) {
+            // Nhét gợi ý vào old input để auto-fill ô username
+            return back()
+                ->withErrors(['username' => "Username đã tồn tại. Gợi ý: @$finalUsername"])
+                ->withInput(array_merge($request->all(), ['username' => $finalUsername]));
+        }
+
+        // 3) Map role -> account_type_id
+        $accountTypeId = AccountType::where('code', $role)->value('account_type_id')
+            ?: AccountType::where('code', 'GUEST')->value('account_type_id');
+
+        // 4) Tạo account + profile trong transaction
+        $account = DB::transaction(function () use ($baseValidated, $accountTypeId, $finalUsername) {
             $acc = Account::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password']),
+                'name' => $baseValidated['name'],
+                'email' => $baseValidated['email'],
+                'password' => Hash::make($baseValidated['password']),
                 'account_type_id' => $accountTypeId,
                 'provider' => 'register',
                 'status' => 1,
             ]);
 
-            // LẤY KHÓA CHÍNH ĐÚNG:
-            $pk = $acc->getKey(); // tương đương $acc->account_id do đã set $primaryKey
+            $pk = $acc->getKey(); // account_id
 
             Profile::create([
                 'account_id' => $pk,
-                'fullname' => $data['name'],
-                'email' => $data['email'],
+                'fullname' => $baseValidated['name'],
+                'email' => $baseValidated['email'],
+                'username' => $finalUsername, // <- LƯU username đã đảm bảo unique
             ]);
 
             return $acc;
         });
 
-
-        // 4) Đăng nhập luôn & redirect
+        // 5) Đăng nhập & xác minh email
         Auth::login($account);
         session()->forget('register_role');
-        // Gửi mail xác minh
         $account->sendEmailVerificationNotification();
 
         return redirect()->route('verification.notice');
     }
+    /**
+     * Chuẩn hoá username: bỏ dấu, về lowercase, chỉ giữ a-z0-9_. và cắt 50 ký tự.
+     */
+    private function sanitizeUsername(string $u): string
+    {
+        $u = \Illuminate\Support\Str::ascii($u);
+        $u = strtolower($u);
+        $u = preg_replace('/[^a-z0-9_.]+/', '', $u) ?? '';
+        $u = trim($u, '._'); // bỏ ký tự chấm/gạch dưới ở đầu/cuối
+        return mb_substr($u, 0, 50);
+    }
+
+    /**
+     * Nếu $base đã tồn tại trong profiles.username thì thêm hậu tố số: name, name1, name2, ...
+     * Trả về username khả dụng đầu tiên.
+     */
+    private function suggestAvailableUsername(string $base): string
+    {
+        // Nếu base rỗng thì dùng 'user'
+        $base = $base !== '' ? $base : 'user';
+
+        // cắt còn 30 để dành chỗ cho hậu tố số
+        $baseShort = mb_substr($base, 0, 30);
+
+        $exists = DB::table('profiles')->where('username', $baseShort)->exists();
+        if (!$exists)
+            return $baseShort;
+
+        for ($i = 1; $i <= 9999; $i++) {
+            $candidate = $baseShort;
+            // cắt tiếp nếu cần để không vượt quá 50 ký tự khi thêm số
+            $candidate = mb_substr($candidate, 0, 50 - strlen((string) $i)) . $i;
+            $exists = DB::table('profiles')->where('username', $candidate)->exists();
+            if (!$exists)
+                return $candidate;
+        }
+
+        // fallback bất khả kháng
+        return $baseShort . \Illuminate\Support\Str::random(3);
+    }
+
+
 }

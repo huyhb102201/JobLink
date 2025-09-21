@@ -65,6 +65,7 @@ class SettingsController extends Controller
 
         $data = $request->validate([
             'fullname' => 'required|string|max:255',
+            'username' => 'required|string|max:255',
             'description' => 'nullable|string|max:255',
             'skill' => 'nullable|string|max:1000',
             // KHÔNG có 'email'
@@ -74,6 +75,7 @@ class SettingsController extends Controller
 
         $profile->fill([
             'fullname' => $data['fullname'],
+            'username' => $data['username'],
             'description' => $data['description'] ?? null,
             'skill' => $data['skill'] ?? null,
             // KHÔNG set 'email'

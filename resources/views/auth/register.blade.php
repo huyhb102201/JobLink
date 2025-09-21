@@ -180,11 +180,24 @@
               <input id="name" name="name" type="text" class="form-control" placeholder="Nguyễn Văn A"
                 value="{{ old('name') }}" required autofocus>
             </div>
+
             <div class="mb-3">
               <label for="email" class="form-label">Email</label>
               <input id="email" name="email" type="email" class="form-control" placeholder="you@example.com"
                 value="{{ old('email') }}" required>
             </div>
+
+            {{-- Username --}}
+            <div class="mb-3">
+              <label for="username" class="form-label">Username</label>
+              <div class="input-group">
+                <span class="input-group-text">@</span>
+                <input id="username" name="username" type="text" class="form-control" placeholder="hogiahuy"
+                  value="{{ old('username') }}" required>
+              </div>
+              <div class="form-text">Tên công khai (duy nhất). Chỉ cho phép chữ, số, dấu _ và .</div>
+            </div>
+
             <div class="mb-3">
               <label for="password" class="form-label">Mật khẩu</label>
               <div class="input-group">
@@ -195,11 +208,13 @@
                 </span>
               </div>
             </div>
+
             <div class="mb-3">
               <label for="password_confirmation" class="form-label">Xác nhận mật khẩu</label>
               <input id="password_confirmation" name="password_confirmation" type="password" class="form-control"
                 placeholder="••••••••" required>
             </div>
+
             <div class="d-grid mb-3">
               <button type="submit" class="btn btn-primary">
                 <i class="bi bi-person-plus me-1"></i> Đăng ký
@@ -207,6 +222,7 @@
             </div>
             <input type="hidden" name="role" value="{{ $role ?? old('role') }}">
           </form>
+
 
           <p class="text-center small text-muted mb-0">
             Đã có tài khoản?

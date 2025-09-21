@@ -129,3 +129,11 @@ Route::post('/email/verification-notification', function () {
     $user->sendEmailVerificationNotification();
     return back()->with('status', 'verification-link-sent');
 })->middleware(['auth','throttle:6,1'])->name('verification.send');
+
+Route::get('/test-mail', function () {
+    Mail::raw('SendGrid + Laravel hoạt động OK!', function ($m) {
+        $m->to('22004027@st.vlute.edu.vn')   // đổi email nhận
+          ->subject('Test SendGrid thành công');
+    });
+    return 'Đã gửi thử mail!';
+});

@@ -13,6 +13,11 @@
               value="{{ old('fullname', $profile->fullname ?? $account->name) }}" required>
           </div>
           <div class="col-md-6">
+            <label class="form-label">Username</label>
+            <input class="form-control" name="username"
+              value="{{ old('username', $profile->username) }}" required>
+          </div>
+          <div class="col-md-6">
             <label class="form-label">Email</label>
             <input class="form-control" type="email" name="email"
               value="{{ old('email', $profile->email ?? $account->email) }}" disabled>
