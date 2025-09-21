@@ -130,39 +130,6 @@ Route::post('/email/verification-notification', function () {
     return back()->with('status', 'verification-link-sent');
 })->middleware(['auth','throttle:6,1'])->name('verification.send');
 
-Route::get('/test-mail', function () {
-    Mail::raw('SendGrid + Laravel hoạt động OK!', function ($m) {
-        $m->to('22004027@st.vlute.edu.vn')   // đổi email nhận
-          ->subject('Test SendGrid thành công');
-    });
-    return 'Đã gửi thử mail!';
-});
-Route::get('/debug-mail', function () {
-    dd(config('mail.mailers.smtp'));
-});
-
-Route::get('/debug-sendgrid', function () {
-    return [
-        'factory_exists' => class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridTransportFactory::class),
-        'transport_class' => get_class(app('mailer')->getSymfonyTransport()),
-        'mailer_config' => config('mail.mailers.smtp'),
-    ];
-});
-Route::get('/sg-check', function () {
-    return response()->json([
-        'SendgridTransportFactory' =>
-            class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridTransportFactory::class),
-        'SendgridApiTransportFactory' =>
-            class_exists(\Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridApiTransportFactory::class),
-        'mailer_config' => config('mail.mailers.smtp'),
-    ]);
-});
-Route::get('/sg-transport', function () {
-    $t = app('mailer')->getSymfonyTransport();
-    return get_class($t);
-});
-// Mong đợi: Symfony\Component\Mailer\Bridge\Sendgrid\Transport\SendgridApiTransport
-
 use SendGrid\Mail\Mail as SGMail;
 
 Route::get('/test-sg-sdk', function () {
@@ -176,4 +143,11 @@ Route::get('/test-sg-sdk', function () {
     $resp = $sg->send($mail);
 
     return 'Status: '.$resp->statusCode();
+});
+Route::get('/debug-signed', function (\Illuminate\Http\Request $req) {
+    return [
+        'url' => url()->current(),
+        'full' => $req->fullUrl(),
+        'expected' => URL::signedRoute('verification.verify', ['id'=>1, 'hash'=>'abc']),
+    ];
 });
