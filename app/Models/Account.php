@@ -23,6 +23,7 @@ class Account extends Authenticatable implements MustVerifyEmail
         'provider',
         'provider_id',
         'email',
+        'email_verify_token',
         'password',
         'status',
         'last_login_at',

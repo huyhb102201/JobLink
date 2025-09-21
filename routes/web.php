@@ -15,6 +15,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\RegisterController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Mail;
+use App\Models\Account;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -37,7 +38,7 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 Route::post('/login', [LoginController::class, 'authenticate'])
-        ->name('login');
+    ->name('login');
 Route::middleware('auth')->group(function () {
     // đã có:
     Route::get('/select-role', [RoleController::class, 'show'])->name('role.select');
@@ -114,23 +115,37 @@ Route::get('/email/verify', function () {
     return view('auth.verify-email'); // tạo view thông báo “hãy kiểm tra email”
 })->middleware('auth')->name('verification.notice');
 
-// Route xử lý khi user click link trong mail
-Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
-    $request->fulfill();
-    return redirect('/')->with('status', 'Xác minh email thành công!');
-})->middleware(['auth', 'signed:relative'])->name('verification.verify');
-
-
 // Route gửi lại email xác minh
+// Route gửi lại email xác minh (dùng custom verification)
 Route::post('/email/verification-notification', function () {
-    $user = Auth::user(); // đã có middleware 'auth' nên chắc chắn có user
-    if ($user->hasVerifiedEmail()) {
+    $user = Auth::user();
+
+    if ($user->email_verified_at) {
         return back()->with('status', 'already-verified');
     }
-    $user->sendEmailVerificationNotification();
-    return back()->with('status', 'verification-link-sent');
-})->middleware(['auth','throttle:6,1'])->name('verification.send');
 
+    // Cách 1: dùng container
+    app(RegisterController::class)->sendCustomVerification($user);
+
+    // Cách 2 (tương đương): (new RegisterController)->sendCustomVerification($user);
+
+    return back()->with('status', 'verification-link-sent');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+
+
+Route::get('/email/verify-token/{token}', function ($token) {
+    $account = Account::where('email_verify_token', $token)->first();
+
+    if (!$account) {
+        return redirect('/')->with('status', 'Token không hợp lệ hoặc đã dùng rồi.');
+    }
+
+    $account->email_verified_at = now();
+    $account->email_verify_token = null; // xoá token để không dùng lại
+    $account->save();
+
+    return redirect('/')->with('status', 'Xác minh email thành công!');
+})->name('verification.token');
 use SendGrid\Mail\Mail as SGMail;
 
 Route::get('/test-sg-sdk', function () {
@@ -143,12 +158,12 @@ Route::get('/test-sg-sdk', function () {
     $sg = new \SendGrid(env('SENDGRID_API_KEY'));
     $resp = $sg->send($mail);
 
-    return 'Status: '.$resp->statusCode();
+    return 'Status: ' . $resp->statusCode();
 });
 Route::get('/debug-signed', function (\Illuminate\Http\Request $req) {
     return [
         'url' => url()->current(),
         'full' => $req->fullUrl(),
-        'expected' => URL::signedRoute('verification.verify', ['id'=>1, 'hash'=>'abc']),
+        'expected' => URL::signedRoute('verification.verify', ['id' => 1, 'hash' => 'abc']),
     ];
 });

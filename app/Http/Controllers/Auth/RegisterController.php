@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-
+use SendGrid\Mail\Mail as SGMail;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AccountType;
@@ -118,14 +119,11 @@ class RegisterController extends Controller
         session()->forget('register_role');
 
         try {
-            $account->sendEmailVerificationNotification();
+            $this->sendCustomVerification($account);
         } catch (\Throwable $e) {
             \Log::error('Verify email failed: ' . $e->getMessage());
-            // có thể flash thông báo nhẹ nếu muốn
         }
-
         return redirect()->route('verification.notice');
-
 
     }
     /**
@@ -167,6 +165,28 @@ class RegisterController extends Controller
 
         // fallback bất khả kháng
         return $baseShort . \Illuminate\Support\Str::random(3);
+    }
+
+    public function sendCustomVerification($account)
+    {
+        $token = Str::random(64);
+
+        $account->email_verify_token = $token;
+        $account->save();
+
+        $verifyUrl = url('/email/verify-token/' . $token);
+
+        $mail = new SGMail();
+        $mail->setFrom(config('mail.from.address'), config('mail.from.name'));
+        $mail->setSubject('Xác minh email');
+        $mail->addTo($account->email, $account->name ?? 'Người dùng');
+        $mail->addContent(
+            'text/html',
+            "Xin chào, vui lòng bấm <a href='{$verifyUrl}'>vào đây</a> để xác minh email."
+        );
+
+        $sg = new \SendGrid(env('SENDGRID_API_KEY'));
+        $sg->send($mail);
     }
 
 
