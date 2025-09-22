@@ -25,9 +25,10 @@
   <!-- Main CSS File -->
   <link href="{{ asset('assets/css/main.css') }}" rel="stylesheet">
   <!-- Sweet Alert -->
-     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  @stack('styles')
 </head>
 
 <body>
@@ -57,17 +58,17 @@
   <!-- Main JS File -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ asset('assets/js/main.js') }}"></script>
-</body>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const el = document.getElementById('userDropdown');
-  if (el) {
-    el.addEventListener('click', function (e) {
-      e.preventDefault(); // chặn nhảy trang #
-      bootstrap.Dropdown.getOrCreateInstance(el).toggle();
-    });
-  }
-});
+  @stack('scripts')
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const el = document.getElementById('userDropdown');
+    if (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault(); // chặn nhảy trang #
+        bootstrap.Dropdown.getOrCreateInstance(el).toggle();
+      });
+    }
+  });
 </script>
-
+</body>
 </html>
