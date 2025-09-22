@@ -26,10 +26,10 @@
                         <div class="container">
 
                             <article class="article">
-
-                                <div class="post-img">
-                                    <img src="assets/img/blog/blog-1.jpg" alt="" class="img-fluid">
-                                </div>
+                                <!-- Blog Details Section 
+                                        <div class="post-img">
+                                            <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
+                                        </div>-->
 
                                 <h2 class="title">{{ $job->title }}
                                 </h2>
@@ -120,7 +120,8 @@
 
                             <div id="comment-1" class="comment">
                                 <div class="d-flex">
-                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-1.jpg') }}" alt=""></div>
+                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-1.jpg') }}"
+                                            alt=""></div>
                                     <div>
                                         <h5><a href="">Georgia Reader</a> <a href="#" class="reply"><i
                                                     class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -136,7 +137,8 @@
 
                             <div id="comment-2" class="comment">
                                 <div class="d-flex">
-                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-2.jpg') }}" alt=""></div>
+                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-2.jpg') }}"
+                                            alt=""></div>
                                     <div>
                                         <h5><a href="">Aron Alvarado</a> <a href="#" class="reply"><i
                                                     class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -150,7 +152,8 @@
 
                                 <div id="comment-reply-1" class="comment comment-reply">
                                     <div class="d-flex">
-                                        <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-3.jpg') }}" alt=""></div>
+                                        <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-3.jpg') }}"
+                                                alt=""></div>
                                         <div>
                                             <h5><a href="">Lynda Small</a> <a href="#" class="reply"><i
                                                         class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -174,7 +177,8 @@
 
                                     <div id="comment-reply-2" class="comment comment-reply">
                                         <div class="d-flex">
-                                            <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-4.jpg') }}" alt=""></div>
+                                            <div class="comment-img"><img
+                                                    src="{{ asset('assets/img/blog/comments-4.jpg') }}" alt=""></div>
                                             <div>
                                                 <h5><a href="">Sianna Ramsay</a> <a href="#" class="reply"><i
                                                             class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -196,7 +200,8 @@
 
                             <div id="comment-3" class="comment">
                                 <div class="d-flex">
-                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-5.jpg') }}" alt=""></div>
+                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-5.jpg') }}"
+                                            alt=""></div>
                                     <div>
                                         <h5><a href="">Nolan Davidson</a> <a href="#" class="reply"><i
                                                     class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -216,7 +221,8 @@
 
                             <div id="comment-4" class="comment">
                                 <div class="d-flex">
-                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-6.jpg') }}" alt=""></div>
+                                    <div class="comment-img"><img src="{{ asset('assets/img/blog/comments-6.jpg') }}"
+                                            alt=""></div>
                                     <div>
                                         <h5><a href="">Kay Duggan</a> <a href="#" class="reply"><i
                                                     class="bi bi-reply-fill"></i> Reply</a></h5>
@@ -374,6 +380,105 @@
                     </div>
 
                 </div>
+                <!-- Floating Apply Button -->
+                @php
+                    $userId = auth()->check() ? auth()->id() : null;
+                    $hasApplied = $userId && $job->apply_id ? in_array($userId, explode(',', $job->apply_id)) : false;
+                    $isExpired = $job->deadline && \Carbon\Carbon::parse($job->deadline)->lt(\Carbon\Carbon::now());
+                @endphp
+
+                @if(!$hasApplied && !$isExpired)
+                    <a href="javascript:void(0);" class="btn btn-success rounded-circle apply-floating apply-btn"
+                        data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
+                        title="Ứng Tuyển Ngay">
+                        <i class="bi bi-briefcase-fill"></i>
+                    </a>
+                @endif
+
+
+                <!-- Modal Thông Báo -->
+                <div class="modal fade" id="applyModal" tabindex="-1" aria-labelledby="applyModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="applyModalLabel">Thông báo</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="applyModalBody">
+                                <!-- Spinner mặc định, sẽ hiển thị khi chờ AJAX -->
+                                <div id="applySpinner" class="text-center my-3" style="display:none;">
+                                    <div class="spinner-border text-success" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <div>Đang xử lý...</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                <a href="{{ route('login') }}" class="btn btn-primary" id="loginBtn"
+                                    style="display:none;">Đăng nhập</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    $(document).ready(function () {
+                        $('.apply-btn').click(function () {
+                            var jobId = $(this).data('job-id');
+
+                            // Hiển thị modal ngay, hiện spinner
+                            $('#applyModalBody').html($('#applySpinner').show());
+                            $('#loginBtn').hide();
+                            var modal = new bootstrap.Modal(document.getElementById('applyModal'));
+                            modal.show();
+
+                            $.ajax({
+                                url: '/jobs/apply/' + jobId,
+                                method: 'GET',
+                                success: function (response) {
+                                    // Ẩn spinner và hiển thị thông báo
+                                    $('#applySpinner').hide();
+                                    $('#applyModalBody').html(response.message);
+
+                                    if (response.login_required) {
+                                        $('#loginBtn').show();
+                                    } else {
+                                        $('#loginBtn').hide();
+                                    }
+                                },
+                                error: function () {
+                                    $('#applySpinner').hide();
+                                    $('#applyModalBody').html('Có lỗi xảy ra. Vui lòng thử lại.');
+                                    $('#loginBtn').hide();
+                                }
+                            });
+                        });
+                    });
+                </script>
+
+                <style>
+                    .apply-floating {
+                        position: fixed;
+                        bottom: 75px;
+                        right: 8px;
+                        width: 55px;
+                        height: 55px;
+                        padding: 0;
+                        z-index: 9999;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 24px;
+                        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+                        transition: transform 0.2s, background-color 0.2s;
+                    }
+
+                    .apply-floating:hover {
+                        transform: translateY(-3px);
+                        background-color: #198754;
+                    }
+                </style>
 
             </div>
         </div>

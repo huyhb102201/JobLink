@@ -61,6 +61,9 @@ Route::middleware('auth')->group(function () {
 
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+
+     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
+     
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');

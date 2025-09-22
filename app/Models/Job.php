@@ -20,6 +20,7 @@ class Job extends Model
         'payment_type',
         'status',
         'deadline',
+        'apply_id',
     ];
 
     // Quan hệ với JobDetail
