@@ -28,6 +28,12 @@ class Job extends Model
         return $this->hasMany(JobDetail::class, 'job_id', 'job_id');
     }
 
+    // Quan hệ với JobCategories
+    public function jobCategory()
+    {
+        return $this->belongsTo(JobCategory::class, 'category_id', 'category_id');
+    }
+
     // Quan hệ với user nhận chat
     public function account()
     {
