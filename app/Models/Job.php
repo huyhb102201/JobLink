@@ -22,6 +22,12 @@ class Job extends Model
         'deadline',
     ];
 
+    // Quan hệ với JobDetail
+    public function jobDetails()
+    {
+        return $this->hasMany(JobDetail::class, 'job_id', 'job_id');
+    }
+
     // Quan hệ với user nhận chat
     public function account()
     {

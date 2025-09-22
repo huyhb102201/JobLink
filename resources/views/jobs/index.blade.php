@@ -54,21 +54,21 @@
                                         <li>
                                             <i class="bi bi-calendar-event me-1"></i>
                                             <strong>Hạn cuối:</strong>
-                                            {{ \Carbon\Carbon::parse($job->deadline)->format('d/m/Y H:i') }}
+                                            {{ \Carbon\Carbon::parse($job->deadline)->format('d/m/Y') }}
                                         </li>
                                     </ul>
 
                                     {{-- Người đăng --}}
                                     <div class="d-flex align-items-center mt-3 border-top pt-3">
-                                        <img src="{{ $job->account->avatar ?? asset('assets/img/blog/blog-author.jpg') }}"
-                                            alt="{{ $job->account->name ?? 'Người đăng' }}" class="rounded-circle me-2"
-                                            width="40" height="40">
+                                        <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                            alt="{{ optional($job->account)->name ?? 'Người đăng' }}"
+                                            class="rounded-circle me-2" width="40" height="40">
 
                                         <div>
                                             <p class="mb-0 fw-bold">{{ $job->account->name ?? 'Người đăng ẩn danh' }}</p>
                                             <p class="mb-0 text-muted">
                                                 <time datetime="{{ $job->created_at }}">
-                                                    Đăng ngày {{ $job->created_at->format('d/m/Y') }}
+                                                    Đăng ngày {{ $job->created_at->format('h:i:s A d/m/Y') }}
                                                 </time>
                                             </p>
                                         </div>
@@ -77,10 +77,12 @@
 
                                 {{-- Button xem chi tiết --}}
                                 <div class="card-footer bg-transparent border-top-0 pt-0 mt-2">
-                                    <a href="#" class="btn btn-sm btn-outline-primary w-100">
+                                    <a href="{{ route('jobs.show', $job->job_id) }}"
+                                        class="btn btn-sm btn-outline-primary w-100">
                                         Xem chi tiết
                                     </a>
                                 </div>
+
                             </div>
                         </div>
                     @endforeach

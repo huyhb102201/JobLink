@@ -79,6 +79,8 @@ Route::middleware('auth')->group(function () {
 // Hiển thị danh sách công việc
 Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');
 
+Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
+
 // Hiển thị danh sách freelancer
 Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
 
