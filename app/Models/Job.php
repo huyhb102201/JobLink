@@ -15,7 +15,7 @@ class Job extends Model
         'account_id',
         'title',
         'description',
-        'category',
+        'category_id',
         'budget',
         'payment_type',
         'status',
@@ -33,4 +33,9 @@ class Job extends Model
     {
         return $this->belongsTo(Account::class, 'account_id');
     }
+    public function categoryRef()
+    {
+        return $this->belongsTo(\App\Models\JobCategory::class, 'category_id', 'category_id');
+    }
+
 }

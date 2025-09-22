@@ -15,6 +15,10 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\RegisterController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\Client\JobPostController;
+use App\Http\Controllers\Client\JobAIFormController;
+use App\Http\Controllers\Client\JobWizardController;
+use App\Http\Controllers\Client\MyJobsController;
 use App\Models\Account;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
@@ -148,24 +152,15 @@ Route::get('/email/verify-token/{token}', function ($token) {
 
     return redirect('/')->with('status', 'Xác minh email thành công!');
 })->name('verification.token');
-use SendGrid\Mail\Mail as SGMail;
 
-Route::get('/test-sg-sdk', function () {
-    $mail = new SGMail();
-    $mail->setFrom(config('mail.from.address'), config('mail.from.name'));
-    $mail->setSubject('Test SendGrid SDK OK');
-    $mail->addTo('22004027@st.vlute.edu.vn', 'Bạn');
-    $mail->addContent('text/plain', 'Gửi qua SDK, không dùng SMTP/Mailer.');
-
-    $sg = new \SendGrid(env('SENDGRID_API_KEY'));
-    $resp = $sg->send($mail);
-
-    return 'Status: ' . $resp->statusCode();
-});
-Route::get('/debug-signed', function (\Illuminate\Http\Request $req) {
-    return [
-        'url' => url()->current(),
-        'full' => $req->fullUrl(),
-        'expected' => URL::signedRoute('verification.verify', ['id' => 1, 'hash' => 'abc']),
-    ];
+Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->group(function () {
+    Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
+    Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
+    Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
+    Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
+    Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose'); // trang chọn
+    Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
+    Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
+    Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
+    Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
 });
