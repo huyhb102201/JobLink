@@ -1,5 +1,6 @@
 @if ($paginator->hasPages())
-    <section id="blog-pagination" class="blog-pagination section">
+<div id="pagination-wrapper" class="mt-4">
+    <section class="blog-pagination section">
         <div class="container">
             <div class="d-flex justify-content-center">
                 <ul>
@@ -8,8 +9,7 @@
                         <li class="disabled"><span><i class="bi bi-chevron-left"></i></span></li>
                     @else
                         <li>
-                            <a href="javascript:void(0)" class="page-link" 
-                               data-page="{{ $paginator->currentPage() - 1 }}">
+                            <a href="javascript:void(0)" class="ajax-page-link" data-page="{{ $paginator->currentPage() - 1 }}">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                         </li>
@@ -27,9 +27,7 @@
                                     <li><a href="javascript:void(0)" class="active">{{ $page }}</a></li>
                                 @else
                                     <li>
-                                        <a href="javascript:void(0)" class="page-link" data-page="{{ $page }}">
-                                            {{ $page }}
-                                        </a>
+                                        <a href="javascript:void(0)" class="ajax-page-link" data-page="{{ $page }}">{{ $page }}</a>
                                     </li>
                                 @endif
                             @endforeach
@@ -39,8 +37,7 @@
                     {{-- Next --}}
                     @if ($paginator->hasMorePages())
                         <li>
-                            <a href="javascript:void(0)" class="page-link" 
-                               data-page="{{ $paginator->currentPage() + 1 }}">
+                            <a href="javascript:void(0)" class="ajax-page-link" data-page="{{ $paginator->currentPage() + 1 }}">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </li>
@@ -51,4 +48,5 @@
             </div>
         </div>
     </section>
+</div>
 @endif
