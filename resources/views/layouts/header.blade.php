@@ -26,6 +26,40 @@
                         Công việc
                     </a>
                 </li>
+                @auth
+                    @php
+                        $acc = Auth::user()->loadMissing('type');
+                        $isClient = strtoupper($acc->type->code ?? '') === 'CLIENT';
+
+                        // những route được coi là "Đăng công việc"
+                        $activePost = request()->routeIs(
+                            'client.jobs.choose',
+                            'client.jobs.wizard.*',
+                            'client.jobs.create',
+                            'client.jobs.ai_form'
+                        );
+
+                        // trang My Jobs
+                        $activeMine = request()->routeIs('client.jobs.mine');
+                      @endphp
+
+                    @if($isClient)
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activePost ? 'active fw-semibold' : '' }}"
+                                href="{{ route('client.jobs.choose') }}">
+                                Đăng công việc
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeMine ? 'active fw-semibold' : '' }}"
+                                href="{{ route('client.jobs.mine') }}">
+                                Công việc của tôi
+                            </a>
+                        </li>
+                    @endif
+                @endauth
+
                 <li class="nav-item">
                     <a class="nav-link {{ request()->is('freelancers*') ? 'active fw-semibold' : '' }}"
                         href="{{ url('/freelancers') }}">
