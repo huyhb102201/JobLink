@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Auth\SocialController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Client\JobPostController;
 use App\Http\Controllers\Client\JobAIFormController;
 use App\Http\Controllers\Client\JobWizardController;
 use App\Http\Controllers\Client\MyJobsController;
+use App\Http\Controllers\Admin\AccountController;
 use App\Models\Account;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
@@ -32,7 +34,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // Routes đăng nhập bằng google và github
-Route::get('/', fn() => view('home'))->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/auth/google/redirect', [SocialController::class, 'googleRedirect'])->name('google.redirect');
 Route::get('/auth/google/callback', [SocialController::class, 'googleCallback'])->name('google.callback');
 Route::get('auth/github/redirect', [SocialController::class, 'githubRedirect'])->name('github.redirect');
@@ -181,3 +183,50 @@ Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->g
     Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
 });
+// routes/web.php (hoặc routes/api.php)
+
+Route::get('/checkout', function () {
+    return view('checkout');
+});
+
+Route::get('/success.html', function () {
+    return view('success');
+});
+
+Route::get('/cancel.html', function () {
+    return view('cancel');
+});
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
+Route::post('/create-payment-link', [CheckoutController::class, 'createPaymentLink'])->name('create.payment.link');
+
+Route::prefix('/order')->group(function () {
+    Route::post('/create', [OrderController::class, 'createOrder']);
+    Route::get('/{id}', [OrderController::class, 'getPaymentLinkInfoOfOrder']);
+    Route::put('/{id}', [OrderController::class, 'cancelPaymentLinkOfOrder']);
+});
+
+Route::prefix('/payment')->group(function () { 
+    Route::post('/payos', [PaymentController::class, 'handlePayOSWebhook']);
+});
+use App\Http\Controllers\UpgradeController;
+
+Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('settings.upgrade');
+Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
+
+Route::prefix('admin')->name('admin.')->group(function () {
+    // Route trang chủ admin (dashboard)
+    Route::get('/', function() {
+        return 'Đây là trang Admin Dashboard';
+    })->name('dashboard');
+
+    // Route quản lý tài khoản
+    Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
+    Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
+    Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+});
+
+Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');

@@ -3,8 +3,34 @@
 @section('content')
   <main class="main">
     <!-- Hero Section -->
-    <section id="hero" class="hero section">
+@auth
+    @if(is_null(auth()->user()->email_verified_at))
+      <div class="alert alert-warning w-100 mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Tài khoản của bạn chưa xác thực email.
+        <button type="submit"
+                class="btn btn-link alert-link p-0 m-0 align-baseline"
+                form="resendVerifyForm">
+          Bấm vào đây để xác thực
+        </button>
+      </div>
+    @endif
+@endauth
 
+
+{{-- Hiện thông báo khi gửi mail thành công --}}
+@if (session('status') == 'verification-link-sent')
+  <div class="alert alert-success w-100 mb-3" role="alert">
+    <i class="bi bi-check-circle me-1"></i>
+    Liên kết xác thực đã được gửi tới email của bạn.
+  </div>
+@endif
+
+<form id="resendVerifyForm" method="POST" action="{{ route('verification.send') }}" class="d-none">
+  @csrf
+</form>
+
+    <section id="hero" class="hero section">
       <div class="container d-flex flex-column justify-content-center align-items-center text-center position-relative"
         data-aos="zoom-out">
         <img src="assets/img/hero-img.svg" class="img-fluid animated" alt="">
@@ -698,20 +724,20 @@
 
         <div class="swiper init-swiper">
           <script type="application/json" class="swiper-config">
-                              {
-                                "loop": true,
-                                "speed": 600,
-                                "autoplay": {
-                                  "delay": 5000
-                                },
-                                "slidesPerView": "auto",
-                                "pagination": {
-                                  "el": ".swiper-pagination",
-                                  "type": "bullets",
-                                  "clickable": true
+                                {
+                                  "loop": true,
+                                  "speed": 600,
+                                  "autoplay": {
+                                    "delay": 5000
+                                  },
+                                  "slidesPerView": "auto",
+                                  "pagination": {
+                                    "el": ".swiper-pagination",
+                                    "type": "bullets",
+                                    "clickable": true
+                                  }
                                 }
-                              }
-                            </script>
+                              </script>
 
           <div class="swiper-wrapper">
 
@@ -975,5 +1001,5 @@
     </section><!-- /Faq Section -->
 
   </main>
-  
+
 @endsection
