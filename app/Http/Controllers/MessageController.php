@@ -10,45 +10,97 @@ use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
-    // Freelancer chat với chủ job
+    /**
+     * Hiển thị tất cả cuộc trò chuyện (không lọc job)
+     */
+    public function chatAll()
+    {
+        $userId = Auth::id();
+        $conversations = $this->getConversations($userId);
+
+        return view('chat.box', [
+            'job' => null,
+            'messages' => collect([]),
+            'receiverId' => null,
+            'conversations' => $conversations,
+        ]);
+    }
+
+    /**
+     * Lấy danh sách conversation cho sidebar
+     */
+    private function getConversations($userId, $jobId = null)
+    {
+        $query = Message::with('sender')
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                    ->orWhere('conversation_id', $userId);
+            });
+
+        if ($jobId !== null) {
+            $query->where('job_id', $jobId);
+        }
+
+        // Lấy tất cả tin nhắn mới nhất theo created_at DESC
+        $messages = $query->orderBy('created_at', 'desc')->get();
+
+        // Group by partner
+        $conversations = $messages->groupBy(function ($msg) use ($userId) {
+            return $msg->sender_id == $userId ? $msg->conversation_id : $msg->sender_id;
+        });
+
+        return $conversations;
+    }
+
+
+    /**
+     * Freelancer chat với chủ job
+     */
     public function chat($jobId)
     {
         $job = Job::findOrFail($jobId);
         $userId = Auth::id();
+        $employerId = $job->account_id;
 
-        // Nếu user là chủ job -> hiển thị danh sách freelancer đã chat
-        if ($userId == $job->account_id) {
-            $freelancers = Message::where('job_id', $jobId)
-                ->with('sender')
-                ->get()
-                ->pluck('sender')
-                ->unique('id');
-
-            return view('chat.list', compact('job', 'freelancers'));
+        // Nếu không phải chủ job thì check xem có apply chưa
+        if ($userId != $employerId) {
+            $appliedUsers = $job->apply_id ? explode(',', $job->apply_id) : [];
+            if (!in_array($userId, $appliedUsers)) {
+                abort(403, 'Bạn không có quyền vào phòng chat này');
+            }
         }
 
-        // Freelancer -> chat với chủ job
-        $receiverId = $job->account_id;
+        // receiver luôn là chủ job (employer)
+        $receiverId = $employerId;
 
+        // Lấy tất cả tin nhắn giữa user ↔ employer cho job này
         $messages = Message::with('sender')
             ->where('job_id', $jobId)
-            ->where(function($q) use ($userId, $receiverId) {
-                $q->where(function($q2) use ($userId, $receiverId) {
+            ->where(function ($q) use ($userId, $employerId) {
+                $q->where(function ($q2) use ($userId, $employerId) {
                     $q2->where('sender_id', $userId)
-                       ->where('conversation_id', $receiverId);
-                })
-                ->orWhere(function($q2) use ($userId, $receiverId) {
-                    $q2->where('sender_id', $receiverId)
-                       ->where('conversation_id', $userId);
+                        ->where('conversation_id', $employerId);
+                })->orWhere(function ($q2) use ($userId, $employerId) {
+                    $q2->where('sender_id', $employerId)
+                        ->where('conversation_id', $userId);
                 });
             })
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('chat.box', compact('job', 'messages', 'receiverId'));
+        $conversations = $this->getConversations($userId, $jobId);
+
+        return view('chat.box', [
+            'job' => $job,
+            'messages' => $messages,
+            'receiverId' => $receiverId,
+            'conversations' => $conversations,
+        ]);
     }
 
-    // Chủ job chat với freelancer
+    /**
+     * Chủ job chat trực tiếp với freelancer
+     */
     public function chatWithFreelancer($jobId, $freelancerId)
     {
         $job = Job::findOrFail($jobId);
@@ -58,27 +110,30 @@ class MessageController extends Controller
             abort(403, 'Bạn không phải chủ job');
         }
 
-        $receiverId = $freelancerId;
-
         $messages = Message::with('sender')
             ->where('job_id', $jobId)
-            ->where(function($q) use ($userId, $freelancerId) {
-                $q->where(function($q2) use ($userId, $freelancerId) {
+            ->where(function ($q) use ($userId, $freelancerId) {
+                $q->where(function ($q2) use ($userId, $freelancerId) {
                     $q2->where('sender_id', $userId)
-                       ->where('conversation_id', $freelancerId);
-                })
-                ->orWhere(function($q2) use ($userId, $freelancerId) {
+                        ->where('conversation_id', $freelancerId);
+                })->orWhere(function ($q2) use ($userId, $freelancerId) {
                     $q2->where('sender_id', $freelancerId)
-                       ->where('conversation_id', $userId);
+                        ->where('conversation_id', $userId);
                 });
             })
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('chat.box', compact('job', 'messages', 'receiverId'));
+        return view('chat.box', [
+            'job' => $job,
+            'messages' => $messages,
+            'receiverId' => $freelancerId,
+        ]);
     }
 
-    // Gửi tin nhắn
+    /**
+     * Gửi tin nhắn
+     */
     public function send(Request $request)
     {
         $validated = $request->validate([
@@ -121,4 +176,35 @@ class MessageController extends Controller
             'conversation_id' => $message->conversation_id,
         ]);
     }
+
+
+    /**
+     * API: lấy lịch sử tin nhắn
+     */
+    public function getMessages($partnerId, $jobId = null)
+    {
+        $userId = Auth::id();
+
+        $query = Message::with('sender')
+            ->where(function ($q) use ($userId, $partnerId) {
+                $q->where(function ($q2) use ($userId, $partnerId) {
+                    $q2->where('sender_id', $userId)
+                        ->where('conversation_id', $partnerId);
+                })->orWhere(function ($q2) use ($userId, $partnerId) {
+                    $q2->where('sender_id', $partnerId)
+                        ->where('conversation_id', $userId);
+                });
+            });
+
+        if ($jobId) {
+            $query->where('job_id', $jobId);
+        } else {
+            $query->whereNull('job_id');
+        }
+
+        $messages = $query->orderBy('created_at', 'asc')->get();
+
+        return response()->json($messages);
+    }
+
 }

@@ -90,7 +90,7 @@
                     <!-- Job Cards -->
                     <div class="col-xl-8 col-xxl-9">
                         {{-- Bao toàn bộ partial --}}
-                         @include('jobs.partials.jobs-list')
+                        @include('jobs.partials.jobs-list')
                     </div>
 
 
@@ -99,49 +99,49 @@
         </section>
     </main>
 
-   <script>
-function loadJobs(page) {
-    $("#jobs-list").fadeTo(200, 0.5);
+    <script>
+        function loadJobs(page) {
+            $("#jobs-list").fadeTo(200, 0.5);
 
-    $.ajax({
-        url: "/jobs?page=" + page,
-        type: "GET",
-        success: function(res) {
-            const newJobs = $(res).find("#jobs-list").html();
-            const newPagination = $(res).find("#pagination-wrapper").html();
+            $.ajax({
+                url: "/jobs?page=" + page,
+                type: "GET",
+                success: function (res) {
+                    const newJobs = $(res).find("#jobs-list").html();
+                    const newPagination = $(res).find("#pagination-wrapper").html();
 
-            if (!newJobs) {
-                alert('Không load được dữ liệu mới từ server.');
-                $("#jobs-list").fadeTo(200, 1);
-                return;
-            }
+                    if (!newJobs) {
+                        alert('Không load được dữ liệu mới từ server.');
+                        $("#jobs-list").fadeTo(200, 1);
+                        return;
+                    }
 
-            $("#jobs-list").html(newJobs);
-            $("#pagination-wrapper").html(newPagination);
-            $("#jobs-list").fadeTo(200, 1);
-        },
-        error: function() {
-            alert('Có lỗi xảy ra. Vui lòng thử lại.');
-            $("#jobs-list").fadeTo(200, 1);
+                    $("#jobs-list").html(newJobs);
+                    $("#pagination-wrapper").html(newPagination);
+                    $("#jobs-list").fadeTo(200, 1);
+                },
+                error: function () {
+                    alert('Có lỗi xảy ra. Vui lòng thử lại.');
+                    $("#jobs-list").fadeTo(200, 1);
+                }
+            });
         }
-    });
-}
 
-// Click phân trang
-$(document).on('click', '.ajax-page-link', function(e) {
-    e.preventDefault();
-    let page = $(this).data('page');
-    loadJobs(page);
-    history.pushState({ page: page }, '', '?page=' + page);
-});
+        // Click phân trang
+        $(document).on('click', '.ajax-page-link', function (e) {
+            e.preventDefault();
+            let page = $(this).data('page');
+            loadJobs(page);
+            history.pushState({ page: page }, '', '?page=' + page);
+        });
 
-// Back/forward
-window.onpopstate = function(event) {
-    let page = event.state?.page || 1;
-    loadJobs(page);
-};
+        // Back/forward
+        window.onpopstate = function (event) {
+            let page = event.state?.page || 1;
+            loadJobs(page);
+        };
 
-</script>
+    </script>
 
 
 @endsection

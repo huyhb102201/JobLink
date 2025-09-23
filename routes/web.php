@@ -54,6 +54,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/onboarding/skills', [OnboardingController::class, 'showSkills'])->name('onb.skills.show');
     Route::post('/onboarding/skills', [OnboardingController::class, 'storeSkills'])->name('onb.skills.store');
+    
+// Tất cả đoạn chat
+Route::get('/chat', [MessageController::class, 'chatAll'])->name('chat.all');
+
+Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
+
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
 
     // Chủ job vào chat với freelancer cụ thể
