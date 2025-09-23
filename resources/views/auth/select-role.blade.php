@@ -76,9 +76,6 @@
     </div>
   </div>
 
-  <div class="mt-4">
-    <a class="btn btn-ghost px-4" href="{{ route('home') }}">Skip for now</a>
-  </div>
 
   @if ($errors->any())
     <div class="alert alert-danger mt-3 small">

@@ -16,4 +16,8 @@ class AccountType extends Model
     {
         return $this->hasMany(Account::class, 'account_type_id', 'account_type_id');
     }
+    public function membership()
+    {
+        return $this->hasMany(Account::class, 'account_type_id', 'account_type_id');
+    }
 }

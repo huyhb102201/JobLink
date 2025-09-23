@@ -38,6 +38,13 @@ class Account extends Authenticatable implements MustVerifyEmail
     protected $hidden = ['password', 'oauth_access_token', 'oauth_refresh_token'];
 
     protected $dates = ['last_login_at', 'email_verified_at', 'oauth_expires_at', 'created_at', 'updated_at'];
+    protected $casts = [
+        'last_login_at' => 'datetime',
+        'email_verified_at' => 'datetime',
+        'oauth_expires_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
     // Laravel mặc định dùng cột 'email' làm username; nếu muốn đổi có thể override:
     // public function getAuthIdentifierName(){ return 'account_id'; }
@@ -65,5 +72,11 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         // Gửi bằng SendGrid SDK thay vì Mailer
         app(\App\Services\VerifyEmailService::class)->send($this);
+    }
+    public function accountType()
+    {
+        // Giả định khóa ngoại trong bảng 'accounts' là 'account_type_id'
+        // và khóa chính trong bảng 'account_types' là 'account_type_id'
+        return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
     }
 }

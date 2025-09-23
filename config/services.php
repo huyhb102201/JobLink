@@ -52,4 +52,10 @@ return [
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
     ],
+    'vietqr' => [
+        'base' => env('VIETQR_BASE', 'https://api.vietqr.io/v2'),
+        'client_id' => env('VIETQR_CLIENT_ID'),
+        'api_key' => env('VIETQR_API_KEY'),
+    ],
+
 ];
