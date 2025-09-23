@@ -190,7 +190,7 @@ Route::prefix('/order')->group(function () {
     Route::put('/{id}', [OrderController::class, 'cancelPaymentLinkOfOrder']);
 });
 
-Route::prefix('/payment')->group(function () { 
+Route::prefix('/payment')->group(function () {
     Route::post('/payos', [PaymentController::class, 'handlePayOSWebhook']);
 });
 use App\Http\Controllers\UpgradeController;
@@ -198,18 +198,14 @@ use App\Http\Controllers\UpgradeController;
 Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('settings.upgrade');
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
-Route::prefix('admin')->name('admin.')->group(function () {
-    // Route trang chủ admin (dashboard)
-    Route::get('/', function() {
-        return 'Đây là trang Admin Dashboard';
-    })->name('dashboard');
-
-    // Route quản lý tài khoản
-    Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
-    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
-    Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
-    Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
-});
+Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
+        // ... các route khác
+        Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+        Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
+        Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
+        Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+    });
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
