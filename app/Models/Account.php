@@ -66,4 +66,10 @@ class Account extends Authenticatable implements MustVerifyEmail
         // Gửi bằng SendGrid SDK thay vì Mailer
         app(\App\Services\VerifyEmailService::class)->send($this);
     }
+    
+    public function jobs()
+{
+    return $this->hasMany(Job::class, 'account_id', 'account_id');
+}
+
 }

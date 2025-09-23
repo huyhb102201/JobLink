@@ -38,7 +38,7 @@ class Job extends Model
     // Quan hệ với user nhận chat
     public function account()
     {
-        return $this->belongsTo(Account::class, 'account_id');
+        return $this->belongsTo(Account::class, 'account_id', 'account_id');
     }
     public function categoryRef()
     {
