@@ -182,7 +182,36 @@ class RegisterController extends Controller
         $mail->addTo($account->email, $account->name ?? 'Người dùng');
         $mail->addContent(
             'text/html',
-            "Xin chào, vui lòng bấm <a href='{$verifyUrl}'>vào đây</a> để xác minh email."
+            "
+    <div style='font-family: Arial, sans-serif; background-color:#f9f9f9; padding:20px;'>
+        <div style='max-width:600px; margin:auto; background:#ffffff; border-radius:8px; padding:30px; box-shadow:0 2px 5px rgba(0,0,0,0.1);'>
+            <h2 style='color:#333; text-align:center; margin-bottom:20px;'>Xác minh địa chỉ email</h2>
+            
+            <p style='font-size:15px; color:#555; line-height:1.6;'>
+                Xin chào, <br><br>
+                Cảm ơn bạn đã đăng ký tài khoản. Vui lòng nhấn vào nút bên dưới để xác minh email:
+            </p>
+
+            <div style='text-align:center; margin:30px 0;'>
+                <a href='{$verifyUrl}' 
+                   style='background-color:#007bff; color:#fff; padding:12px 24px; border-radius:5px; text-decoration:none; font-size:16px;'>
+                   Xác minh ngay
+                </a>
+            </div>
+
+            <p style='font-size:13px; color:#999; text-align:center;'>
+                Nếu nút không hoạt động, hãy copy và dán liên kết sau vào trình duyệt của bạn:<br>
+                <a href='{$verifyUrl}' style='color:#007bff;'>{$verifyUrl}</a>
+            </p>
+
+            <hr style='border:none; border-top:1px solid #eee; margin:30px 0;'>
+
+            <p style='font-size:12px; color:#aaa; text-align:center;'>
+                Đây là email tự động, vui lòng không trả lời.
+            </p>
+        </div>
+    </div>
+    "
         );
 
         $sg = new \SendGrid(env('SENDGRID_API_KEY'));

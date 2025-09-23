@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Auth\SocialController;
@@ -32,7 +33,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // Routes đăng nhập bằng google và github
-Route::get('/', fn() => view('home'))->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/auth/google/redirect', [SocialController::class, 'googleRedirect'])->name('google.redirect');
 Route::get('/auth/google/callback', [SocialController::class, 'googleCallback'])->name('google.callback');
 Route::get('auth/github/redirect', [SocialController::class, 'githubRedirect'])->name('github.redirect');
