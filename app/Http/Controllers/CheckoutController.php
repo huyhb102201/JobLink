@@ -57,39 +57,60 @@ class CheckoutController extends Controller
         }
     }
     public function paymentSuccess(Request $request)
-{
-    // Lấy dữ liệu từ PayOS redirect (bạn cần check chính xác key trong docs PayOS)
-    $orderCode = $request->input('orderCode');
-    $status    = $request->input('status'); // "PAID"...
+    {
+        // Lấy dữ liệu từ PayOS redirect (bạn cần check chính xác key trong docs PayOS)
+        $orderCode = $request->input('orderCode');
+        $status = $request->input('status'); // "PAID"...
 
-    $payment = Payment::where('order_code', $orderCode)->first();
+        $payment = Payment::where('order_code', $orderCode)->first();
 
-    if ($payment) {
-        // Cập nhật trạng thái payment
-        $payment->update([
-            'status'      => $status === 'PAID' ? 'success' : ($status ?? 'success'),
-            'description' => 'Thanh toán thành công gói #' . $payment->plan_id,
-        ]);
+        if ($payment) {
+            // Cập nhật trạng thái payment
+            $payment->update([
+                'status' => $status === 'PAID' ? 'success' : ($status ?? 'success'),
+                'description' => 'Thanh toán thành công gói #' . $payment->plan_id,
+            ]);
 
-        $planId = $payment->plan_id;
-        $amount = $payment->amount;
+            $planId = $payment->plan_id;
+            $amount = $payment->amount;
 
-        // Update account_type_id cho account
-        $plan = MembershipPlan::find($planId);
-        if ($plan) {
-            Account::where('account_id', $payment->account_id)
-                   ->update(['account_type_id' => $plan->account_type_id]);
+            // Update account_type_id cho account
+            $plan = MembershipPlan::find($planId);
+            if ($plan) {
+                Account::where('account_id', $payment->account_id)
+                    ->update(['account_type_id' => $plan->account_type_id]);
+            }
+
+            // Trả về view thông báo
+            return view('checkout.success', compact('orderCode', 'amount'));
         }
-
-        // Trả về view thông báo
-        return view('checkout.success', compact('orderCode', 'amount'));
     }
-}
 
 
     public function paymentCancel(Request $request)
     {
-        return view('checkout.cancel'); // resources/views/checkout/cancel.blade.php
+        $orderCode = $request->input('orderCode');
+
+        $payment = Payment::where('order_code', $orderCode)->first();
+
+        if (!$payment) {
+            return view('checkout.cancel')->with('error', 'Không tìm thấy giao dịch.');
+        }
+
+        // Nếu chưa success thì coi cancel = failed
+        if ($payment->status !== 'success') {
+            $payment->update([
+                'status' => 'failed',
+                'description' => 'Thanh toán thất bại #' . $payment->plan_id,
+            ]);
+        }
+
+        return view('checkout.cancel', [
+            'orderCode' => $orderCode,
+            'amount' => $payment->amount,
+            'status' => $payment->status,
+        ]);
     }
+
 
 }
