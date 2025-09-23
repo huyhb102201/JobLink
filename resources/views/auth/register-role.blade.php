@@ -81,9 +81,6 @@
       </div>
     </form>
 
-    <div class="text-center mt-4">
-      <a href="{{ route('register.show') }}" class="small text-decoration-none">Bỏ qua (chọn sau)</a>
-    </div>
   </div>
 </div>
 

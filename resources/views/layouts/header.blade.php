@@ -137,6 +137,25 @@
                                     Loại tài khoản:
                                     <span class="badge bg-light text-dark">{{ $typeName }}</span>
                                 </li>
+                                @if ($typeCode === 'F_BASIC')
+                                    <div class="border rounded-3 p-3 mb-3"
+                                        style="border:1px solid #f8e8a0; background:linear-gradient(90deg, #fdfdfd, #fffef9);">
+                                        <a href="{{ route('settings.upgrade') }}"
+                                            class="d-flex justify-content-between align-items-center text-decoration-none">
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2 fw-semibold text-dark">
+                                                    <i class="bi bi-gem text-warning"></i>
+                                                    Nâng cấp gói Plus
+                                                </div>
+                                                <small class="text-muted">
+                                                    Mở khóa thêm nhiều tính năng & ưu đãi. Không yêu cầu trả trước.
+                                                </small>
+                                            </div>
+                                            <i class="bi bi-arrow-right fw-bold text-dark"></i>
+                                        </a>
+                                    </div>
+                                @endif
+
                                 <li>
                                     <hr class="dropdown-divider my-2">
                                 </li> {{-- NEW --}}
