@@ -3,21 +3,20 @@
 @section('content')
   <main class="main">
     <!-- Hero Section -->
-    @php $isVerified = !is_null($account->email_verified_at); @endphp
+@auth
+    @if(is_null(auth()->user()->email_verified_at))
+      <div class="alert alert-warning w-100 mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Tài khoản của bạn chưa xác thực email.
+        <button type="submit"
+                class="btn btn-link alert-link p-0 m-0 align-baseline"
+                form="resendVerifyForm">
+          Bấm vào đây để xác thực
+        </button>
+      </div>
+    @endif
+@endauth
 
-    {{-- Nếu chưa xác thực email, hiển thị cảnh báo --}}
-    {{-- Hiện alert nếu chưa xác thực --}}
-@if(!$isVerified)
-  <div class="alert alert-warning w-100 mb-3" role="alert">
-    <i class="bi bi-exclamation-triangle me-1"></i>
-    Tài khoản của bạn chưa xác thực email.
-    <button type="submit"
-            class="btn btn-link alert-link p-0 m-0 align-baseline"
-            form="resendVerifyForm">
-      Bấm vào đây để xác thực
-    </button>
-  </div>
-@endif
 
 {{-- Hiện thông báo khi gửi mail thành công --}}
 @if (session('status') == 'verification-link-sent')
