@@ -79,4 +79,8 @@ class Account extends Authenticatable implements MustVerifyEmail
         // và khóa chính trong bảng 'account_types' là 'account_type_id'
         return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
     }
+    public function jobs()
+    {
+        return $this->hasMany(Job::class, 'account_id', 'account_id');
+    }
 }
