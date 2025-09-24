@@ -5,37 +5,23 @@
 @section('content')
     <div class="container my-4">
 
-        <!-- Cover + Avatar -->
         <div class="position-relative mb-5">
-            <!-- Cover (gradient) -->
-            <div class="rounded-4" style="height: 240px; background: linear-gradient(135deg, #4e73df, #1cc88a);"></div>
+            <!-- Cover -->
+            <div class="rounded-4" style="height: 180px; background: linear-gradient(135deg, #4e73df, #1cc88a);"></div>
 
             <!-- Avatar -->
-            <div class="position-absolute bottom-0 start-50 translate-middle" style="margin-bottom: -80px;">
+            <div class="position-absolute top-100 start-50 translate-middle" style="margin-top: -60px;">
                 <div class="position-relative d-inline-block">
                     <img src="{{ $account->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
                         class="rounded-circle border border-4 border-white shadow-lg"
                         style="width:160px; height:160px; object-fit:cover;">
 
-                    <!-- Trạng thái xác minh -->
-                    @if($account->email_verified_at)
-                        <!-- Dấu tích xanh -->
-                        <span
-                            class="position-absolute bottom-0 end-0 
-                                                                                                         bg-success border border-white rounded-circle d-flex align-items-center justify-content-center"
-                            style="width:32px; height:32px;">
-                            <i class="bi bi-check-lg text-white fs-6"></i>
-                        </span>
-                    @else
-                        <!-- Chấm than đỏ -->
-                        <span
-                            class="position-absolute bottom-0 end-0 
-                                                                                                         bg-danger border border-white rounded-circle d-flex align-items-center justify-content-center"
-                            style="width:32px; height:32px;">
-                            <i class="bi bi-exclamation-lg text-white fs-6"></i>
-                        </span>
-                    @endif
-
+                    <!-- Trạng thái xác minh-->
+                    <span
+                        class="position-absolute bottom-0 end-0 bg-secondary border border-white rounded-circle d-flex align-items-center justify-content-center"
+                        style="width:36px; height:36px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;">
+                        <i class="bi bi-camera-fill text-white fs-6"></i>
+                    </span>
                 </div>
             </div>
         </div>
@@ -83,6 +69,7 @@
                     </div>
                 </div>
 
+                <!-- Liên hệ ngay -->
                 <div class="d-grid mb-4">
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chatModal">
                         <i class="bi bi-chat-dots me-2"></i> Liên hệ ngay
@@ -109,15 +96,28 @@
                 @endif
 
                 <!-- Liên hệ & MXH -->
-                <div class="card shadow-sm border-0 mb-4">
+               <div class="card shadow-sm border-0 mb-4">
                     <div class="card-body">
                         <h5 class="fw-bold mb-3"><i class="bi bi-share me-2"></i>Liên hệ & Mạng xã hội</h5>
-                        <p><i class="bi bi-envelope"></i> {{ $account->email }}</p>
-                        <div class="mt-2">
-                            <a href="{{ $profile->github ?? '#' }}" class="btn btn-outline-dark btn-sm me-1"><i
-                                    class="bi bi-github"></i></a>
-                            <a href="{{ $profile->facebook ?? '#' }}" class="btn btn-outline-primary btn-sm me-1"><i
-                                    class="bi bi-facebook"></i></a>
+
+                        <div class="mt-2 d-flex align-items-center">
+                            <!-- GitHub -->
+                            <a href="{{ $profile->github ?? '#' }}" class="btn btn-outline-dark btn-sm me-1"
+                                target="_blank">
+                                <i class="bi bi-github"></i>
+                            </a>
+
+                            <!-- Facebook -->
+                            <a href="{{ $profile->facebook ?? '#' }}" class="btn btn-outline-primary btn-sm me-1"
+                                target="_blank">
+                                <i class="bi bi-facebook"></i>
+                            </a>
+
+                            <!-- Gmail -->
+                            <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ $account->email }}"
+                                class="btn btn-outline-danger btn-sm" target="_blank">
+                                <i class="bi bi-envelope-fill"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -128,45 +128,83 @@
                 <!-- Tabs -->
                 <ul class="nav nav-tabs mb-3" id="profileTabs">
                     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#jobs">Công việc</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#portfolio">Portfolio</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#portfolio">Doanh nghiệp</a></li>
                     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#reviews">Đánh giá</a></li>
                 </ul>
 
                 <div class="tab-content">
                     <!-- Jobs -->
                     <div class="tab-pane fade show active" id="jobs">
-                        <h5 class="fw-bold mb-3">Danh sách công việc</h5>
-                        <div class="row g-3" id="job-list">
-                            @foreach($jobs as $index => $job)
-                                <div class="col-md-6 job-item {{ $index >= 4 ? 'd-none' : '' }}">
-                                    <a href="{{ route('jobs.show', $job->job_id) }}" class="text-decoration-none text-dark">
-                                        <div class="card shadow-sm h-100">
-                                            <div class="card-body">
-                                                <h6 class="fw-bold">{{ $job->title }}</h6>
-                                                <p class="text-muted small">{{ Str::limit($job->description, 100) }}</p>
-                                                <span
-                                                    class="badge bg-{{ $job->status == 'completed' ? 'success' : 'warning' }}">
-                                                    {{ $job->status == 'completed' ? 'Hoàn thành' : 'Đang làm' }}
-                                                </span>
+                        <div class="position-relative" id="job-list">
+                            @forelse($jobs as $index => $job)
+                                @php
+                                    $applicantsCount = $job->apply_id ? count(explode(',', $job->apply_id)) : 0;
+                                @endphp
+
+                                <div class="row g-0 mb-4 job-item {{ $index >= 3 ? 'd-none' : '' }}">
+                                    <div class="col-auto d-flex flex-column align-items-center pe-3 position-relative">
+                                        <!-- Icon -->
+                                        <div class="bg-{{ $job->status == 'completed' ? 'success' : 'warning' }} rounded-circle d-flex align-items-center justify-content-center border border-2 border-white"
+                                            style="width:48px; height:48px;">
+                                            <i
+                                                class="bi bi-{{ $job->status == 'completed' ? 'check-circle-fill' : 'clock-fill' }} text-white fs-4"></i>
+                                        </div>
+
+                                        <!-- Vertical Line -->
+                                        @if(!$loop->last)
+                                            <div class="flex-grow-1 w-1 bg-secondary mt-2" style="min-height:60px; opacity:0.2;">
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <div class="col">
+                                        <div class="card shadow-sm border-0 rounded-3 p-3 ms-3">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <h6 class="fw-bold mb-1">
+                                                        <a href="{{ route('jobs.show', $job->job_id) }}"
+                                                            class="text-decoration-none text-dark">
+                                                            {{ $job->title }}
+                                                        </a>
+                                                    </h6>
+                                                    <p class="text-muted small mb-2">{{ Str::limit($job->description, 120) }}
+                                                    </p>
+                                                    <div class="d-flex gap-2 flex-wrap">
+                                                        <span
+                                                            class="badge bg-{{ $job->status == 'completed' ? 'success' : 'warning' }} rounded-pill px-2 py-1"
+                                                            style="font-size:0.8rem;">
+                                                            {{ $job->status == 'completed' ? 'Hoàn thành' : 'Đang làm' }}
+                                                        </span>
+                                                        <span
+                                                            class="badge bg-info bg-opacity-10 text-info rounded-pill px-2 py-1"
+                                                            style="font-size:0.8rem;">
+                                                            {{ $applicantsCount }} người ứng tuyển
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted">{{ $job->created_at->format('d/m/Y') }}</small>
                                             </div>
                                         </div>
-                                    </a>
+                                    </div>
                                 </div>
-                            @endforeach
+
+                            @empty
+                                <p class="text-muted text-center" style="font-size:1.1rem;">Chưa có công việc nào.</p>
+                            @endforelse
                         </div>
 
-                        @if($jobs->count() > 4)
+                        @if($jobs->count() > 3)
                             <div class="text-center mt-3">
-                                <a href="javascript:void(0)" id="toggle-jobs" class="text-decoration-none">
+                                <a href="javascript:void(0)" id="toggle-jobs" class="text-decoration-none fw-bold">
                                     Xem thêm <i class="bi bi-chevron-down"></i>
                                 </a>
                             </div>
                         @endif
                     </div>
 
-                    <!-- Portfolio -->
+                    <!-- Doanh nghiệp -->
                     <div class="tab-pane fade" id="portfolio">
-                        <h5 class="fw-bold mb-3">Portfolio & Dự án</h5>
+                        <h5 class="fw-bold mb-3">Thông tin doanh nghiệp</h5>
                         <div class="row g-4">
                             @forelse($profile->portfolio_items ?? [] as $index => $item)
                                 <div class="col-md-6 portfolio-item {{ $index >= 4 ? 'd-none' : '' }}">
@@ -182,12 +220,12 @@
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-muted">Chưa có dự án nào.</p>
+                                <p class="text-muted">Chưa có doanh ngiệp nào.</p>
                             @endforelse
                         </div>
                         @if(count($profile->portfolio_items ?? []) > 4)
                             <div class="text-center mt-3">
-                                <button id="show-more-portfolio" class="btn btn-primary">Xem thêm dự án</button>
+                                <button id="show-more-portfolio" class="btn btn-primary">Xem thêm</button>
                             </div>
                         @endif
                     </div>
@@ -284,7 +322,7 @@
                     {{-- Modal thêm đánh giá --}}
                     <!-- Modal Đánh giá -->
                     <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered"> <!-- canh giữa màn hình -->
+                        <div class="modal-dialog modal-dialog-centered">
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title fw-bold">Đánh giá người dùng</h5>
@@ -292,7 +330,6 @@
                                 </div>
                                 <div class="modal-body">
                                     <form>
-                                        <!-- Chọn sao -->
                                         <div class="mb-3 text-center">
                                             <label class="form-label d-block">Chọn số sao</label>
                                             <div id="starRating" class="fs-3">
@@ -304,14 +341,12 @@
                                             </div>
                                         </div>
 
-                                        <!-- Nhận xét -->
                                         <div class="mb-3">
                                             <label class="form-label">Nhận xét của bạn</label>
                                             <textarea class="form-control" rows="3"
                                                 placeholder="Viết nhận xét..."></textarea>
                                         </div>
 
-                                        <!-- Nút gửi -->
                                         <div class="text-end">
                                             <button type="button" class="btn btn-primary">Gửi đánh giá</button>
                                         </div>
@@ -326,18 +361,15 @@
                         #starRating i {
                             cursor: pointer;
                             color: #ccc;
-                            /* mặc định xám */
                         }
 
                         #starRating i.active,
                         #starRating i:hover,
                         #starRating i:hover~i {
                             color: #f1c40f;
-                            /* vàng khi chọn */
                         }
                     </style>
 
-                    <!-- JS: chọn sao -->
                     <script>
                         document.querySelectorAll('#starRating i').forEach(star => {
                             star.addEventListener('click', function () {
@@ -353,10 +385,7 @@
                                 }
                             });
                         });
-                    </script>
 
-
-                    <script>
                         document.addEventListener('DOMContentLoaded', function () {
                             const toggleBtn = document.getElementById('toggle-reviews');
                             const extraReviews = document.querySelectorAll('.extra-review');
