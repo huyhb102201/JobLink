@@ -27,9 +27,9 @@
 
                             <article class="article">
                                 <!-- Blog Details Section 
-                                        <div class="post-img">
-                                            <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
-                                        </div>-->
+                                            <div class="post-img">
+                                                <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
+                                            </div>-->
 
                                 <h2 class="title">{{ $job->title }}
                                 </h2>
@@ -83,7 +83,12 @@
                                 <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
                                     class="rounded-circle flex-shrink-0" alt="">
                                 <div>
-                                    <h4>{{ $job->account->name ?? 'Người đăng ẩn danh' }}</h4>
+                                    <h4>
+                                        <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
+                                            {{ $job->account->name ?? 'Người đăng ẩn danh' }}
+                                        </a>
+                                    </h4>
+
                                     <div class="social-links">
                                         <!-- Facebook -->
                                         <a href="https://facebook.com/yourpage" target="_blank"><i

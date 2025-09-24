@@ -11,6 +11,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\FreelancerController;
+use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -98,6 +99,13 @@ Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
 
 // Hiển thị danh sách freelancer
 Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
+
+// Hiển thị danh sách portfolio
+Route::get('/portfolios', [PortfolioController::class, 'index'])->name('portfolios.index');
+
+Route::get('/portfolios/{user}', [PortfolioController::class, 'show'])
+    ->name('portfolios.show');
+
 
 // Hiển thị trang liên hệ
 Route::get('/contact', function () {
