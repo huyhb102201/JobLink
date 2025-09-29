@@ -23,7 +23,16 @@
                                     alt="{{ optional($job->account)->name ?? 'Người đăng' }}" class="rounded-circle me-2"
                                     width="40" height="40">
                                 <div>
-                                    <p class="mb-0 fw-bold">{{ $job->account->name ?? 'Người đăng ẩn danh' }}</p>
+                                    <p class="mb-0 fw-bold">
+                                        @if($job->account?->profile?->username)
+                                            <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
+                                                {{ $job->account->name }}
+                                            </a>
+                                        @else
+                                            {{ $job->account?->name ?? 'Người đăng ẩn danh' }}
+                                        @endif
+                                    </p>
+
                                     <p class="mb-0 text-muted"><time datetime="{{ $job->created_at }}">Đăng ngày
                                             {{ $job->created_at->format('h:i:s A d/m/Y') }}</time></p>
                                 </div>

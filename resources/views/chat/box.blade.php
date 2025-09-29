@@ -185,7 +185,45 @@
             color: #555;
             text-align: center;
         }
+
+        .chat-toast {
+            background: #007bff;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 10px;
+            min-width: 250px;
+            max-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.4s, fadeOut 0.4s 4.6s forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
     </style>
+    <!-- Container toast -->
+    <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <main class="main d-flex flex-column" style="height:92vh; background-color:#f0f2f5; color:#000;">
         <div class="container-fluid p-0 d-flex flex-column flex-xl-row position-relative h-100">
@@ -329,7 +367,8 @@
             </div>
         </div>
     </main>
-
+    <!-- Âm thanh thông báo -->
+    <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio>
     @vite('resources/js/app.js')
 
     <script>
@@ -365,8 +404,8 @@
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
             msgDiv.innerHTML = `<span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                            <p>${msg.content}</p>
-                            ${statusHTML}`;
+                                                    <p>${msg.content}</p>
+                                                    ${statusHTML}`;
 
             msgDiv.addEventListener('click', () => {
                 if (msgDiv.dataset.shownTime === 'true') return;
@@ -419,11 +458,34 @@
                 window.Echo.private(channelName).listen('MessageSent', e => {
                     const isMe = e.message.sender.id === {{ auth()->id() }};
                     const msgDiv = appendMessage(e.message, isMe);
+
                     if (isMe) {
                         const statusDiv = msgDiv.querySelector('.message-status');
                         if (statusDiv) statusDiv.innerText = 'Đã nhận';
+                    } else {
+                        const sound = document.getElementById('chatNotifySound');
+                        if (sound) sound.play();
+                        showChatToast(e.message.sender.name, e.message.content, e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}");
+
+                        if (Notification.permission === "granted") {
+                            new Notification("Tin nhắn mới từ " + e.message.sender.name, {
+                                body: e.message.content,
+                                icon: e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                            });
+                        } else if (Notification.permission !== "denied") {
+                            Notification.requestPermission().then(permission => {
+                                if (permission === "granted") {
+                                    new Notification("Tin nhắn mới từ " + e.message.sender.name, {
+                                        body: e.message.content,
+                                        icon: e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                                    });
+                                }
+                            });
+                        }
+
                     }
                 });
+
             }
 
             // Trên mobile: ẩn offcanvas sau khi chọn chat
@@ -462,6 +524,43 @@
             });
         }
 
+        function showChatToast(sender, content, avatarUrl, timeText = "Vừa xong", onClick = null) {
+            const container = document.getElementById('chatToastContainer');
+
+            // Toast = card nhỏ
+            const toastEl = document.createElement('div');
+            toastEl.className = "toast show mb-2 border-0 shadow-sm rounded-3";
+            toastEl.setAttribute("role", "alert");
+
+            toastEl.innerHTML = `
+                <div class="toast-body p-2 d-flex align-items-start gap-2">
+                    <img src="${avatarUrl}" alt="avatar" 
+                         class="rounded-circle flex-shrink-0" width="42" height="42">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">${sender}</span>
+                            <small class="text-muted">${timeText}</small>
+                        </div>
+                        <div class="text-truncate">${content}</div>
+                    </div>
+                </div>
+            `;
+
+            // click toàn khối để mở chat
+            if (onClick) {
+                toastEl.querySelector('.toast-body').addEventListener('click', onClick);
+                toastEl.querySelector('.toast-body').classList.add("cursor-pointer");
+            }
+
+            container.appendChild(toastEl);
+
+            // Tự động ẩn sau 5s
+            setTimeout(() => {
+                toastEl.classList.remove("show");
+                toastEl.addEventListener("transitionend", () => toastEl.remove());
+            }, 5000);
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             // Khởi tạo Offcanvas
             const offcanvasElement = document.getElementById('chatOffcanvas');
@@ -473,7 +572,7 @@
                 // Auto open chat nếu có job (không cần element vì không highlight trên mobile)
                 openChat('{{ $employer->name }}', null, {{ $employer->account_id }}, {{ $job->job_id }});
             @endif
-    });
+                            });
 
         // Enter / Ctrl+Enter
         const messageInput = document.getElementById('messageInput');
@@ -491,5 +590,14 @@
                 }
             }
         });
+        window.addEventListener('DOMContentLoaded', () => {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    console.log("Notification permission:", permission);
+                });
+            }
+        });
+
+
     </script>
 @endsection

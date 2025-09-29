@@ -27,9 +27,9 @@
 
                             <article class="article">
                                 <!-- Blog Details Section 
-                                            <div class="post-img">
-                                                <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
-                                            </div>-->
+                                                        <div class="post-img">
+                                                            <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
+                                                        </div>-->
 
                                 <h2 class="title">{{ $job->title }}
                                 </h2>
@@ -40,7 +40,7 @@
                                                 href="blog-details.html">{{ $job->account->name ?? 'Người đăng ẩn danh' }}</a>
                                         </li>
                                         <li class="d-flex align-items-center"><i class="bi bi-clock"></i> <a
-                                                href="blog-details.html">{{ $job->created_at->format('h:i:s A d/m/Y') }}</time></a>
+                                                href="blog-details.html">{{ $job->created_at->format('d/m/Y') }}</time></a>
                                         </li>
                                         <li class="d-flex align-items-center"><i class="bi bi-chat-dots"></i> <a
                                                 href="blog-details.html">12 Bình luận</a></li>
@@ -84,9 +84,13 @@
                                     class="rounded-circle flex-shrink-0" alt="">
                                 <div>
                                     <h4>
-                                        <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
-                                            {{ $job->account->name ?? 'Người đăng ẩn danh' }}
-                                        </a>
+                                         @if($job->account?->profile?->username)
+                                            <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
+                                                {{ $job->account->name }}
+                                            </a>
+                                        @else
+                                            {{ $job->account?->name ?? 'Người đăng ẩn danh' }}
+                                        @endif
                                     </h4>
 
                                     <div class="social-links">
@@ -320,45 +324,41 @@
 
                             <h3 class="widget-title">Bài viết liên quan</h3>
 
-                            <div class="post-item">
-                                <img src="{{ asset('assets/img/blog/blog-recent-1.jpg') }}" alt="" class="flex-shrink-0">
-                                <div>
-                                    <h4><a href="blog-details.html">Nihil blanditiis at in nihil autem</a></h4>
-                                    <time datetime="2020-01-01">Jan 1, 2020</time>
-                                </div>
-                            </div><!-- End recent post item-->
+                            @forelse($relatedJobs as $related)
+                                <div class="post-item">
+                                    <img src="{{ $related->thumbnail ? asset('storage/' . $related->thumbnail) : asset('assets/img/blog/blog-recent-1.jpg') }}"
+                                        alt="" class="flex-shrink-0">
+                                    <div>
+                                        <h4>
+                                            <a href="{{ route('jobs.show', $related->job_id) }}">
+                                                {{ $related->title }}
+                                            </a>
+                                        </h4>
+                                        <time datetime="{{ $related->created_at->toDateString() }}">
+                                            {{ $related->created_at->isoFormat('D MMMM, YYYY') }}
+                                        </time>
+                                        <div class="author-info" style="margin-top: 5px; display: flex; align-items: center;">
+                                            <img src="{{ $related->account?->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                                alt="avatar"
+                                                style="width: 25px; height: 25px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
 
-                            <div class="post-item">
-                                <img src="{{ asset('assets/img/blog/blog-recent-2.jpg') }}" alt="" class="flex-shrink-0">
-                                <div>
-                                    <h4><a href="blog-details.html">Quidem autem et impedit</a></h4>
-                                    <time datetime="2020-01-01">Jan 1, 2020</time>
-                                </div>
-                            </div><!-- End recent post item-->
+                                            <span>
+                                                @if($related->account?->profile?->username)
+                                                    <a href="{{ route('portfolios.show', $related->account->profile->username) }}">
+                                                        {{ $related->account?->name ?? 'Người đăng ẩn danh' }}
+                                                    </a>
+                                                @else
+                                                    {{ $related->account?->name ?? 'Người đăng ẩn danh' }}
+                                                @endif
+                                            </span>
+                                        </div>
 
-                            <div class="post-item">
-                                <img src="{{ asset('assets/img/blog/blog-recent-3.jpg') }}" alt="" class="flex-shrink-0">
-                                <div>
-                                    <h4><a href="blog-details.html">Id quia et et ut maxime similique occaecati ut</a></h4>
-                                    <time datetime="2020-01-01">Jan 1, 2020</time>
-                                </div>
-                            </div><!-- End recent post item-->
 
-                            <div class="post-item">
-                                <img src="{{ asset('assets/img/blog/blog-recent-4.jpg') }}" alt="" class="flex-shrink-0">
-                                <div>
-                                    <h4><a href="blog-details.html">Laborum corporis quo dara net para</a></h4>
-                                    <time datetime="2020-01-01">Jan 1, 2020</time>
-                                </div>
-                            </div><!-- End recent post item-->
-
-                            <div class="post-item">
-                                <img src="{{ asset('assets/img/blog/blog-recent-5.jpg') }}" alt="" class="flex-shrink-0">
-                                <div>
-                                    <h4><a href="blog-details.html">Et dolores corrupti quae illo quod dolor</a></h4>
-                                    <time datetime="2020-01-01">Jan 1, 2020</time>
-                                </div>
-                            </div><!-- End recent post item-->
+                                    </div>
+                                </div><!-- End recent post item-->
+                            @empty
+                                <p>Không có bài viết liên quan.</p>
+                            @endforelse
 
                         </div><!--/Recent Posts Widget -->
 
