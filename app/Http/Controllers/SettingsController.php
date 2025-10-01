@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Job;
+use App\Models\JobApply;
 
 class SettingsController extends Controller
 {
@@ -58,6 +61,18 @@ class SettingsController extends Controller
         return view('settings.appeals', $this->payload($r));
     }
 
+  public function submitted_jobs(Request $request)
+{
+    $userId = Auth::id();
+
+    // Lấy tất cả job_apply của user hiện tại
+    $applies = JobApply::with(['job.jobCategory'])
+        ->where('user_id', $userId)
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return view('settings.submitted_jobs', compact('applies'));
+}
     // updates
     public function updateMyInfo(Request $request)
     {

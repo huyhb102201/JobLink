@@ -26,10 +26,59 @@
                         <div class="container">
 
                             <article class="article">
-                                <!-- Blog Details Section 
-                                                        <div class="post-img">
-                                                            <img src="{{ asset('assets/img/blog/blog-1.jpg') }}" alt="" class="img-fluid">
-                                                        </div>-->
+                                @php
+                                    $userId = auth()->id();
+                                    $hasApplied = false;
+                                    $applyStatus = null;
+
+                                    if ($userId) {
+                                        // Kiểm tra xem user đã apply chưa
+                                        $apply = $job->applicants()->where('user_id', $userId)->first();
+                                        if ($apply) {
+                                            $hasApplied = true;
+                                            $applyStatus = $apply->pivot->status; // lấy trạng thái apply (int)
+                                        }
+                                    }
+
+
+                                    // Kiểm tra deadline
+                                    $isExpired = $job->deadline && \Carbon\Carbon::parse($job->deadline)->lt(\Carbon\Carbon::now());
+
+                                    // Kiểm tra status open
+                                    $isOpen = $job->status === 'open';
+                                @endphp
+                                <div id="applyAlertContainer" class="mb-3">
+                                    @if($hasApplied)
+                                        @php
+                                            // Map trạng thái int sang badge + label
+                                            switch ($applyStatus) {
+                                                case 1:
+                                                    $statusLabel = 'Chờ duyệt';
+                                                    $statusClass = 'alert-primary';
+                                                    break;
+                                                case 2:
+                                                    $statusLabel = 'Đã duyệt';
+                                                    $statusClass = 'alert-success';
+                                                    break;
+                                                case 3:
+                                                    $statusLabel = 'Từ chối';
+                                                    $statusClass = 'alert-danger';
+                                                    break;
+                                                default:
+                                                    $statusLabel = 'Không xác định';
+                                                    $statusClass = 'alert-secondary';
+                                            }
+                                        @endphp
+
+                                        <div class="alert alert-success alert-dismissible fade show d-flex align-items-center"
+                                            role="alert">
+                                            <i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>
+                                            <div>Bạn đã ứng tuyển vào công việc này ({{ $statusLabel }}) </div>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                                aria-label="Close"></button>
+                                        </div>
+                                    @endif
+                                </div>
 
                                 <h2 class="title">{{ $job->title }}
                                 </h2>
@@ -84,7 +133,7 @@
                                     class="rounded-circle flex-shrink-0" alt="">
                                 <div>
                                     <h4>
-                                         @if($job->account?->profile?->username)
+                                        @if($job->account?->profile?->username)
                                             <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
                                                 {{ $job->account->name }}
                                             </a>
@@ -385,21 +434,14 @@
                     </div>
 
                 </div>
-                <!-- Floating Apply Button -->
-                @php
-                    $userId = auth()->check() ? auth()->id() : null;
-                    $hasApplied = $userId && $job->apply_id ? in_array($userId, explode(',', $job->apply_id)) : false;
-                    $isExpired = $job->deadline && \Carbon\Carbon::parse($job->deadline)->lt(\Carbon\Carbon::now());
-                @endphp
 
-                @if(!$hasApplied && !$isExpired)
+                @if($isOpen && !$hasApplied && !$isExpired)
                     <a href="javascript:void(0);" class="btn btn-success rounded-circle apply-floating apply-btn"
                         data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
                         title="Ứng Tuyển Ngay">
                         <i class="bi bi-briefcase-fill"></i>
                     </a>
                 @endif
-
 
                 <!-- Modal Thông Báo -->
                 <div class="modal fade" id="applyModal" tabindex="-1" aria-labelledby="applyModalLabel" aria-hidden="true">
@@ -430,37 +472,96 @@
                 <script>
                     $(document).ready(function () {
                         $('.apply-btn').click(function () {
-                            var jobId = $(this).data('job-id');
+                            var $button = $(this);
+                            var jobId = $button.data('job-id');
+                            var $alertContainer = $('#applyAlertContainer');
 
-                            // Hiển thị modal ngay, hiện spinner
-                            $('#applyModalBody').html($('#applySpinner').show());
+                            // Hiển thị modal với spinner
+                            var modalEl = document.getElementById('applyModal');
+                            var modal = new bootstrap.Modal(modalEl);
+                            $('#applyModalBody').html(
+                                '<div class="text-center my-3">' +
+                                '<div class="spinner-border text-success" role="status"></div>' +
+                                '<div>Đang xử lý...</div>' +
+                                '</div>'
+                            );
                             $('#loginBtn').hide();
-                            var modal = new bootstrap.Modal(document.getElementById('applyModal'));
                             modal.show();
+
+                            // Hiển thị spinner tạm thời trong alert container trên trang
+                            $alertContainer.html(
+                                '<div class="d-flex align-items-center">' +
+                                '<div class="spinner-border text-success me-2" role="status"></div>' +
+                                '<div>Đang xử lý...</div>' +
+                                '</div>'
+                            );
 
                             $.ajax({
                                 url: '/jobs/apply/' + jobId,
                                 method: 'GET',
+                                dataType: 'json',
                                 success: function (response) {
-                                    // Ẩn spinner và hiển thị thông báo
-                                    $('#applySpinner').hide();
-                                    $('#applyModalBody').html(response.message);
+                                    // Ẩn nút Apply
+                                    $button.fadeOut();
 
-                                    if (response.login_required) {
+                                    if (response.success) {
+                                        // Hiển thị thông báo thành công trong modal
+                                        $('#applyModalBody').html(
+                                            '<div class="alert alert-success d-flex align-items-center" role="alert">' +
+                                            '<i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>' +
+                                            '<div>Bạn đã ứng tuyển vào công việc này (' + response.statusLabel + ')</div>' +
+                                            '</div>'
+                                        );
+
+                                        // Hiển thị thông báo thành công trên trang
+                                        $alertContainer.html(
+                                            '<div class="alert alert-success alert-dismissible fade show d-flex align-items-center" role="alert">' +
+                                            '<i class="bi bi-check-circle-fill flex-shrink-0 me-2"></i>' +
+                                            '<div>Bạn đã ứng tuyển vào công việc này (' + response.statusLabel + ')</div>' +
+                                            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                                            '</div>'
+                                        );
+
+                                    } else if (response.login_required) {
+                                        $('#applyModalBody').html(
+                                            '<div class="alert alert-warning d-flex align-items-center" role="alert">' +
+                                            'Vui lòng <a href="/login">đăng nhập</a> để ứng tuyển.' +
+                                            '</div>'
+                                        );
                                         $('#loginBtn').show();
+                                        $alertContainer.empty();
                                     } else {
-                                        $('#loginBtn').hide();
+                                        $('#applyModalBody').html(
+                                            '<div class="alert alert-danger d-flex align-items-center" role="alert">' +
+                                            response.message +
+                                            '</div>'
+                                        );
+                                        $alertContainer.html(
+                                            '<div class="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">' +
+                                            response.message +
+                                            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                                            '</div>'
+                                        );
                                     }
                                 },
                                 error: function () {
-                                    $('#applySpinner').hide();
-                                    $('#applyModalBody').html('Có lỗi xảy ra. Vui lòng thử lại.');
-                                    $('#loginBtn').hide();
+                                    $('#applyModalBody').html(
+                                        '<div class="alert alert-danger d-flex align-items-center" role="alert">' +
+                                        'Có lỗi xảy ra. Vui lòng thử lại.' +
+                                        '</div>'
+                                    );
+                                    $alertContainer.html(
+                                        '<div class="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">' +
+                                        'Có lỗi xảy ra. Vui lòng thử lại.' +
+                                        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                                        '</div>'
+                                    );
                                 }
                             });
                         });
                     });
                 </script>
+
 
                 <style>
                     .apply-floating {
