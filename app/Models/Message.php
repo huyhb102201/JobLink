@@ -10,6 +10,7 @@ class Message extends Model
     use HasFactory;
 
     protected $fillable = [
+        'box_id',
         'conversation_id',
         'sender_id',
         'job_id',
@@ -18,8 +19,20 @@ class Message extends Model
         'status',
     ];
 
+    /**
+     * Người gửi tin nhắn
+     */
     public function sender()
     {
         return $this->belongsTo(Account::class, 'sender_id');
     }
+
+    /**
+     * Hộp chat chứa tin nhắn
+     */
+    public function box()
+    {
+        return $this->belongsTo(BoxChat::class, 'box_id');
+    }
+
 }

@@ -404,8 +404,8 @@
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
             msgDiv.innerHTML = `<span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                                                    <p>${msg.content}</p>
-                                                    ${statusHTML}`;
+                                                        <p>${msg.content}</p>
+                                                        ${statusHTML}`;
 
             msgDiv.addEventListener('click', () => {
                 if (msgDiv.dataset.shownTime === 'true') return;
@@ -533,18 +533,18 @@
             toastEl.setAttribute("role", "alert");
 
             toastEl.innerHTML = `
-                <div class="toast-body p-2 d-flex align-items-start gap-2">
-                    <img src="${avatarUrl}" alt="avatar" 
-                         class="rounded-circle flex-shrink-0" width="42" height="42">
-                    <div class="flex-grow-1 overflow-hidden">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">${sender}</span>
-                            <small class="text-muted">${timeText}</small>
+                    <div class="toast-body p-2 d-flex align-items-start gap-2">
+                        <img src="${avatarUrl}" alt="avatar" 
+                             class="rounded-circle flex-shrink-0" width="42" height="42">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold">${sender}</span>
+                                <small class="text-muted">${timeText}</small>
+                            </div>
+                            <div class="text-truncate">${content}</div>
                         </div>
-                        <div class="text-truncate">${content}</div>
                     </div>
-                </div>
-            `;
+                `;
 
             // click toàn khối để mở chat
             if (onClick) {
@@ -572,7 +572,7 @@
                 // Auto open chat nếu có job (không cần element vì không highlight trên mobile)
                 openChat('{{ $employer->name }}', null, {{ $employer->account_id }}, {{ $job->job_id }});
             @endif
-                            });
+                                });
 
         // Enter / Ctrl+Enter
         const messageInput = document.getElementById('messageInput');
