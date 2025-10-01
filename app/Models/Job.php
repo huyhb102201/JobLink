@@ -45,4 +45,15 @@ class Job extends Model
         return $this->belongsTo(\App\Models\JobCategory::class, 'category_id', 'category_id');
     }
 
+    public function applicants()
+    {
+        return $this->belongsToMany(
+            \App\Models\Account::class, // model Account
+            'job_apply',                // bảng trung gian
+            'job_id',                   // foreign key của Job trong job_apply
+            'user_id'                   // foreign key của Account trong job_apply
+        )->withPivot('status')
+            ->withTimestamps();
+    }
+
 }

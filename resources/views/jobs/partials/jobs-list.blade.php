@@ -1,7 +1,22 @@
 <div id="jobs-list" class="row g-3">
     @foreach($jobs as $job)
         <div class="col-12">
-            <div class="card shadow-sm h-100 hover-shadow">
+             <div class="card shadow-sm h-100 hover-shadow position-relative">
+                <!-- Badge trạng thái góc trên bên phải -->
+                <span class="position-absolute top-0 end-0 m-2 px-3 py-1 rounded-pill text-white fw-bold small shadow-sm
+                    @switch($job->status)
+                        @case('open') bg-primary @break                     {{-- Đang tuyển --}}
+                        @case('in_progress') bg-warning text-dark @break    {{-- Đang làm --}}
+                        @case('completed') bg-success @break                {{-- Hoàn thành --}}
+                        @default bg-secondary @endswitch">
+                    @switch($job->status)
+                        @case('open') Đang tuyển @break
+                        @case('in_progress') Đang làm @break
+                        @case('completed') Hoàn thành @break
+                        @default Không xác định
+                    @endswitch
+                </span>
+
                 <div class="row g-0">
                     <!-- Ảnh job -->
                     <div class="col-md-4 d-flex justify-content-center align-items-center p-2">
@@ -23,7 +38,16 @@
                                     alt="{{ optional($job->account)->name ?? 'Người đăng' }}" class="rounded-circle me-2"
                                     width="40" height="40">
                                 <div>
-                                    <p class="mb-0 fw-bold">{{ $job->account->name ?? 'Người đăng ẩn danh' }}</p>
+                                    <p class="mb-0 fw-bold">
+                                        @if($job->account?->profile?->username)
+                                            <a href="{{ route('portfolios.show', $job->account->profile->username) }}">
+                                                {{ $job->account->name }}
+                                            </a>
+                                        @else
+                                            {{ $job->account?->name ?? 'Người đăng ẩn danh' }}
+                                        @endif
+                                    </p>
+
                                     <p class="mb-0 text-muted"><time datetime="{{ $job->created_at }}">Đăng ngày
                                             {{ $job->created_at->format('h:i:s A d/m/Y') }}</time></p>
                                 </div>

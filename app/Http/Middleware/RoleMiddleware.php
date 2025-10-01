@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class RoleMiddleware
 {
     // app/Http/Middleware/RoleMiddleware.php
-    public function handle($request, \Closure $next, string $role)
+    /*public function handle($request, \Closure $next, string $role)
     {
         $user = \Illuminate\Support\Facades\Auth::user();
         if (!$user)
@@ -20,6 +20,28 @@ class RoleMiddleware
         $need = strtoupper($role);
 
         if ($have !== $need) {
+            abort(403, "Tài khoản của bạn không phù hợp");
+        }
+
+        return $next($request);
+    }*/
+
+    public function handle(Request $request, Closure $next, ...$roles)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Lấy code của user
+        $have = strtoupper($user->type->code ?? '(NONE)');
+
+        // Chuyển các role truyền vào thành uppercase
+        $roles = array_map('strtoupper', $roles);
+
+        // Nếu code của user không có trong danh sách → 403
+        if (!in_array($have, $roles)) {
             abort(403, "Tài khoản của bạn không phù hợp");
         }
 

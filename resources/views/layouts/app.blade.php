@@ -35,9 +35,9 @@
   {{-- Header --}}
   @include('layouts.header')
 
-{{-- jQuery --}}
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
+  {{-- jQuery --}}
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
   @yield('content')
 
   <!-- Preloader -->
@@ -63,15 +63,16 @@
   <script src="{{ asset('assets/js/main.js') }}"></script>
   @stack('scripts')
   <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const el = document.getElementById('userDropdown');
-    if (el) {
-      el.addEventListener('click', function (e) {
-        e.preventDefault(); // chặn nhảy trang #
-        bootstrap.Dropdown.getOrCreateInstance(el).toggle();
-      });
-    }
-  });
-</script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const el = document.getElementById('userDropdown');
+      if (el) {
+        el.addEventListener('click', function (e) {
+          e.preventDefault(); // chặn nhảy trang #
+          bootstrap.Dropdown.getOrCreateInstance(el).toggle();
+        });
+      }
+    });
+  </script>
 </body>
+
 </html>

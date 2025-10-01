@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Message;
 use App\Models\Job;
+use App\Models\BoxChat;
 use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
 

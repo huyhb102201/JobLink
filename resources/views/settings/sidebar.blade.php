@@ -10,6 +10,7 @@
     ['label'=>'Tax Information',      'route'=>'settings.tax'],
     ['label'=>'Connected Services',   'route'=>'settings.connected'],
     ['label'=>'Appeals Tracker',      'route'=>'settings.appeals'],
+    ['label'=>'Công việc đã nộp',     'route'=>'settings.submitted_jobs'],
   ];
 @endphp
 

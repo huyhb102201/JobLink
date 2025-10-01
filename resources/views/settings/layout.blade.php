@@ -49,6 +49,25 @@
        class="nav-link @if(request()->routeIs('settings.appeals')) active @endif">
       Appeals Tracker
     </a>
+
+   @auth
+    @php
+        $acc = Auth::user()->loadMissing('type');
+        $typeId = $acc->type->account_type_id ?? null;
+
+        // check active
+        $activeSubmitted = request()->routeIs('settings.submitted_jobs');
+    @endphp
+
+    @if(in_array($typeId, [1, 2]))
+        <a href="{{ route('settings.submitted_jobs') }}"
+           class="nav-link {{ $activeSubmitted ? 'active fw-semibold' : '' }}">
+           Công việc đã nộp
+        </a>
+    @endif
+@endauth
+
+
   </nav>
 </aside>
 

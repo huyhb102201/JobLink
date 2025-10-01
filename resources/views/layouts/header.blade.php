@@ -166,11 +166,13 @@
                                         <i class="bi bi-person-circle"></i> Cài đặt tài khoản
                                     </a>
                                 </li>
+                                @if ($typeCode === 'ADMIN')
                                 <li>
-                                    <a class="dropdown-item d-flex align-items-center gap-2" href="">
+                                    <a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('admin.accounts.index') }}">
                                         <i class="bi bi-speedometer2"></i> Bảng điều khiển
                                     </a>
                                 </li>
+                                @endif
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>

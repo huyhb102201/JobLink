@@ -134,6 +134,8 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/tax', [SettingsController::class, 'tax'])->name('tax');
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
+
+     Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC,F_PLUS');
 });
 // Routes Xác minh Email
 Route::get('/email/verify', function () {
