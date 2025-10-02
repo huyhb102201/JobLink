@@ -11,43 +11,43 @@
   <nav class="nav flex-column fs-5 sidebar-simple">
     <a href="{{ route('settings.myinfo') }}"
        class="nav-link @if(request()->routeIs('settings.myinfo')) active @endif">
-      My info
+      Thông tin của tôi
     </a>
     <a href="{{ route('settings.billing') }}"
        class="nav-link @if(request()->routeIs('settings.billing')) active @endif">
-      Billing & Payments
+      Thanh toán & Giao dịch
     </a>
     <a href="{{ route('settings.security') }}"
        class="nav-link @if(request()->routeIs('settings.security')) active @endif">
-      Password & Security
+      Mật khẩu & Bảo mật
     </a>
     <a href="{{ route('settings.membership') }}"
        class="nav-link @if(request()->routeIs('settings.membership')) active @endif">
-      Membership Settings
+      Cài đặt thành viên
     </a>
     <a href="{{ route('settings.teams') }}"
        class="nav-link @if(request()->routeIs('settings.teams')) active @endif">
-      Teams
+      Nhóm
     </a>
     <a href="{{ route('settings.notifications') }}"
        class="nav-link @if(request()->routeIs('settings.notifications')) active @endif">
-      Notification Settings
+      Cài đặt thông báo
     </a>
     <a href="{{ route('settings.members') }}"
        class="nav-link @if(request()->routeIs('settings.members')) active @endif">
-      Members & Permissions
+      Thành viên & Quyền hạn
     </a>
     <a href="{{ route('settings.tax') }}"
        class="nav-link @if(request()->routeIs('settings.tax')) active @endif">
-      Tax Information
+      Thông tin thuế
     </a>
     <a href="{{ route('settings.connected') }}"
        class="nav-link @if(request()->routeIs('settings.connected')) active @endif">
-      Connected Services
+      Dịch vụ đã liên kết
     </a>
     <a href="{{ route('settings.appeals') }}"
        class="nav-link @if(request()->routeIs('settings.appeals')) active @endif">
-      Appeals Tracker
+      Theo dõi khiếu nại
     </a>
   </nav>
 </aside>

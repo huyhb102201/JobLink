@@ -8,18 +8,35 @@ use App\Models\MembershipPlan;
 class UpgradeController extends Controller
 {
     public function show()
-    {
-        // Account hiện tại (đọc fresh + load type)
-        $account = Account::with('type')->find(auth()->id());
-        $currentTypeId = $account?->account_type_id;           // ví dụ: 1
-        $currentTypeCode = $account?->type?->code ?? 'F_BASIC'; // ví dụ: F_BASIC
+{
+    // Lấy user hiện tại + quan hệ type (an toàn nhất là dùng auth()->user())
+    $account = auth()->user()->loadMissing('type');
 
-        // Lấy tất cả plan + join account_types (để có name/code)
-        $plans = MembershipPlan::with('accountType')
-            ->orderBy('sort_order')
-            ->get();
-        return view('settings.upgrade', compact('plans', 'currentTypeId', 'currentTypeCode'));
-    }
+    $currentTypeId   = $account?->account_type_id;
+    $currentTypeCode = $account?->type?->code ?? 'F_BASIC';
+
+    // Quy ước hiển thị plan theo role hiện tại
+    $visibleCodes = match ($currentTypeCode) {
+        // Nếu đang là CLIENT → chỉ thấy gói Business (BUSS)
+        'CLIENT' => ['BUSS'],
+
+        // Ví dụ cho Agency (tuỳ bạn có plan nào)
+        'AGENCY' => ['AGENCY'],
+
+        // Mặc định: freelancer
+        default => ['F_BASIC', 'F_PLUS', 'F_PRO'],
+    };
+
+    $plans = \App\Models\MembershipPlan::with('accountType')
+        // nếu có cột status thì mở dòng sau
+        //->where('status', 1)
+        ->whereHas('accountType', fn($q) => $q->whereIn('code', $visibleCodes))
+        ->orderBy('sort_order')
+        ->get();
+
+    return view('settings.upgrade', compact('plans', 'currentTypeId', 'currentTypeCode'));
+}
+
 
     public function upgrade(\Illuminate\Http\Request $request)
     {
