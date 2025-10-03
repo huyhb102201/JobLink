@@ -10,18 +10,35 @@ use App\Models\JobApply;
 class JobController extends Controller
 {
     public function index(Request $request)
-    {
-        $jobs = Job::with('account.profile', 'jobCategory')
-            ->whereNotIn('status', ['spending', 'cancel'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(6);
+{
+    $jobs = Job::with('account.profile', 'jobCategory')
+        ->whereNotIn('status', ['spending', 'cancel']);
 
-        if ($request->ajax()) {
-            return view('jobs.partials.jobs-list', compact('jobs'))->render();
-        }
-
-        return view('jobs.index', compact('jobs'));
+    // Lọc theo payment_type
+    if ($request->has('payment_type') && is_array($request->payment_type)) {
+        $jobs->whereIn('payment_type', $request->payment_type);
     }
+
+    // Lọc theo status
+    if ($request->has('status') && is_array($request->status)) {
+        $jobs->whereIn('status', $request->status);
+    }
+    
+    $jobs = $jobs->orderBy('created_at', 'desc')->paginate(6);
+
+    if ($request->ajax()) {
+        return response()->json([
+            'jobs' => view('jobs.partials.jobs-list', compact('jobs'))->render(),
+            'pagination' => view('components.pagination', [
+                'paginator' => $jobs,
+                'elements' => $jobs->links()->elements ?? []
+            ])->render(),
+        ]);
+    }
+
+    return view('jobs.index', compact('jobs'));
+}
+
 
     public function show(Job $job, Request $request)
     {
@@ -69,44 +86,44 @@ class JobController extends Controller
         return view('jobs.show', compact('job', 'relatedJobs'));
     }
 
-   
-public function apply($jobId)
-{
-    if (!auth()->check()) {
+
+    public function apply($jobId)
+    {
+        if (!auth()->check()) {
+            return response()->json([
+                'success' => false,
+                'login_required' => true,
+                'message' => 'Bạn cần đăng nhập để ứng tuyển.'
+            ]);
+        }
+
+        $userId = auth()->id();
+        $job = Job::findOrFail($jobId);
+
+        // Kiểm tra nếu user đã apply
+        $exists = JobApply::where('job_id', $jobId)->where('user_id', $userId)->exists();
+
+        if ($exists) {
+            return response()->json([
+                'success' => false,
+                'login_required' => false,
+                'message' => 'Bạn đã ứng tuyển công việc này trước đó.'
+            ]);
+        }
+
+        // Thêm vào bảng job_apply
+        JobApply::create([
+            'job_id' => $jobId,
+            'user_id' => $userId,
+            'status' => 1
+        ]);
+
         return response()->json([
-            'success' => false,
-            'login_required' => true,
-            'message' => 'Bạn cần đăng nhập để ứng tuyển.'
+            'success' => true,
+            'message' => 'Ứng tuyển thành công!',
+            'statusLabel' => 'Chờ duyệt'
         ]);
     }
-
-    $userId = auth()->id();
-    $job = Job::findOrFail($jobId);
-
-    // Kiểm tra nếu user đã apply
-    $exists = JobApply::where('job_id', $jobId)->where('user_id', $userId)->exists();
-
-    if ($exists) {
-        return response()->json([
-            'success' => false,
-            'login_required' => false,
-            'message' => 'Bạn đã ứng tuyển công việc này trước đó.'
-        ]);
-    }
-
-    // Thêm vào bảng job_apply
-    JobApply::create([
-        'job_id' => $jobId,
-        'user_id' => $userId,
-        'status' => 1
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Ứng tuyển thành công!',
-        'statusLabel' => 'Chờ duyệt'
-    ]);
-}
 
 
 }
