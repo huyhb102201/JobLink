@@ -242,3 +242,10 @@ Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
 
 Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
     ->name('company.members.remove');
+
+Route::post('/settings/company/{org}/verify-request',
+        [CompanyController::class, 'requestVerification']
+    )->name('company.verify.request');
+
+Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])
+    ->name('company.verification.submit');
