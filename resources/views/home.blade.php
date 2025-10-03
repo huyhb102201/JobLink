@@ -3,37 +3,34 @@
 @section('content')
   <main class="main">
     <!-- Hero Section -->
-@auth
-    @if(is_null(auth()->user()->email_verified_at))
-      <div class="alert alert-warning w-100 mb-3" role="alert">
-        <i class="bi bi-exclamation-triangle me-1"></i>
-        Tài khoản của bạn chưa xác thực email.
-        <button type="submit"
-                class="btn btn-link alert-link p-0 m-0 align-baseline"
-                form="resendVerifyForm">
-          Bấm vào đây để xác thực
-        </button>
+    @auth
+      @if(is_null(auth()->user()->email_verified_at))
+        <div class="alert alert-warning w-100 mb-3" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          Tài khoản của bạn chưa xác thực email.
+          <button type="submit" class="btn btn-link alert-link p-0 m-0 align-baseline" form="resendVerifyForm">
+            Bấm vào đây để xác thực
+          </button>
+        </div>
+      @endif
+    @endauth
+
+    {{-- Hiện thông báo khi gửi mail thành công --}}
+    @if (session('status') == 'verification-link-sent')
+      <div class="alert alert-success w-100 mb-3" role="alert">
+        <i class="bi bi-check-circle me-1"></i>
+        Liên kết xác thực đã được gửi tới email của bạn.
       </div>
     @endif
-@endauth
 
-
-{{-- Hiện thông báo khi gửi mail thành công --}}
-@if (session('status') == 'verification-link-sent')
-  <div class="alert alert-success w-100 mb-3" role="alert">
-    <i class="bi bi-check-circle me-1"></i>
-    Liên kết xác thực đã được gửi tới email của bạn.
-  </div>
-@endif
-
-<form id="resendVerifyForm" method="POST" action="{{ route('verification.send') }}" class="d-none">
-  @csrf
-</form>
+    <form id="resendVerifyForm" method="POST" action="{{ route('verification.send') }}" class="d-none">
+      @csrf
+    </form>
 
     <section id="hero" class="hero section">
       <div class="container d-flex flex-column justify-content-center align-items-center text-center position-relative"
         data-aos="zoom-out">
-        <img src="assets/img/hero-img.svg" class="img-fluid animated" alt="">
+        <img src="{{ asset('assets/img/hero-img.svg') }}" class="img-fluid animated" alt="">
         <h1>Chào mừng đến với <span>JobLink</span></h1>
         <p>Nền tảng tìm kiếm, trao đổi và hỗ trợ việc làm dành cho các freelancer. Kết nối bạn với dự án phù hợp và cơ hội
           nghề nghiệp linh hoạt.</p>
@@ -117,9 +114,9 @@
 
             <!-- Tabs -->
             <ul class="nav nav-pills mb-3">
-              <li><a class="nav-link active" data-bs-toggle="pill" href="#about-tab1">Tìm việc nhanh</a></li>
-              <li><a class="nav-link" data-bs-toggle="pill" href="#about-tab2">Kết nối Freelancer</a></li>
-              <li><a class="nav-link" data-bs-toggle="pill" href="#about-tab3">Hỗ trợ & Cộng đồng</a></li>
+              <li><a class="nav-link active" data-bs-toggle="pill" href="#about-tab1">Tìm việc</a></li>
+              <li><a class="nav-link" data-bs-toggle="pill" href="#about-tab2">Kết nối</a></li>
+              <li><a class="nav-link" data-bs-toggle="pill" href="#about-tab3">Hỗ trợ</a></li>
             </ul><!-- End Tabs -->
 
             <!-- Tab Content -->
@@ -724,20 +721,20 @@
 
         <div class="swiper init-swiper">
           <script type="application/json" class="swiper-config">
-                                {
-                                  "loop": true,
-                                  "speed": 600,
-                                  "autoplay": {
-                                    "delay": 5000
-                                  },
-                                  "slidesPerView": "auto",
-                                  "pagination": {
-                                    "el": ".swiper-pagination",
-                                    "type": "bullets",
-                                    "clickable": true
-                                  }
-                                }
-                              </script>
+                                    {
+                                      "loop": true,
+                                      "speed": 600,
+                                      "autoplay": {
+                                        "delay": 5000
+                                      },
+                                      "slidesPerView": "auto",
+                                      "pagination": {
+                                        "el": ".swiper-pagination",
+                                        "type": "bullets",
+                                        "clickable": true
+                                      }
+                                    }
+                                  </script>
 
           <div class="swiper-wrapper">
 
@@ -842,98 +839,94 @@
 
     </section><!-- /Testimonials Section -->
 
-    <!-- Pricing Section -->
-    <section id="pricing" class="pricing section">
+    <!-- Pricing Section
+      <section id="pricing" class="pricing section">
 
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2>Gói Dịch Vụ</h2>
-        <p>Chọn gói phù hợp để tìm việc hoặc đăng dự án trên JobLink.</p>
-      </div><!-- End Section Title -->
+        <div class="container section-title" data-aos="fade-up">
+          <h2>Gói Dịch Vụ</h2>
+          <p>Chọn gói phù hợp để tìm việc hoặc đăng dự án trên JobLink.</p>
+        </div>
 
-      <div class="container" data-aos="fade-up" data-aos-delay="100">
+        <div class="container" data-aos="fade-up" data-aos-delay="100">
 
-        <div class="row gy-4">
+          <div class="row gy-4">
 
-          <!-- Gói Miễn Phí -->
-          <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="200">
-            <div class="pricing-item">
+            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="200">
+              <div class="pricing-item">
 
-              <div class="pricing-header">
-                <h3>Gói Miễn Phí</h3>
-                <h4><sup>₫</sup>0<span> / tháng</span></h4>
+                <div class="pricing-header">
+                  <h3>Gói Miễn Phí</h3>
+                  <h4><sup>₫</sup>0<span> / tháng</span></h4>
+                </div>
+
+                <ul>
+                  <li><i class="bi bi-dot"></i> <span>Đăng ký hồ sơ cá nhân</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Tìm kiếm việc làm cơ bản</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Ứng tuyển tối đa 5 dự án/tháng</span></li>
+                  <li class="na"><i class="bi bi-x"></i> <span>Truy cập công cụ quản lý khách hàng</span></li>
+                  <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                </ul>
+
+                <div class="text-center mt-auto">
+                  <a href="#" class="buy-btn">Đăng ký</a>
+                </div>
+
               </div>
-
-              <ul>
-                <li><i class="bi bi-dot"></i> <span>Đăng ký hồ sơ cá nhân</span></li>
-                <li><i class="bi bi-dot"></i> <span>Tìm kiếm việc làm cơ bản</span></li>
-                <li><i class="bi bi-dot"></i> <span>Ứng tuyển tối đa 5 dự án/tháng</span></li>
-                <li class="na"><i class="bi bi-x"></i> <span>Truy cập công cụ quản lý khách hàng</span></li>
-                <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-              </ul>
-
-              <div class="text-center mt-auto">
-                <a href="#" class="buy-btn">Đăng ký</a>
-              </div>
-
             </div>
-          </div>
 
-          <!-- Gói Freelancer -->
-          <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="400">
-            <div class="pricing-item featured">
+            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="400">
+              <div class="pricing-item featured">
 
-              <div class="pricing-header">
-                <h3>Gói Freelancer</h3>
-                <h4><sup>₫</sup>199,000<span> / tháng</span></h4>
+                <div class="pricing-header">
+                  <h3>Gói Freelancer</h3>
+                  <h4><sup>₫</sup>199,000<span> / tháng</span></h4>
+                </div>
+
+                <ul>
+                  <li><i class="bi bi-dot"></i>
+                    <span>Đăng hồ sơ chuyên nghiệp với portfolio</span>
+                  </li>
+                  <li><i class="bi bi-dot"></i> <span>Tìm kiếm và ứng tuyển không giới hạn</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Nhận thông báo dự án mới hàng ngày</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Tham gia cộng đồng freelancer</span></li>
+                  <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                </ul>
+
+                <div class="text-center mt-auto">
+                  <a href="#" class="buy-btn">Đăng ký</a>
+                </div>
+
               </div>
-
-              <ul>
-                <li><i class="bi bi-dot"></i>
-                  <span>Đăng hồ sơ chuyên nghiệp với portfolio</span>
-                </li>
-                <li><i class="bi bi-dot"></i> <span>Tìm kiếm và ứng tuyển không giới hạn</span></li>
-                <li><i class="bi bi-dot"></i> <span>Nhận thông báo dự án mới hàng ngày</span></li>
-                <li><i class="bi bi-dot"></i> <span>Tham gia cộng đồng freelancer</span></li>
-                <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-              </ul>
-
-              <div class="text-center mt-auto">
-                <a href="#" class="buy-btn">Đăng ký</a>
-              </div>
-
             </div>
-          </div>
 
-          <!-- Gói Doanh Nghiệp -->
-          <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="600">
-            <div class="pricing-item">
+            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="600">
+              <div class="pricing-item">
 
-              <div class="pricing-header">
-                <h3>Gói Doanh Nghiệp</h3>
-                <h4><sup>₫</sup>499,000<span> / tháng</span></h4>
+                <div class="pricing-header">
+                  <h3>Gói Doanh Nghiệp</h3>
+                  <h4><sup>₫</sup>499,000<span> / tháng</span></h4>
+                </div>
+
+                <ul>
+                  <li><i class="bi bi-dot"></i> <span>Đăng dự án không giới hạn</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Truy cập hồ sơ freelancer chi tiết</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Quản lý ứng tuyển và dự án dễ dàng</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                  <li><i class="bi bi-dot"></i> <span>Báo cáo phân tích hiệu quả dự án</span></li>
+                </ul>
+
+                <div class="text-center mt-auto">
+                  <a href="#" class="buy-btn">Đăng ký</a>
+                </div>
+
               </div>
-
-              <ul>
-                <li><i class="bi bi-dot"></i> <span>Đăng dự án không giới hạn</span></li>
-                <li><i class="bi bi-dot"></i> <span>Truy cập hồ sơ freelancer chi tiết</span></li>
-                <li><i class="bi bi-dot"></i> <span>Quản lý ứng tuyển và dự án dễ dàng</span></li>
-                <li><i class="bi bi-dot"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-                <li><i class="bi bi-dot"></i> <span>Báo cáo phân tích hiệu quả dự án</span></li>
-              </ul>
-
-              <div class="text-center mt-auto">
-                <a href="#" class="buy-btn">Đăng ký</a>
-              </div>
-
             </div>
+
           </div>
 
         </div>
 
-      </div>
-
-    </section><!-- /Pricing Section -->
+      </section> Pricing Section -->
 
     <!-- Faq Section -->
     <section id="faq" class="faq section">

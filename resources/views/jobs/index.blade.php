@@ -1,6 +1,15 @@
 @extends('layouts.app')
 @section('title', 'JobLink - Công việc')
 @section('content')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <style>
+       .choices__list--dropdown {
+    position: absolute; /* chắc chắn dropdown được đặt tuyệt đối */
+    z-index: 9999 !important; /* tăng z-index để nổi lên trên các phần tử khác */
+}
+
+    </style>
     <main class="main">
         <!-- Page Title -->
         <div class="page-title py-4 bg-light">
@@ -39,24 +48,25 @@
 
                 <div class="row">
                     <!-- Sidebar Filters -->
-                    <!-- Sidebar Filters -->
                     <aside class="col-xl-4 col-xxl-3 mb-4 mb-xl-0">
                         <!-- Desktop Sidebar (sticky, luôn hiện) -->
                         <div class="card p-3 d-none d-xl-block sticky-top" style="top: 80px;">
+                            <!-- Lọc theo mức lương -->
                             <!--<h6 class="mb-3">Mức lương</h6>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="duoi500" id="salary1" name="gia[]">
-                                    <label class="form-check-label" for="salary1">Dưới 500.000</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="500k1m" id="salary2" name="gia[]">
-                                    <label class="form-check-label" for="salary2">500.000 - 1.000.000</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="1m2m" id="salary3" name="gia[]">
-                                    <label class="form-check-label" for="salary3">1 - 2.000.000</label>
-                                </div>
-                                <hr>-->
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" value="duoi500" id="salary1" name="gia[]">
+                                                                    <label class="form-check-label" for="salary1">Dưới 500.000</label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" value="500k1m" id="salary2" name="gia[]">
+                                                                    <label class="form-check-label" for="salary2">500.000 - 1.000.000</label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" value="1m2m" id="salary3" name="gia[]">
+                                                                    <label class="form-check-label" for="salary3">1 - 2.000.000</label>
+                                                                </div>
+                                                                <hr>-->
+                            <!-- Lọc theo hình thức trả lương -->
                             <h6 class="mb-3">Hình thức trả lương</h6>
 
                             <div class="form-check cursor-pointer mb-2">
@@ -72,7 +82,7 @@
                             </div>
 
                             <hr>
-
+                            <!-- Lọc theo trạng thái cv -->
                             <h6 class="mb-3">Trạng thái công việc</h6>
 
                             <div class="form-check cursor-pointer mb-2">
@@ -92,7 +102,10 @@
                                 <label class="form-check-label" for="status3">Hoàn thành</label>
                             </div>
 
-
+                            <hr>
+                            <!-- Lọc theo loại cv -->
+                            <h6 class="mb-3">Loại công việc</h6>
+                            <select id="category" name="category[]" multiple></select>
                         </div>
 
                         <!-- Mobile Offcanvas Sidebar -->
@@ -120,6 +133,8 @@
                                         name="gia[]">
                                     <label class="form-check-label" for="m_salary3">1 - 2.000.000</label>
                                 </div>
+
+
                             </div>
                         </div>
                     </aside>
@@ -141,13 +156,31 @@
     </main>
 
     <script>
-        $(document).ready(function () {
+        // Fetch categories từ server (Laravel blade)
+        const categories = @json(\App\Models\JobCategory::all());
+        const categorySelect = document.getElementById('category');
 
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.category_id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+
+        const choices = new Choices('#category', {
+            removeItemButton: true,
+            placeholderValue: 'Chọn loại công việc',
+            searchPlaceholderValue: 'Tìm kiếm...',
+        });
+
+        $(document).ready(function () {
             // Lấy filter & page từ localStorage
             function getFilterData() {
                 let storedFilters = JSON.parse(localStorage.getItem('jobFilters')) || {};
                 let payment_type = storedFilters.payment_type || [];
                 let status = storedFilters.status || [];
+                let category = storedFilters.category || [];
+                console.log(category);
 
                 // Cập nhật checkbox theo localStorage
                 $("input[name='payment_type[]']").each(function () {
@@ -157,7 +190,8 @@
                     $(this).prop('checked', status.includes($(this).val()));
                 });
 
-                return { payment_type: payment_type, status: status, page: storedFilters.page || 1 };
+
+                return { payment_type, status, category, page: storedFilters.page || 1 };
             }
 
             // Lưu filter & page vào localStorage
@@ -208,8 +242,9 @@
                 $("input[name='payment_type[]']:checked").each(function () {
                     payment_type.push($(this).val());
                 });
-                let status = getFilterData().status; // giữ trạng thái hiện tại
-                saveFilterData({ payment_type: payment_type, status: status, page: 1 });
+                let status = getFilterData().status;
+                let category = getFilterData().category;
+                saveFilterData({ payment_type, status, category, page: 1 });
                 loadJobs(1);
             });
 
@@ -219,18 +254,24 @@
                 $("input[name='status[]']:checked").each(function () {
                     status.push($(this).val());
                 });
-                let payment_type = getFilterData().payment_type; // giữ payment_type hiện tại
-                saveFilterData({ payment_type: payment_type, status: status, page: 1 });
+                let payment_type = getFilterData().payment_type;
+                let category = getFilterData().category;
+                saveFilterData({ payment_type, status, category, page: 1 });
                 loadJobs(1);
             });
 
-            // Load khi mở trang hoặc F5
+            // Thay đổi filter dropdown category
+            categorySelect.addEventListener('change', function () {
+                let category = choices.getValue(true); // get array of selected values
+                let payment_type = getFilterData().payment_type;
+                let status = getFilterData().status;
+                saveFilterData({ payment_type, status, category, page: 1 });
+                loadJobs(1);
+            });
+
+            // Load khi mở trang
             //loadJobs();
         });
     </script>
-
-
-
-
 
 @endsection

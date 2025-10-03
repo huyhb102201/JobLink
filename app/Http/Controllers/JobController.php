@@ -10,35 +10,39 @@ use App\Models\JobApply;
 class JobController extends Controller
 {
     public function index(Request $request)
-{
-    $jobs = Job::with('account.profile', 'jobCategory')
-        ->whereNotIn('status', ['spending', 'cancel']);
+    {
+        $jobs = Job::with('account.profile', 'jobCategory')
+            ->whereNotIn('status', ['spending', 'cancel']);
 
-    // Lọc theo payment_type
-    if ($request->has('payment_type') && is_array($request->payment_type)) {
-        $jobs->whereIn('payment_type', $request->payment_type);
+        // Lọc theo payment_type
+        if ($request->has('payment_type') && is_array($request->payment_type)) {
+            $jobs->whereIn('payment_type', $request->payment_type);
+        }
+
+        // Lọc theo status
+        if ($request->has('status') && is_array($request->status)) {
+            $jobs->whereIn('status', $request->status);
+        }
+
+        // Lọc theo category
+        if ($request->has('category') && is_array($request->category)) {
+            $jobs->whereIn('category_id', $request->category);
+        }
+
+        $jobs = $jobs->orderBy('created_at', 'desc')->paginate(6);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'jobs' => view('jobs.partials.jobs-list', compact('jobs'))->render(),
+                'pagination' => view('components.pagination', [
+                    'paginator' => $jobs,
+                    'elements' => $jobs->links()->elements ?? []
+                ])->render(),
+            ]);
+        }
+
+        return view('jobs.index', compact('jobs'));
     }
-
-    // Lọc theo status
-    if ($request->has('status') && is_array($request->status)) {
-        $jobs->whereIn('status', $request->status);
-    }
-    
-    $jobs = $jobs->orderBy('created_at', 'desc')->paginate(6);
-
-    if ($request->ajax()) {
-        return response()->json([
-            'jobs' => view('jobs.partials.jobs-list', compact('jobs'))->render(),
-            'pagination' => view('components.pagination', [
-                'paginator' => $jobs,
-                'elements' => $jobs->links()->elements ?? []
-            ])->render(),
-        ]);
-    }
-
-    return view('jobs.index', compact('jobs'));
-}
-
 
     public function show(Job $job, Request $request)
     {
