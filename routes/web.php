@@ -22,6 +22,7 @@ use App\Http\Controllers\Client\JobAIFormController;
 use App\Http\Controllers\Client\JobWizardController;
 use App\Http\Controllers\Client\MyJobsController;
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\CompanyController;
 use App\Models\Account;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
@@ -186,7 +187,6 @@ Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->g
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
 });
 // routes/web.php (hoặc routes/api.php)
-
 Route::get('/checkout', function () {
     return view('checkout');
 });
@@ -228,3 +228,12 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
+
+Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
+Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
+Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
+        ->name('company.members.add');
+Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
+        ->name('company.members.invite');
+Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
+    ->name('company.invite.accept');

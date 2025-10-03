@@ -47,14 +47,16 @@ class CheckoutController extends Controller
         ];
 
 
+
         error_log($data['orderCode']);
 
         try {
             $response = $this->payOS->createPaymentLink($data);
             return redirect($response['checkoutUrl']);
         } catch (\Throwable $th) {
-            return $this->handleException($th);
+            dd('PayOS error', $th->getMessage(), $th->getTraceAsString(), $data);
         }
+
     }
     public function paymentSuccess(Request $request)
     {
