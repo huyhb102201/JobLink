@@ -221,6 +221,26 @@
                 transform: translateY(20px);
             }
         }
+
+        .status-dot {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+        }
+
+        .status-online {
+            background-color: #28a745;
+            /* xanh lá */
+        }
+
+        .status-offline {
+            background-color: #6c757d;
+            /* xám */
+        }
     </style>
     <!-- Container toast -->
     <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
@@ -239,8 +259,12 @@
                         <div class="chat-item d-flex align-items-center mb-2 p-2 rounded"
                             data-partner-id="{{ $partner->account_id }}" data-job-id="{{ $latestMsg->job_id ?? 'null' }}"
                             onclick="openChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $latestMsg->job_id ?? 'null' }})">
-                            <img src="{{ $avatar }}" alt="avatar" class="rounded-circle me-2"
-                                style="width:55px;height:55px;object-fit:cover;">
+                            <div class="position-relative me-2" style="width:55px;height:55px;">
+                                <img src="{{ $avatar }}" alt="avatar" class="rounded-circle"
+                                    style="width:55px;height:55px;object-fit:cover;">
+                                <span class="status-dot status-offline" id="status-{{ $partner->account_id }}"></span>
+                            </div>
+
                             <div>
                                 <div class="fw-bold">{{ $partner->name }}</div>
                                 @if($latestMsg)
@@ -279,13 +303,25 @@
                     </button>
                 </div>
 
-                <div class="chat-header fw-bold mb-2" id="chatHeader">
+                <div class="chat-header d-flex align-items-center gap-2 mb-2" id="chatHeader">
                     @if($job)
-                        Chat với {{ $employer->name }}
+                        <div class="position-relative" style="width:45px;height:45px;">
+                            <img id="chatHeaderAvatar" src="{{ $employer->avatar_url ?? asset('assets/img/blog/blog-1.jpg') }}"
+                                class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                            <span class="status-dot {{ $employer->isOnline() ? 'status-online' : 'status-offline' }}"
+                                id="chatHeaderStatus"></span>
+                        </div>
+                        <div>
+                            <div class="fw-bold" id="chatHeaderName">{{ $employer->name }}</div>
+                            <div class="small text-muted" id="chatHeaderStatusText">
+                                {{ $employer->isOnline() ? 'Đang hoạt động' : 'Hoạt động ' . optional($employer->last_seen_at)->diffForHumans() }}
+                            </div>
+                        </div>
                     @else
                         Chọn một cuộc trò chuyện
                     @endif
                 </div>
+
                 <div id="chatMessages" class="chat-messages">
                     @if($job && $messages && $messages->count())
                         @foreach($messages as $msg)
@@ -404,8 +440,8 @@
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
             msgDiv.innerHTML = `<span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                                                        <p>${msg.content}</p>
-                                                        ${statusHTML}`;
+                                                            <p>${msg.content}</p>
+                                                            ${statusHTML}`;
 
             msgDiv.addEventListener('click', () => {
                 if (msgDiv.dataset.shownTime === 'true') return;
@@ -427,16 +463,62 @@
             currentPartnerId = partnerId;
             currentJobId = jobId;
 
-            // Highlight item nếu có element (desktop hoặc mobile nếu visible)
+            // Highlight item nếu có element
             if (currentItem) currentItem.classList.remove('active');
             if (element) {
                 currentItem = element;
                 currentItem.classList.add('active');
             }
 
-            document.getElementById('chatHeader').innerText = name;
-            document.getElementById('chatInput').style.display = 'flex';
+            // ===== Cập nhật Header (avatar + tên + trạng thái) =====
+            const header = document.getElementById('chatHeader');
+            const chatInput = document.getElementById('chatInput');
 
+            if (element) {
+                // Lấy avatar từ list
+                const avatarImg = element.querySelector("img");
+                const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/blog/blog-1.jpg') }}";
+
+                // Lấy trạng thái dot
+                const dot = element.querySelector(".status-dot");
+                const isOnline = dot && dot.classList.contains("status-online");
+
+                /// Render header box chat
+                header.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+            <div class="position-relative" style="width:45px;height:45px;">
+                <img id="chatHeaderAvatar" src="${avatarUrl}" 
+                     class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                <span class="status-dot status-offline" id="chatHeaderStatus"></span>
+            </div>
+            <div>
+                <div class="fw-bold" id="chatHeaderName">${name}</div>
+                <div class="small text-muted" id="chatHeaderStatusText">Đang tải...</div>
+            </div>
+        </div>
+    `;
+
+                // === Cập nhật trạng thái header ngay khi mở chat ===
+                const headerDot = document.getElementById("chatHeaderStatus");
+                const headerStatus = document.getElementById("chatHeaderStatusText");
+
+                if (dot && dot.classList.contains("status-online")) {
+                    headerDot.classList.remove("status-offline");
+                    headerDot.classList.add("status-online");
+                    headerStatus.innerText = "Đang hoạt động";
+                } else {
+                    headerDot.classList.remove("status-online");
+                    headerDot.classList.add("status-offline");
+                    headerStatus.innerText = "Ngoại tuyến";
+                }
+
+            } else {
+                header.innerText = name;
+            }
+
+            chatInput.style.display = 'flex';
+
+            // ===== Load tin nhắn =====
             const chatBox = document.getElementById('chatMessages');
             chatBox.innerHTML = `<div class="message text-muted">Đang tải tin nhắn...</div>`;
             lastMessageTime = null;
@@ -446,15 +528,24 @@
                 chatBox.innerHTML = '';
                 if (data.length === 0) {
                     chatBox.innerHTML = `<div class="message text-muted">Chưa có tin nhắn với ${name}</div>`;
-                } else data.forEach(msg => appendMessage(msg, msg.sender_id ==={{ auth()->id() }}, msg.sender_id ==={{ auth()->id() }} ? 'Đã nhận' : ''));
+                } else {
+                    data.forEach(msg => appendMessage(
+                        msg,
+                        msg.sender_id === {{ auth()->id() }},
+                        msg.sender_id === {{ auth()->id() }} ? 'Đã nhận' : ''
+                    ));
+                }
                 scrollToBottom();
             });
 
+            // ===== Realtime message listening =====
             if (window.Echo) {
                 if (currentChannel) window.Echo.leave(currentChannel);
+
                 const userIds = [{{ auth()->id() }}, partnerId].sort((a, b) => a - b);
                 const channelName = `job.${jobId ?? 'null'}.${userIds.join('.')}`;
                 currentChannel = `private-${channelName}`;
+
                 window.Echo.private(channelName).listen('MessageSent', e => {
                     const isMe = e.message.sender.id === {{ auth()->id() }};
                     const msgDiv = appendMessage(e.message, isMe);
@@ -465,7 +556,12 @@
                     } else {
                         const sound = document.getElementById('chatNotifySound');
                         if (sound) sound.play();
-                        showChatToast(e.message.sender.name, e.message.content, e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}");
+
+                        showChatToast(
+                            e.message.sender.name,
+                            e.message.content,
+                            e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                        );
 
                         if (Notification.permission === "granted") {
                             new Notification("Tin nhắn mới từ " + e.message.sender.name, {
@@ -482,17 +578,16 @@
                                 }
                             });
                         }
-
                     }
                 });
-
             }
 
-            // Trên mobile: ẩn offcanvas sau khi chọn chat
+            // ===== Mobile: ẩn offcanvas sau khi chọn chat =====
             if (offcanvas && window.innerWidth < 1200) {
                 offcanvas.hide();
             }
         }
+
 
         // Gửi tin nhắn
         function sendMessage() {
@@ -533,18 +628,18 @@
             toastEl.setAttribute("role", "alert");
 
             toastEl.innerHTML = `
-                    <div class="toast-body p-2 d-flex align-items-start gap-2">
-                        <img src="${avatarUrl}" alt="avatar" 
-                             class="rounded-circle flex-shrink-0" width="42" height="42">
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold">${sender}</span>
-                                <small class="text-muted">${timeText}</small>
+                        <div class="toast-body p-2 d-flex align-items-start gap-2">
+                            <img src="${avatarUrl}" alt="avatar" 
+                                 class="rounded-circle flex-shrink-0" width="42" height="42">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold">${sender}</span>
+                                    <small class="text-muted">${timeText}</small>
+                                </div>
+                                <div class="text-truncate">${content}</div>
                             </div>
-                            <div class="text-truncate">${content}</div>
                         </div>
-                    </div>
-                `;
+                    `;
 
             // click toàn khối để mở chat
             if (onClick) {
@@ -572,7 +667,7 @@
                 // Auto open chat nếu có job (không cần element vì không highlight trên mobile)
                 openChat('{{ $employer->name }}', null, {{ $employer->account_id }}, {{ $job->job_id }});
             @endif
-                                });
+                                    });
 
         // Enter / Ctrl+Enter
         const messageInput = document.getElementById('messageInput');
@@ -597,7 +692,41 @@
                 });
             }
         });
+        // Lắng nghe toàn bộ user online/offline
+        if (window.Echo) {
+            window.Echo.channel('users')
+                .listen('.UserOnline', (e) => {
+                    const userId = e.user.id;
+                    const dot = document.getElementById(`status-${userId}`);
+                    if (dot) {
+                        dot.classList.remove('status-offline');
+                        dot.classList.add('status-online');
+                    }
 
+                    // Nếu đang mở chat với user này
+                    if (currentPartnerId === userId) {
+                        document.getElementById("chatHeaderStatusText").innerText = "Đang hoạt động";
+                        const headerDot = document.getElementById("chatHeaderStatus");
+                        headerDot.classList.remove("status-offline");
+                        headerDot.classList.add("status-online");
+                    }
+                })
+                .listen('.UserOffline', (e) => {
+                    const userId = e.user.id;
+                    const dot = document.getElementById(`status-${userId}`);
+                    if (dot) {
+                        dot.classList.remove('status-online');
+                        dot.classList.add('status-offline');
+                    }
+
+                    if (currentPartnerId === userId) {
+                        document.getElementById("chatHeaderStatusText").innerText = "Ngoại tuyến";
+                        const headerDot = document.getElementById("chatHeaderStatus");
+                        headerDot.classList.remove("status-online");
+                        headerDot.classList.add("status-offline");
+                    }
+                });
+        }
 
     </script>
 @endsection

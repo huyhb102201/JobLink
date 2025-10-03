@@ -5,7 +5,7 @@
 @section('content')
   <div class="container settings" style="margin-top: 50px;">
     <div class="row g-4 align-items-start">
-    {{-- Sidebar trái --}}
+      {{-- Sidebar trái --}}
       {{-- Sidebar trái --}}
       <aside class="col-12 col-lg-3 col-xl-3">
         @php
@@ -58,24 +58,25 @@
             class="nav-link @if(request()->routeIs('settings.appeals')) active @endif">
             Theo dõi khiếu nại
           </a>
+          @auth
+            @php
+              $acc = Auth::user()->loadMissing('type');
+              $typeId = $acc->type->account_type_id ?? null;
+
+              // check active
+              $activeSubmitted = request()->routeIs('settings.submitted_jobs');
+            @endphp
+
+            @if(in_array($typeId, [1, 2]))
+              <a href="{{ route('settings.submitted_jobs') }}"
+                class="nav-link {{ $activeSubmitted ? 'active fw-semibold' : '' }}">
+                Công việc đã nộp
+              </a>
+            @endif
+          @endauth
+
         </nav>
       </aside>
-   @auth
-    @php
-        $acc = Auth::user()->loadMissing('type');
-        $typeId = $acc->type->account_type_id ?? null;
-
-        // check active
-        $activeSubmitted = request()->routeIs('settings.submitted_jobs');
-    @endphp
-
-    @if(in_array($typeId, [1, 2]))
-        <a href="{{ route('settings.submitted_jobs') }}"
-           class="nav-link {{ $activeSubmitted ? 'active fw-semibold' : '' }}">
-           Công việc đã nộp
-        </a>
-    @endif
-@endauth
 
       {{-- Content phải --}}
       <main class="col-12 col-lg-9 col-xl-9">
