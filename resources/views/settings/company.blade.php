@@ -132,26 +132,23 @@
                                                 @endif
                                             </span>
                                             @if($role !== 'OWNER') {{-- không cho xoá Owner --}}
-    <div class="dropdown">
-      <button class="btn btn-sm btn-outline-danger rounded-pill px-2 kebab"
-              data-bs-toggle="dropdown" aria-expanded="false" title="Thao tác">
-        <i class="bi bi-three-dots-vertical"></i>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end">
-        <li class="dropdown-header">Thành viên</li>
-        <li>
-          <form method="POST"
-                action="{{ route('company.members.remove', ['org' => $org->org_id, 'account' => $m->account_id]) }}"
-                onsubmit="return confirm('Xoá {{ $name ?? $m->email }} khỏi tổ chức?');">
-            @csrf @method('DELETE')
-            <button type="submit" class="dropdown-item text-danger">
-              <i class="bi bi-trash me-2"></i>Xoá khỏi tổ chức
-            </button>
-          </form>
-        </li>
-      </ul>
-    </div>
-  @endif
+  <form method="POST"
+        action="{{ route('company.members.remove', ['org' => $org->org_id, 'account' => $m->account_id]) }}"
+        class="d-inline js-remove-form">
+    @csrf
+    @method('DELETE')
+
+    <button type="button"
+            class="btn btn-icon btn-soft-danger"
+            data-name="{{ $name ?? $m->email }}"
+            title="Xoá khỏi tổ chức"
+            aria-label="Xoá khỏi tổ chức">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </form>
+@endif
+
+
                                         </div>
 
                                     </div>
@@ -404,6 +401,25 @@
                 background: #ffe4e6;
                 color: #9f1239;
             }
+            .btn-icon{
+    width: 34px; height: 34px; padding: 0;
+    display: inline-grid; place-items: center;
+    border-radius: 999px; line-height: 1;
+  }
+  .btn-soft-danger{
+    background: #fff5f5;        /* nền đỏ nhạt */
+    border: 1px solid #ffe0e0;  /* viền nhạt */
+    color: #c1121f;             /* biểu tượng đỏ */
+  }
+  .btn-soft-danger:hover{
+    background: #ffe5e5;
+    border-color: #ffc9c9;
+    color: #a50e19;
+    box-shadow: 0 0 0 .2rem rgba(220,53,69,.12);
+  }
+  .btn-soft-danger:active{
+    transform: translateY(1px);
+  }
         </style>
     @endpush
 
@@ -427,6 +443,30 @@
                         if (addEl) new bootstrap.Modal(addEl).show();
                     @endif
           });
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.js-remove-form .btn-icon').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const name = this.dataset.name || 'thành viên';
+      if (confirm(`Xoá ${name} khỏi tổ chức?`)) {
+        // lock + spinner
+        this.disabled = true;
+        const html = this.innerHTML;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        // submit
+        this.closest('form').submit();
+
+        // (phòng trường hợp không redirect) tự trả lại icon sau vài giây
+        setTimeout(() => {
+          if (!document.hidden) {
+            this.disabled = false;
+            this.innerHTML = html;
+          }
+        }, 8000);
+      }
+    });
+  });
+});
         </script>
     @endpush
 
