@@ -22,7 +22,11 @@ use App\Http\Controllers\Client\JobWizardController;
 use App\Http\Controllers\Client\MyJobsController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
 use App\Models\Account;
+use App\Http\Controllers\UpgradeController;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -118,6 +122,20 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/tax', [SettingsController::class, 'tax'])->name('tax');
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
+    Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
+
+Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
+Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
+Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
+        ->name('company.members.add');
+Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
+        ->name('company.members.invite');
+Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
+    ->name('company.invite.accept');
+
+Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
+    ->name('company.members.remove');
 });
 // Routes Xác minh Email
 Route::get('/email/verify', function () {
@@ -179,9 +197,7 @@ Route::get('/success.html', function () {
 Route::get('/cancel.html', function () {
     return view('cancel');
 });
-use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\PaymentController;
+
 Route::post('/create-payment-link', [CheckoutController::class, 'createPaymentLink'])->name('create.payment.link');
 
 Route::prefix('/order')->group(function () {
@@ -193,7 +209,6 @@ Route::prefix('/order')->group(function () {
 Route::prefix('/payment')->group(function () {
     Route::post('/payos', [PaymentController::class, 'handlePayOSWebhook']);
 });
-use App\Http\Controllers\UpgradeController;
 
 Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('settings.upgrade');
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
@@ -207,14 +222,3 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
         Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
     });
 
-Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
-Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
-
-Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
-Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
-Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
-        ->name('company.members.add');
-Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
-        ->name('company.members.invite');
-Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
-    ->name('company.invite.accept');
