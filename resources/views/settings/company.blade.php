@@ -51,21 +51,143 @@
                             <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
                                 <div>
                                     <div class="d-flex align-items-center gap-2 mb-1">
-                                        <i class="bi bi-buildings text-primary fs-4"></i>
-                                        <h3 class="m-0 fw-bold text-dark">{{ $org->name }}</h3>
-                                    </div>
+  <i class="bi bi-buildings text-primary fs-4"></i>
+  <h3 class="m-0 fw-bold text-dark">{{ $org->name }}</h3>
+
+  @php
+    $v = $org->status ?? 'UNVERIFIED';
+    $map = [
+      'VERIFIED'   => ['bg' => '#dcfce7', 'color' => '#166534', 'icon' => 'bi-patch-check-fill', 'text' => 'Đã xác minh'],
+      'PENDING'    => ['bg' => '#fff4cc', 'color' => '#8a6d3b', 'icon' => 'bi-hourglass-split', 'text' => 'Đang chờ duyệt'],
+      'REJECTED'   => ['bg' => '#ffe4e6', 'color' => '#9f1239', 'icon' => 'bi-x-octagon-fill', 'text' => 'Bị từ chối'],
+      'UNVERIFIED' => ['bg' => '#e2e8f0', 'color' => '#0f172a', 'icon' => 'bi-shield-exclamation', 'text' => 'Chưa xác minh'],
+    ];
+    $b = $map[$v] ?? $map['UNVERIFIED'];
+  @endphp
+
+  <span class="badge d-inline-flex align-items-center"
+        style="background: {{ $b['bg'] }}; color: {{ $b['color'] }}; gap:.35rem; border-radius:999px; padding:.35rem .6rem;">
+    <i class="bi {{ $b['icon'] }}"></i> {{ $b['text'] }}
+  </span>
+</div>
+
                                     @if($org->description)
                                         <div class="text-secondary mb-2">{{ $org->description }}</div>
                                     @endif
                                     <span class="chip-light">Mã tổ chức: #{{ $org->org_id }}</span>
                                 </div>
 
-                                <div class="text-end">
-                                    <div class="fw-semibold text-dark">Số lượng: {{ $used }} / {{ $total }}</div>
-                                    <div class="small text-secondary">Chủ sở hữu:
-                                        {{ $account->profile->fullname ?? $account->email }}</div>
-                                </div>
+                                @php
+  $v = $org->verified_status ?? 'UNVERIFIED';
+@endphp
+
+<div class="text-end">
+  <div class="fw-semibold text-dark">Số lượng: {{ $used }} / {{ $total }}</div>
+  <div class="small text-secondary">Chủ sở hữu: {{ $account->profile->fullname ?? $account->email }}</div>
+
+  <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+    {{-- Thumbnail hồ sơ đã gửi (nếu có) --}}
+    @if(!empty($latestVerification))
+      @php
+        $isImg = str_starts_with($latestVerification->mime_type ?? '', 'image/');
+        $fileUrl = asset('storage/'.$latestVerification->file_path);
+      @endphp
+
+      @if($isImg)
+        <button type="button" class="p-0 border-0 bg-transparent"
+                data-bs-toggle="modal" data-bs-target="#verifyOrgModal"
+                title="Xem hồ sơ đã gửi">
+          <img src="{{ $fileUrl }}" alt="Giấy tờ đã gửi" class="verify-thumb">
+        </button>
+      @else
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill"
+                data-bs-toggle="modal" data-bs-target="#verifyOrgModal"
+                title="Xem hồ sơ đã gửi">
+          <i class="bi bi-file-earmark-text me-1"></i> Tệp đã gửi
+        </button>
+      @endif
+    @endif
+
+    {{-- Nút xác minh / trạng thái --}}
+    @if(in_array($org->status, ['UNVERIFIED','REJECTED']))
+      <button class="btn btn-outline-primary btn-sm rounded-pill"
+              data-bs-toggle="modal" data-bs-target="#verifyOrgModal">
+        <i class="bi bi-upload me-1"></i> Xác minh doanh nghiệp
+      </button>
+    @elseif($org->status === 'PENDING')
+      <button class="btn btn-outline-secondary btn-sm rounded-pill" disabled>
+        <i class="bi bi-hourglass me-1"></i> Đã gửi xác minh
+      </button>
+    @endif
+  </div>
+</div>
+
+
                             </div>
+
+                            {{-- MODAL: Xác minh doanh nghiệp --}}
+<div class="modal fade" id="verifyOrgModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <form method="POST" action="{{ route('company.verification.submit') }}" enctype="multipart/form-data">
+        @csrf
+        <input type="hidden" name="_modal" value="verify_org">
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-patch-check me-2"></i> Xác minh doanh nghiệp
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          @if($errors->any() && old('_modal') === 'verify_org')
+            <div class="alert alert-danger rounded-3">{{ $errors->first() }}</div>
+          @endif
+
+          <p class="text-secondary">Tải lên giấy phép/giấy chứng nhận doanh nghiệp (ảnh hoặc PDF).</p>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tệp đính kèm</label>
+            <input type="file" name="file" class="form-control" accept="image/*,application/pdf" required>
+            <div class="form-text">Hỗ trợ: JPG, PNG, WEBP, PDF. Tối đa 10MB.</div>
+            @error('file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+          </div>
+
+          @if(!empty($latestVerification))
+            <div class="p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+              <div class="small text-secondary mb-1">Lần gửi gần nhất:</div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark">{{ $latestVerification->status }}</span>
+                <span class="text-secondary small">
+                  {{ \Carbon\Carbon::parse($latestVerification->created_at)->format('d/m/Y H:i') }}
+                </span>
+              </div>
+              @if($latestVerification->review_note)
+                <div class="mt-2 small">Ghi chú: <span class="text-secondary">{{ $latestVerification->review_note }}</span></div>
+              @endif
+              @php
+                $previewable = str_starts_with(($latestVerification->mime_type ?? ''), 'image/');
+              @endphp
+              @if($previewable)
+                <div class="mt-2">
+                  <img src="{{ asset('storage/'.$latestVerification->file_path) }}" alt="preview" style="max-width:100%; border-radius:8px;">
+                </div>
+              @endif
+            </div>
+          @endif
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button class="btn btn-primary rounded-pill px-4" type="submit">
+            <i class="bi bi-send-check me-2"></i>Gửi xác minh
+          </button>
+          <button class="btn btn-outline-secondary rounded-pill" type="button" data-bs-dismiss="modal">Hủy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
                             <div class="mt-3">
                                 <div class="progress rounded-pill" style="height: 10px;background:#eef2ff;">
@@ -420,6 +542,30 @@
   .btn-soft-danger:active{
     transform: translateY(1px);
   }
+  .verify-badge{
+  border-radius:999px; font-weight:600; padding:.25rem .6rem;
+  display:inline-flex; align-items:center; gap:.35rem; font-size:.8rem;
+  border:1px solid transparent;
+}
+.verify-badge.verified{  background:#e8f7ef; color:#166534; border-color:#c7eed8; }
+.verify-badge.unverified{background:#fff7ed; color:#9a3412; border-color:#ffedd5;}
+.verify-badge.pending{  background:#fefce8; color:#854d0e; border-color:#fde68a; }
+.verify-badge.rejected{ background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
+/* thumbnail hồ sơ xác minh – hiển thị nhỏ gọn */
+.verify-thumb{
+  width: 48px;           /* nhỏ gọn */
+  height: 36px;
+  object-fit: cover;     /* không méo ảnh */
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+  display: block;
+}
+.verify-thumb:hover{
+  transform: scale(1.03);
+  box-shadow: 0 4px 10px rgba(0,0,0,.08);
+}
+
         </style>
     @endpush
 
@@ -467,6 +613,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+document.addEventListener('DOMContentLoaded', function () {
+    @if($errors->any() && old('_modal') === 'verify_org')
+      const el = document.getElementById('verifyOrgModal');
+      if (el) new bootstrap.Modal(el).show();
+    @endif
+  });
         </script>
     @endpush
 

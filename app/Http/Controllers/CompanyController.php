@@ -9,24 +9,29 @@ use App\Models\Account;
 use SendGrid\Mail\Mail as SGMail;
 use Illuminate\Support\Str;
 use App\Models\OrgInvitation;
+use Illuminate\Support\Facades\Storage;
+use App\Models\OrgVerification;
+use Illuminate\Validation\Rules\File;
 class CompanyController extends Controller
 {
     // Trang "Doanh nghiệp của tôi"
     // CompanyController@index
     public function index(Request $r)
-    {
-        $account = $r->user()->loadMissing(['type', 'profile']);
-        $isBusiness = ($account?->type?->code === 'BUSS');
+{
+    $account     = $r->user()->loadMissing(['type','profile']);
+    $isBusiness  = ($account?->type?->code === 'BUSS');
 
-        $org = null;
-        $members = collect();
-        $usedSeats = 0;
+    $org = null;
+    $members = collect();
+    $usedSeats = 0;
+    $latestVerification = null;   // <-- có biến này
 
-        if ($isBusiness) {
-            $org = \App\Models\Org::where('owner_account_id', $account->account_id)->first();
+    if ($isBusiness) {
+        $org = \App\Models\Org::where('owner_account_id', $account->account_id)->first();
 
-            if ($org) {
-                $members = \DB::table('org_members as om')
+        if ($org) {
+            // ... phần query $members của bạn giữ nguyên ...
+            $members = \DB::table('org_members as om')
                     ->join('accounts as a', 'a.account_id', '=', 'om.account_id')
                     ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
                     ->where('om.org_id', $org->org_id)
@@ -43,15 +48,20 @@ class CompanyController extends Controller
                     ->orderByRaw("FIELD(om.role,'OWNER','ADMIN','MANAGER','MEMBER','BILLING')")
                     ->orderBy('p.fullname')
                     ->get();
+            // LẤY HỒ SƠ XÁC MINH GẦN NHẤT
+            $latestVerification = \DB::table('org_verifications')
+                ->where('org_id', $org->org_id)
+                ->orderByDesc('created_at')
+                ->first();
 
-
-                $usedSeats = $members->count();
-            }
+            $usedSeats = $members->count();
         }
-
-        return view('settings.company', compact('account', 'isBusiness', 'org', 'usedSeats', 'members'));
     }
 
+    return view('settings.company', compact(
+        'account','isBusiness','org','usedSeats','members','latestVerification'
+    ));
+}
 
     // Tạo doanh nghiệp
     public function store(Request $r)
@@ -420,4 +430,46 @@ class CompanyController extends Controller
         return back()->with('ok', 'Đã xoá thành viên khỏi tổ chức.');
     }
 
+    public function submitVerification(Request $r)
+{
+    $user = $r->user()->loadMissing(['type','profile']);
+    if (($user->type?->code) !== 'BUSS') {
+        return back()->withErrors(['msg' => 'Chỉ tài khoản Business mới được xác minh doanh nghiệp.']);
+    }
+
+    $org = Org::where('owner_account_id', $user->account_id)->first();
+    if (!$org) {
+        return back()->withErrors(['msg' => 'Bạn chưa có doanh nghiệp để xác minh.']);
+    }
+
+    $data = $r->validate([
+        '_modal' => 'nullable|string',
+        'file'   => [ 'required', File::types(['jpg','jpeg','png','webp','pdf'])->max(10 * 1024) ],
+    ]);
+
+    $file = $r->file('file');
+    $dir  = "org_verifications/{$org->org_id}";
+    $path = $file->store($dir, 'public');
+
+    DB::transaction(function () use ($org, $user, $file, $path) {
+        OrgVerification::create([
+            'org_id'                  => $org->org_id,
+            'submitted_by_account_id' => $user->account_id,
+            'status'                  => 'PENDING',
+            'file_path'               => $path,
+            'mime_type'               => $file->getClientMimeType(),
+            'file_size'               => $file->getSize(),
+        ]);
+
+        // Dùng Query Builder để chắc chắn ghi DB
+        DB::table('orgs')
+            ->where('org_id', $org->org_id)
+            ->update([
+                'status'     => 'PENDING',
+                'updated_at' => now(),
+            ]);
+    });
+
+    return back()->with('ok', 'Đã gửi hồ sơ xác minh doanh nghiệp.');
+}
 }
