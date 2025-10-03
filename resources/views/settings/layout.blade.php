@@ -35,21 +35,6 @@
             class="nav-link @if(request()->routeIs('settings.membership')) active @endif">
             Cài đặt thành viên
           </a>
-          <a href="{{ route('settings.teams') }}"
-            class="nav-link @if(request()->routeIs('settings.teams')) active @endif">
-            Nhóm
-          </a>
-          <a href="{{ route('settings.notifications') }}"
-            class="nav-link @if(request()->routeIs('settings.notifications')) active @endif">
-            Cài đặt thông báo
-          </a>
-          <a href="{{ route('settings.members') }}"
-            class="nav-link @if(request()->routeIs('settings.members')) active @endif">
-            Thành viên & Quyền hạn
-          </a>
-          <a href="{{ route('settings.tax') }}" class="nav-link @if(request()->routeIs('settings.tax')) active @endif">
-            Thông tin thuế
-          </a>
           <a href="{{ route('settings.connected') }}"
             class="nav-link @if(request()->routeIs('settings.connected')) active @endif">
             Dịch vụ đã liên kết
@@ -109,4 +94,5 @@
       color: #000;
     }
   </style>
+
 @endsection

@@ -9,39 +9,59 @@ use App\Models\Account;
 use SendGrid\Mail\Mail as SGMail;
 use Illuminate\Support\Str;
 use App\Models\OrgInvitation;
+use Illuminate\Support\Facades\Storage;
+use App\Models\OrgVerification;
+use Illuminate\Validation\Rules\File;
 class CompanyController extends Controller
 {
     // Trang "Doanh nghiệp của tôi"
     // CompanyController@index
     public function index(Request $r)
-    {
-        $account = $r->user()->loadMissing(['type', 'profile']);
-        $isBusiness = ($account?->type?->code === 'BUSS');
+{
+    $account     = $r->user()->loadMissing(['type','profile']);
+    $isBusiness  = ($account?->type?->code === 'BUSS');
 
-        $org = null;
-        $members = collect();
-        $usedSeats = 0;
+    $org = null;
+    $members = collect();
+    $usedSeats = 0;
+    $latestVerification = null;   // <-- có biến này
 
-        if ($isBusiness) {
-            $org = \App\Models\Org::where('owner_account_id', $account->account_id)->first();
+    if ($isBusiness) {
+        $org = \App\Models\Org::where('owner_account_id', $account->account_id)->first();
 
-            if ($org) {
-                $members = \DB::table('org_members as om')
+        if ($org) {
+            // ... phần query $members của bạn giữ nguyên ...
+            $members = \DB::table('org_members as om')
                     ->join('accounts as a', 'a.account_id', '=', 'om.account_id')
                     ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
                     ->where('om.org_id', $org->org_id)
-                    ->select('a.account_id', 'p.fullname', 'a.email', 'om.role', 'om.created_at as joined_at')
+                    ->select(
+                        'a.account_id',
+                        'a.email',
+                        'p.fullname',
+                        'om.role',
+                        'om.status',
+                        'om.created_at as joined_at',
+                        'om.updated_at'
+                    )
+                    ->orderByRaw("FIELD(om.status,'PENDING','ACTIVE')") // đưa pending lên/ xuống tuỳ ý
                     ->orderByRaw("FIELD(om.role,'OWNER','ADMIN','MANAGER','MEMBER','BILLING')")
                     ->orderBy('p.fullname')
                     ->get();
+            // LẤY HỒ SƠ XÁC MINH GẦN NHẤT
+            $latestVerification = \DB::table('org_verifications')
+                ->where('org_id', $org->org_id)
+                ->orderByDesc('created_at')
+                ->first();
 
-                $usedSeats = $members->count();
-            }
+            $usedSeats = $members->count();
         }
-
-        return view('settings.company', compact('account', 'isBusiness', 'org', 'usedSeats', 'members'));
     }
 
+    return view('settings.company', compact(
+        'account','isBusiness','org','usedSeats','members','latestVerification'
+    ));
+}
 
     // Tạo doanh nghiệp
     public function store(Request $r)
@@ -176,25 +196,18 @@ class CompanyController extends Controller
       </div>
     </div>");
 
-        $sg = new \SendGrid(env('SENDGRID_API_KEY'), [
-            'curl' => [
-                CURLOPT_CAINFO => storage_path('certs/cacert.pem'),
-                CURLOPT_CAPATH => storage_path('certs'),
-                // KHÔNG nên tắt verify; chỉ dùng tạm lúc cần test:
-                // CURLOPT_SSL_VERIFYPEER => false,
-                // CURLOPT_SSL_VERIFYHOST => 0,
-            ],
-        ]);
+        // KHÔNG truyền curl options như CAINFO/CAPATH
+        $sg = new \SendGrid(env('SENDGRID_API_KEY'));
 
         try {
             $resp = $sg->send($mail);
-            // Ghi log để biết tình trạng
-            \Log::info('SendGrid invite', ['code' => $resp->statusCode(), 'body' => $resp->body()]);
+            \Log::info('SendGrid invite', ['code' => $resp->statusCode()]);
         } catch (\Throwable $e) {
             \Log::error('SendGrid invite error', ['msg' => $e->getMessage()]);
             throw $e;
         }
     }
+
     public function inviteByUsername(Request $r)
     {
         $r->validate([
@@ -245,6 +258,27 @@ class CompanyController extends Controller
                 'expires_at' => now()->addDays(7),
                 'status' => 'PENDING',
             ]);
+            // KHÔNG đếm ghế ở bước mời; chỉ đếm khi accept
+            $member = \DB::table('org_members')
+                ->where('org_id', $org->org_id)
+                ->where('account_id', $target->account_id)
+                ->first();
+
+            if ($member && $member->status === 'ACTIVE') {
+                return back()->withErrors(['username' => 'Người này đã là thành viên.'])->withInput();
+            }
+
+            \DB::table('org_members')->updateOrInsert(
+                ['org_id' => $org->org_id, 'account_id' => $target->account_id],
+                [
+                    'role' => $invite->role ?? 'MEMBER',
+                    'status' => 'PENDING',
+                    'updated_at' => now(),
+                    // nếu là dòng mới cần cả created_at
+                    'created_at' => $member ? $member->created_at : now(),
+                ]
+            );
+
         }
 
         // gửi mail qua SendGrid
@@ -274,19 +308,168 @@ class CompanyController extends Controller
             return redirect()->route('settings.company')->withErrors(['msg' => 'Tổ chức không tồn tại.']);
 
         // check ghế khi accept
-        $used = DB::table('org_members')->where('org_id', $org->org_id)->count();
+        // chỉ kiểm tra ghế ACTIVE
+        $used = \DB::table('org_members')
+            ->where('org_id', $org->org_id)
+            ->where('status', 'ACTIVE')
+            ->count();
         if ($used >= $org->seats_limit) {
-            return redirect()->route('settings.company')->withErrors(['msg' => 'Tổ chức đã hết ghế.']);
+            return redirect()->route('settings.company')
+                ->withErrors(['msg' => 'Tổ chức đã hết ghế.']);
         }
 
-        DB::table('org_members')->updateOrInsert(
+        // Cập nhật trạng thái ACTIVE (nếu chưa có dòng thì tạo mới luôn)
+        \DB::table('org_members')->updateOrInsert(
             ['org_id' => $org->org_id, 'account_id' => $user->account_id],
-            ['role' => $invite->role, 'created_at' => now(), 'updated_at' => now()]
+            [
+                'role' => $invite->role ?? 'MEMBER',
+                'status' => 'ACTIVE',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
         );
 
         $invite->update(['status' => 'ACCEPTED']);
 
+
         return redirect()->route('settings.company')->with('ok', 'Bạn đã gia nhập doanh nghiệp: ' . $org->name);
     }
 
+    public function company(Request $r)
+    {
+        $account = $r->user()->loadMissing(['type', 'profile']);
+        $isBusiness = ($account->type?->code) === 'BUSS';
+
+        $org = Org::where('owner_account_id', $account->account_id)->first();
+
+        // Thành viên đã join
+        $members = collect();
+        $usedSeats = 0;
+        if ($org) {
+            $members = DB::table('org_members as om')
+                ->join('accounts as a', 'a.account_id', '=', 'om.account_id')
+                ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
+                ->select('om.role', 'om.created_at as joined_at', 'a.email', 'p.fullname')
+                ->where('om.org_id', $org->org_id)
+                ->orderByDesc('om.created_at')
+                ->get();
+
+            $usedSeats = DB::table('org_members')->where('org_id', $org->org_id)->count();
+        }
+
+        // 👇 Lời mời còn "pending" (case-insensitive) + còn hạn
+        $pendingInvites = collect();
+        if ($org) {
+            $pendingInvites = OrgInvitation::query()
+                ->where('org_id', $org->org_id)
+                ->whereRaw('LOWER(status) = ?', ['pending'])
+                ->where(function ($q) {
+                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })
+                // Lấy thêm thông tin người được mời (nếu mời theo username/account_id)
+                ->leftJoin('accounts as a', 'a.account_id', '=', 'org_invitations.invitee_account_id')
+                ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
+                ->select(
+                    'org_invitations.*',
+                    'a.email as invitee_email',
+                    'p.fullname as invitee_fullname',
+                    'p.username as invitee_username'
+                )
+                ->orderByDesc('org_invitations.created_at')
+                ->get();
+        }
+
+        return view('settings.company', compact(
+            'account',
+            'isBusiness',
+            'org',
+            'members',
+            'pendingInvites',
+            'usedSeats'
+        ));
+    }
+    public function removeMember(Request $r, int $org, int $account)
+    {
+        $me = $r->user();
+        $orgRow = Org::where('org_id', $org)
+            ->where('owner_account_id', $me->account_id) // chỉ Owner mới gỡ
+            ->first();
+
+        if (!$orgRow) {
+            return back()->withErrors(['msg' => 'Bạn không có quyền với tổ chức này.']);
+        }
+
+        $member = DB::table('org_members')
+            ->where('org_id', $org)
+            ->where('account_id', $account)
+            ->first();
+
+        if (!$member) {
+            return back()->withErrors(['msg' => 'Không tìm thấy thành viên.']);
+        }
+        if ($member->role === 'OWNER') {
+            return back()->withErrors(['msg' => 'Không thể xoá Chủ sở hữu.']);
+        }
+
+        // Xoá membership
+        DB::table('org_members')
+            ->where('org_id', $org)
+            ->where('account_id', $account)
+            ->delete();
+
+        // Nếu có lời mời pending theo email -> chuyển CANCELLED (optional)
+        $acc = \App\Models\Account::find($account);
+        if ($acc) {
+            DB::table('org_invitations')
+                ->where('org_id', $org)
+                ->where('email', $acc->email)
+                ->where('status', 'PENDING')
+                ->update(['status' => 'CANCELLED', 'updated_at' => now()]);
+        }
+
+        return back()->with('ok', 'Đã xoá thành viên khỏi tổ chức.');
+    }
+
+    public function submitVerification(Request $r)
+{
+    $user = $r->user()->loadMissing(['type','profile']);
+    if (($user->type?->code) !== 'BUSS') {
+        return back()->withErrors(['msg' => 'Chỉ tài khoản Business mới được xác minh doanh nghiệp.']);
+    }
+
+    $org = Org::where('owner_account_id', $user->account_id)->first();
+    if (!$org) {
+        return back()->withErrors(['msg' => 'Bạn chưa có doanh nghiệp để xác minh.']);
+    }
+
+    $data = $r->validate([
+        '_modal' => 'nullable|string',
+        'file'   => [ 'required', File::types(['jpg','jpeg','png','webp','pdf'])->max(10 * 1024) ],
+    ]);
+
+    $file = $r->file('file');
+    $dir  = "org_verifications/{$org->org_id}";
+    $path = $file->store($dir, 'public');
+
+    DB::transaction(function () use ($org, $user, $file, $path) {
+        OrgVerification::create([
+            'org_id'                  => $org->org_id,
+            'submitted_by_account_id' => $user->account_id,
+            'status'                  => 'PENDING',
+            'file_path'               => $path,
+            'mime_type'               => $file->getClientMimeType(),
+            'file_size'               => $file->getSize(),
+        ]);
+
+        // Dùng Query Builder để chắc chắn ghi DB
+        DB::table('orgs')
+            ->where('org_id', $org->org_id)
+            ->update([
+                'status'     => 'PENDING',
+                'updated_at' => now(),
+            ]);
+    });
+
+    return back()->with('ok', 'Đã gửi hồ sơ xác minh doanh nghiệp.');
+}
 }

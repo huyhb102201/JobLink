@@ -23,7 +23,11 @@ use App\Http\Controllers\Client\JobWizardController;
 use App\Http\Controllers\Client\MyJobsController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
 use App\Models\Account;
+use App\Http\Controllers\UpgradeController;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -58,11 +62,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/onboarding/skills', [OnboardingController::class, 'showSkills'])->name('onb.skills.show');
     Route::post('/onboarding/skills', [OnboardingController::class, 'storeSkills'])->name('onb.skills.store');
-    
-// Tất cả đoạn chat
-Route::get('/chat', [MessageController::class, 'chatAll'])->name('chat.all');
 
-Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
+    // Tất cả đoạn chat
+    Route::get('/chat', [MessageController::class, 'chatAll'])->name('chat.all');
+
+    Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
 
@@ -72,8 +76,8 @@ Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'get
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
 
-     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
-     
+    Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
+
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');
@@ -136,7 +140,8 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
 
-     Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC,F_PLUS');
+    Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC,F_PLUS');
+
 });
 // Routes Xác minh Email
 Route::get('/email/verify', function () {
@@ -198,9 +203,7 @@ Route::get('/success.html', function () {
 Route::get('/cancel.html', function () {
     return view('cancel');
 });
-use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\PaymentController;
+
 Route::post('/create-payment-link', [CheckoutController::class, 'createPaymentLink'])->name('create.payment.link');
 
 Route::prefix('/order')->group(function () {
@@ -212,19 +215,18 @@ Route::prefix('/order')->group(function () {
 Route::prefix('/payment')->group(function () {
     Route::post('/payos', [PaymentController::class, 'handlePayOSWebhook']);
 });
-use App\Http\Controllers\UpgradeController;
 
 Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('settings.upgrade');
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
 Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
-        // ... các route khác
-        Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
-        Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
-        Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
-        Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
-    });
+    Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
+    // ... các route khác
+    Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
+    Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
+    Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+});
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
@@ -237,3 +239,13 @@ Route::post('/settings/company/members/invite', [CompanyController::class, 'invi
         ->name('company.members.invite');
 Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
     ->name('company.invite.accept');
+
+Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
+    ->name('company.members.remove');
+
+Route::post('/settings/company/{org}/verify-request',
+        [CompanyController::class, 'requestVerification']
+    )->name('company.verify.request');
+
+Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])
+    ->name('company.verification.submit');
