@@ -44,49 +44,53 @@
                         <!-- Desktop Sidebar (sticky, luôn hiện) -->
                         <div class="card p-3 d-none d-xl-block sticky-top" style="top: 80px;">
                             <!--<h6 class="mb-3">Mức lương</h6>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="duoi500" id="salary1" name="gia[]">
-                                <label class="form-check-label" for="salary1">Dưới 500.000</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="duoi500" id="salary1" name="gia[]">
+                                    <label class="form-check-label" for="salary1">Dưới 500.000</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="500k1m" id="salary2" name="gia[]">
+                                    <label class="form-check-label" for="salary2">500.000 - 1.000.000</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="1m2m" id="salary3" name="gia[]">
+                                    <label class="form-check-label" for="salary3">1 - 2.000.000</label>
+                                </div>
+                                <hr>-->
+                            <h6 class="mb-3">Hình thức trả lương</h6>
+
+                            <div class="form-check cursor-pointer mb-2">
+                                <input class="form-check-input" type="checkbox" value="fixed" id="type1"
+                                    name="payment_type[]">
+                                <label class="form-check-label" for="type1">Cố định</label>
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="500k1m" id="salary2" name="gia[]">
-                                <label class="form-check-label" for="salary2">500.000 - 1.000.000</label>
+
+                            <div class="form-check cursor-pointer mb-2">
+                                <input class="form-check-input" type="checkbox" value="hourly" id="type2"
+                                    name="payment_type[]">
+                                <label class="form-check-label" for="type2">Theo giờ</label>
                             </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="1m2m" id="salary3" name="gia[]">
-                                <label class="form-check-label" for="salary3">1 - 2.000.000</label>
+
+                            <hr>
+
+                            <h6 class="mb-3">Trạng thái công việc</h6>
+
+                            <div class="form-check cursor-pointer mb-2">
+                                <input class="form-check-input" type="checkbox" value="open" id="status1" name="status[]">
+                                <label class="form-check-label" for="status1">Đang tuyển</label>
                             </div>
-                            <hr>-->
-                          <h6 class="mb-3">Hình thức trả lương</h6>
 
-<div class="form-check cursor-pointer mb-2">
-    <input class="form-check-input" type="checkbox" value="fixed" id="type1" name="payment_type[]">
-    <label class="form-check-label" for="type1">Cố định</label>
-</div>
+                            <div class="form-check cursor-pointer mb-2">
+                                <input class="form-check-input" type="checkbox" value="in_progress" id="status2"
+                                    name="status[]">
+                                <label class="form-check-label" for="status2">Đang làm</label>
+                            </div>
 
-<div class="form-check cursor-pointer mb-2">
-    <input class="form-check-input" type="checkbox" value="hourly" id="type2" name="payment_type[]">
-    <label class="form-check-label" for="type2">Theo giờ</label>
-</div>
-
-<hr>
-
-<h6 class="mb-3">Trạng thái công việc</h6>
-
-<div class="form-check cursor-pointer mb-2">
-    <input class="form-check-input" type="checkbox" value="open" id="status1" name="status[]">
-    <label class="form-check-label" for="status1">Đang tuyển</label>
-</div>
-
-<div class="form-check cursor-pointer mb-2">
-    <input class="form-check-input" type="checkbox" value="in_progress" id="status2" name="status[]">
-    <label class="form-check-label" for="status2">Đang làm</label>
-</div>
-
-<div class="form-check cursor-pointer mb-2">
-    <input class="form-check-input" type="checkbox" value="completed" id="status3" name="status[]">
-    <label class="form-check-label" for="status3">Hoàn thành</label>
-</div>
+                            <div class="form-check cursor-pointer mb-2">
+                                <input class="form-check-input" type="checkbox" value="completed" id="status3"
+                                    name="status[]">
+                                <label class="form-check-label" for="status3">Hoàn thành</label>
+                            </div>
 
 
                         </div>
