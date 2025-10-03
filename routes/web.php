@@ -139,21 +139,8 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/tax', [SettingsController::class, 'tax'])->name('tax');
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
+
     Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC,F_PLUS');
-    Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
-    Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
-
-    Route::get('/settings/company', [CompanyController::class, 'index'])->name('settings.company');
-    Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
-    Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
-        ->name('company.members.add');
-    Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
-        ->name('company.members.invite');
-    Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
-        ->name('company.invite.accept');
-
-    Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
-        ->name('company.members.remove');
 
 });
 // Routes Xác minh Email
@@ -241,3 +228,17 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
 });
 
+Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
+
+Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
+Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
+Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
+        ->name('company.members.add');
+Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
+        ->name('company.members.invite');
+Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
+    ->name('company.invite.accept');
+
+Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
+    ->name('company.members.remove');
