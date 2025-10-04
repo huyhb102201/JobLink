@@ -22,9 +22,14 @@ class MessageSent implements ShouldBroadcastNow
 
     public function broadcastOn()
     {
-        // Channel chung cho 2 user + job
         $ids = [$this->message->sender_id, $this->message->conversation_id];
         sort($ids);
-        return new PrivateChannel('job.' . $this->message->job_id . '.' . implode('.', $ids));
+
+        return new PrivateChannel('chat.' . implode('.', $ids));
+    }
+
+    public function broadcastWith()
+    {
+        return ['message' => $this->message];
     }
 }

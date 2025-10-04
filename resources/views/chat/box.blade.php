@@ -60,6 +60,12 @@
             word-wrap: break-word;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             position: relative;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .message:hover {
+            background-color: #e0e0e0;
         }
 
         .message.me {
@@ -69,11 +75,19 @@
             border-bottom-right-radius: 0;
         }
 
+        .message.me:hover {
+            background: #0056b3;
+        }
+
         .message.other {
             align-self: flex-start;
             background: #f1f0f0;
             color: #000;
             border-bottom-left-radius: 0;
+        }
+
+        .message.other:hover {
+            background: #e0e0e0;
         }
 
         .sender {
@@ -83,7 +97,6 @@
             margin-bottom: 4px;
         }
 
-        /* trạng thái tin nhắn */
         .message-status {
             font-size: 0.7rem;
             color: gray;
@@ -91,7 +104,6 @@
             margin-top: 3px;
         }
 
-        /* tin nhắn giữa */
         .message-time-center {
             text-align: center;
             font-size: 0.75rem;
@@ -104,10 +116,12 @@
             color: gray;
             text-align: right;
             margin-top: 5px;
-            animation: moveUp 3s forwards;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInOut 5s forwards;
         }
 
-        @keyframes moveUp {
+        @keyframes fadeInOut {
             0% {
                 opacity: 0;
                 transform: translateY(10px);
@@ -120,7 +134,7 @@
 
             90% {
                 opacity: 1;
-                transform: translateY(-10px);
+                transform: translateY(0);
             }
 
             100% {
@@ -129,7 +143,6 @@
             }
         }
 
-        /* chat input */
         .chat-input {
             display: flex;
             gap: 8px;
@@ -161,7 +174,6 @@
             cursor: pointer;
         }
 
-        /* hiệu ứng xoay nút gửi */
         .sending {
             animation: spin 1s linear infinite;
         }
@@ -234,43 +246,120 @@
 
         .status-online {
             background-color: #28a745;
-            /* xanh lá */
         }
 
         .status-offline {
             background-color: #6c757d;
-            /* xám */
+        }
+
+        .message.highlight {
+            border: 2px solid #007bff;
+            background-color: #e6f0ff;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .reply-btn {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            transition: background-color 0.2s ease;
+            display: block;
+            width: fit-content;
+        }
+
+        .message.me .reply-btn {
+            margin-left: 5px;
+            margin-right: auto;
+        }
+
+        .message.other .reply-btn {
+            margin-right: 5px;
+            margin-left: auto;
+        }
+
+        .reply-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .reply-preview {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: none;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .reply-preview.show {
+            display: block;
+        }
+
+        .reply-preview .close-btn {
+            float: right;
+            cursor: pointer;
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .reply-quote {
+            font-size: 0.85rem;
+            color: #555;
+            background: #f1f0f0;
+            border-left: 3px solid #007bff;
+            padding: 4px 8px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+        }
+
+        .message.me .reply-quote {
+            background: rgba(255, 255, 255, 0.2);
+            color: #e0e0e0;
+            border-left: 3px solid #fff;
+        }
+
+        .main-text {
+            white-space: pre-line;
         }
     </style>
-    <!-- Container toast -->
+
     <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <main class="main d-flex flex-column" style="height:92vh; background-color:#f0f2f5; color:#000;">
         <div class="container-fluid p-0 d-flex flex-column flex-xl-row position-relative h-100">
-            <!-- Desktop Sidebar (luôn hiển thị từ xl trở lên) -->
+            <!-- Desktop Sidebar -->
             <div id="chatListDesktop" class="chat-panel col-xl-3 bg-white p-3 shadow-sm d-none d-xl-block h-100">
-                @foreach($conversations as $partnerId => $msgs)
+                @foreach($conversations as $boxItem)
                     @php
+                        $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
                         $partner = \App\Models\Account::find($partnerId);
-                        $latestMsg = $msgs->first();
+                        $latestMsg = $boxItem->messages->first();
                         $avatar = $partner?->avatar_url ?: asset('assets/img/blog/blog-1.jpg');
+                        $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
                     @endphp
+
                     @if($partner)
-                        <div class="chat-item d-flex align-items-center mb-2 p-2 rounded"
-                            data-partner-id="{{ $partner->account_id }}" data-job-id="{{ $latestMsg->job_id ?? 'null' }}"
-                            onclick="openChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $latestMsg->job_id ?? 'null' }})">
+                        <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                            data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
+                            onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
                             <div class="position-relative me-2" style="width:55px;height:55px;">
-                                <img src="{{ $avatar }}" alt="avatar" class="rounded-circle"
-                                    style="width:55px;height:55px;object-fit:cover;">
+                                <img src="{{ $avatar }}" class="rounded-circle" style="width:55px;height:55px;object-fit:cover;">
                                 <span class="status-dot status-offline" id="status-{{ $partner->account_id }}"></span>
                             </div>
-
                             <div>
                                 <div class="fw-bold">{{ $partner->name }}</div>
                                 @if($latestMsg)
                                     <div class="text-muted" style="font-size:0.85rem;">
                                         {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
-                                        {{ Str::limit($latestMsg->content, 25) }} • {{ $latestMsg->created_at->diffForHumans() }}
+                                        {{ \Illuminate\Support\Str::limit($latestMsg->content, 25) }}
+                                        • {{ $latestMsg->created_at->diffForHumans() }}
                                     </div>
                                 @else
                                     <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
@@ -279,23 +368,10 @@
                         </div>
                     @endif
                 @endforeach
-                @if(!count($conversations) && $job)
-                    <div class="chat-item d-flex align-items-center mb-2 p-2 rounded"
-                        data-partner-id="{{ $employer->account_id }}" data-job-id="{{ $job->job_id }}"
-                        onclick="openChat('{{ $employer->name }}', this, {{ $employer->account_id }}, {{ $job->job_id }})">
-                        <img src="{{ $employer->avatar_url ?: asset('assets/img/blog/blog-1.jpg') }}" alt="avatar"
-                            class="rounded-circle me-2" style="width:55px;height:55px;object-fit:cover;">
-                        <div>
-                            <div class="fw-bold">{{ $employer->name }}</div>
-                            <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
-                        </div>
-                    </div>
-                @endif
             </div>
 
-            <!-- Chat area (full trên mobile/desktop nhỏ, bên phải trên xl) -->
+            <!-- Chat Area -->
             <div id="chatArea" class="chat-panel col-12 col-xl-9 d-flex flex-column bg-white p-3 shadow-sm h-100">
-                <!-- Nút mở Offcanvas trên mobile (d-xl-none) -->
                 <div class="d-xl-none mb-2">
                     <button class="btn btn-secondary" type="button" data-bs-toggle="offcanvas"
                         data-bs-target="#chatOffcanvas">
@@ -304,29 +380,26 @@
                 </div>
 
                 <div class="chat-header d-flex align-items-center gap-2 mb-2" id="chatHeader">
-                    @if($job)
+                    @if($box && $employer)
                         <div class="position-relative" style="width:45px;height:45px;">
                             <img id="chatHeaderAvatar" src="{{ $employer->avatar_url ?? asset('assets/img/blog/blog-1.jpg') }}"
                                 class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
-                            <span class="status-dot {{ $employer->isOnline() ? 'status-online' : 'status-offline' }}"
-                                id="chatHeaderStatus"></span>
+                            <span class="status-dot status-offline" id="chatHeaderStatus"></span>
                         </div>
                         <div>
                             <div class="fw-bold" id="chatHeaderName">{{ $employer->name }}</div>
-                            <div class="small text-muted" id="chatHeaderStatusText">
-                                {{ $employer->isOnline() ? 'Đang hoạt động' : 'Hoạt động ' . optional($employer->last_seen_at)->diffForHumans() }}
-                            </div>
+                            <div class="small text-muted" id="chatHeaderStatusText">Ngoại tuyến</div>
                         </div>
                     @else
-                        Chọn một cuộc trò chuyện
+                        <div class="fw-bold">Chọn một cuộc trò chuyện</div>
                     @endif
                 </div>
 
                 <div id="chatMessages" class="chat-messages">
-                    @if($job && $messages && $messages->count())
+                    @if($box && $messages && $messages->count())
                         @foreach($messages as $msg)
                             <div class="message {{ $msg->sender_id == auth()->id() ? 'me' : 'other' }}"
-                                data-created="{{ $msg->created_at }}">
+                                data-created="{{ $msg->created_at->toISOString() }}" data-message-id="{{ $msg->id }}">
                                 <span class="sender">{{ $msg->sender_id == auth()->id() ? 'Bạn' : $msg->sender->name }}</span>
                                 <p>{{ $msg->content }}</p>
                                 @if($msg->sender_id == auth()->id())
@@ -334,25 +407,32 @@
                                 @endif
                             </div>
                         @endforeach
-                    @elseif(!$job)
+                    @elseif($box && $employer)
+                        <div class="message text-muted">
+                            Chưa có tin nhắn với {{ $employer->name }}.
+                        </div>
+                    @else
                         <div class="welcome-message">
                             Chào mừng bạn đến với JobLink Chat!<br>
                             Chọn một cuộc trò chuyện bên trái để bắt đầu nhắn tin.
                         </div>
-                    @else
-                        <div class="message text-muted">
-                            Chưa có tin nhắn. Bắt đầu chat với {{ $employer->name }}.
-                        </div>
                     @endif
                 </div>
-                <div class="chat-input" id="chatInput" style="{{ $job ? 'display:flex;' : 'display:none;' }}">
+
+                <!-- Reply Preview -->
+                <div id="replyPreview" class="reply-preview">
+                    <span class="close-btn" onclick="clearReplyPreview()">&times;</span>
+                    <strong id="replySender"></strong>: <span id="replyContent"></span>
+                </div>
+
+                <div class="chat-input" id="chatInput" style="{{ $box ? 'display:flex;' : 'display:none;' }}">
                     <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
                     <button id="sendBtn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </div>
 
-        <!-- Mobile Offcanvas (chỉ hiển thị trên mobile, d-xl-none) -->
+        <!-- Mobile Offcanvas -->
         <div class="offcanvas offcanvas-start d-xl-none" tabindex="-1" id="chatOffcanvas"
             aria-labelledby="chatOffcanvasLabel" style="height: 92vh;">
             <div class="offcanvas-header">
@@ -361,16 +441,18 @@
             </div>
             <div class="offcanvas-body p-3" style="overflow-y: auto;">
                 <div id="chatListMobile">
-                    @foreach($conversations as $partnerId => $msgs)
+                    @foreach($conversations as $boxItem)
                         @php
+                            $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
                             $partner = \App\Models\Account::find($partnerId);
-                            $latestMsg = $msgs->first();
+                            $latestMsg = $boxItem->messages->first();
                             $avatar = $partner?->avatar_url ?: asset('assets/img/blog/blog-1.jpg');
+                            $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
                         @endphp
                         @if($partner)
-                            <div class="chat-item d-flex align-items-center mb-2 p-2 rounded"
-                                data-partner-id="{{ $partner->account_id }}" data-job-id="{{ $latestMsg->job_id ?? 'null' }}"
-                                onclick="openChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $latestMsg->job_id ?? 'null' }})">
+                            <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                                data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
+                                onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
                                 <img src="{{ $avatar }}" alt="avatar" class="rounded-circle me-2"
                                     style="width:55px;height:55px;object-fit:cover;">
                                 <div>
@@ -378,7 +460,8 @@
                                     @if($latestMsg)
                                         <div class="text-muted" style="font-size:0.85rem;">
                                             {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
-                                            {{ Str::limit($latestMsg->content, 25) }} • {{ $latestMsg->created_at->diffForHumans() }}
+                                            {{ \Illuminate\Support\Str::limit($latestMsg->content, 25) }}
+                                            • {{ $latestMsg->created_at->diffForHumans() }}
                                         </div>
                                     @else
                                         <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
@@ -387,43 +470,41 @@
                             </div>
                         @endif
                     @endforeach
-                    @if(!count($conversations) && $job)
-                        <div class="chat-item d-flex align-items-center mb-2 p-2 rounded"
-                            data-partner-id="{{ $employer->account_id }}" data-job-id="{{ $job->job_id }}"
-                            onclick="openChat('{{ $employer->name }}', this, {{ $employer->account_id }}, {{ $job->job_id }})">
-                            <img src="{{ $employer->avatar_url ?: asset('assets/img/blog/blog-1.jpg') }}" alt="avatar"
-                                class="rounded-circle me-2" style="width:55px;height:55px;object-fit:cover;">
-                            <div>
-                                <div class="fw-bold">{{ $employer->name }}</div>
-                                <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
-                            </div>
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>
     </main>
-    <!-- Âm thanh thông báo -->
+
     <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio>
     @vite('resources/js/app.js')
 
     <script>
         let currentChat = '';
         let currentItem = null;
-        let currentPartnerId = {{ $job ? $employer->account_id : 'null' }};
+        let currentPartnerId = {{ $box ? ($box->sender_id == auth()->id() ? $box->receiver_id : $box->sender_id) : 'null' }};
         let currentJobId = {{ $job ? $job->job_id : 'null' }};
+        let currentBoxId = {{ $box ? $box->id : 'null' }};
         let currentChannel = null;
         let lastMessageTime = null;
-        let offcanvas = null; // Bootstrap Offcanvas instance
+        let offcanvas = null;
+        const authId = {{ auth()->id() }};
+        let replyingTo = null;
 
         function scrollToBottom() {
             const chatBox = document.getElementById('chatMessages');
-            chatBox.scrollTop = chatBox.scrollHeight;
+            chatBox.scrollTo({
+                top: chatBox.scrollHeight,
+                behavior: 'smooth'
+            });
         }
 
-        // Append message với trạng thái gửi
         function appendMessage(msg, isMe = false, status = 'Đang gửi') {
             const chatBox = document.getElementById('chatMessages');
+
+            if (document.querySelector(`[data-message-id="${msg.id}"]`)) {
+                return null; // Avoid duplicates
+            }
+
             const msgTime = new Date(msg.created_at);
             if (!lastMessageTime || (msgTime - lastMessageTime) / 1000 / 60 > 10) {
                 const timeDiv = document.createElement('div');
@@ -437,211 +518,335 @@
             msgDiv.className = 'message ' + (isMe ? 'me' : 'other');
             msgDiv.dataset.created = msg.created_at;
             msgDiv.dataset.shownTime = 'false';
+            msgDiv.dataset.messageId = msg.id;
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
-            msgDiv.innerHTML = `<span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                                                            <p>${msg.content}</p>
-                                                            ${statusHTML}`;
+            const { replyTo, mainContent } = parseReplyContent(msg.content);
 
-            msgDiv.addEventListener('click', () => {
-                if (msgDiv.dataset.shownTime === 'true') return;
+            let contentHTML = '';
+            if (replyTo) {
+                contentHTML = `
+                    <div class="reply-quote">${replyTo}</div>
+                    <div class="main-text">${mainContent}</div>
+                `;
+            } else {
+                contentHTML = `<div class="main-text">${msg.content}</div>`;
+            }
+
+            msgDiv.innerHTML = `
+                <span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
+                ${contentHTML}
+                ${statusHTML}
+            `;
+
+            // Show timestamp on click
+            msgDiv.addEventListener('click', (e) => {
+                if (msgDiv.dataset.shownTime === 'true' || e.longPress) return;
                 msgDiv.dataset.shownTime = 'true';
                 const timeLabel = document.createElement('div');
                 timeLabel.className = 'message-time-bottom';
                 timeLabel.innerText = msgTime.toLocaleString('vi-VN');
                 msgDiv.appendChild(timeLabel);
-                setTimeout(() => msgDiv.removeChild(timeLabel), 3000);
+                setTimeout(() => {
+                    if (timeLabel.parentNode) timeLabel.remove();
+                    msgDiv.dataset.shownTime = 'false';
+                }, 5000);
             });
+
+            // Long press for reply
+            let pressTimer;
+            const startLongPress = (e) => {
+                pressTimer = setTimeout(() => {
+                    e.longPress = true;
+                    highlightMessage(msgDiv, msg);
+                }, 500);
+            };
+
+            const cancelLongPress = () => {
+                clearTimeout(pressTimer);
+            };
+
+            msgDiv.addEventListener('mousedown', startLongPress);
+            msgDiv.addEventListener('mouseup', cancelLongPress);
+            msgDiv.addEventListener('mouseleave', cancelLongPress);
+            msgDiv.addEventListener('touchstart', startLongPress);
+            msgDiv.addEventListener('touchend', cancelLongPress);
+            msgDiv.addEventListener('touchmove', cancelLongPress);
 
             chatBox.appendChild(msgDiv);
             scrollToBottom();
             return msgDiv;
         }
 
-        function openChat(name, element, partnerId, jobId) {
+        function highlightMessage(msgDiv, msg) {
+            // Remove highlight and reply button from other messages
+            document.querySelectorAll('.message.highlight').forEach(el => {
+                el.classList.remove('highlight');
+                const replyBtn = el.querySelector('.reply-btn');
+                if (replyBtn) replyBtn.remove();
+            });
+
+            // Add highlight to current message
+            msgDiv.classList.add('highlight');
+
+            // Create reply button
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'reply-btn';
+            replyBtn.innerHTML = "<i class='bi bi-reply'></i> Trả lời";
+            replyBtn.addEventListener('click', () => {
+                // Set reply state and show preview
+                replyingTo = msg;
+                showReplyPreview(msg.sender.name, msg.content);
+                // Immediately remove highlight and button
+                msgDiv.classList.remove('highlight');
+                replyBtn.remove();
+                // Focus input
+                document.getElementById('messageInput').focus();
+            });
+
+            msgDiv.appendChild(replyBtn);
+        }
+
+        function showReplyPreview(sender, content) {
+            const preview = document.getElementById('replyPreview');
+            document.getElementById('replySender').innerText = sender;
+            document.getElementById('replyContent').innerText = content.length > 50 ? content.substring(0, 50) + '...' : content;
+            preview.classList.add('show');
+        }
+
+        function clearReplyPreview() {
+            const preview = document.getElementById('replyPreview');
+            preview.classList.remove('show');
+            replyingTo = null;
+        }
+
+        function parseReplyContent(content) {
+            if (!content.startsWith("Trả lời ")) return { replyTo: null, mainContent: content };
+
+            function parseLayer(str) {
+                const nameMatch = str.match(/^Trả lời ([^:]+):\s*/);
+                if (!nameMatch) return { quoted: '', rest: str };
+                const name = nameMatch[1];
+                let rest = str.slice(nameMatch[0].length).trim();
+
+                if (!rest.startsWith('"')) return { quoted: '', rest };
+
+                rest = rest.slice(1); // Remove opening quote
+                let quoted = '';
+                let i = 0;
+                while (i < rest.length) {
+                    if (rest.slice(i).startsWith('Trả lời ')) {
+                        const innerResult = parseLayer(rest.slice(i));
+                        quoted = innerResult.quoted;
+                        rest = innerResult.rest;
+                        i = 0;
+                        continue;
+                    } else if (rest[i] === '"') {
+                        quoted = rest.slice(0, i).trim();
+                        rest = rest.slice(i + 1).trim();
+                        break;
+                    } else {
+                        i++;
+                    }
+                }
+
+                if (!quoted) quoted = rest.trim(), rest = '';
+                return { quoted, rest, name };
+            }
+
+            const result = parseLayer(content);
+            return {
+                replyTo: `${result.name}: "${result.quoted}"`,
+                mainContent: result.rest
+            };
+        }
+
+        function subscribeToChannel(partnerId) {
+            if (currentChannel) {
+                window.Echo.leave(currentChannel);
+            }
+
+            const userIds = [authId, partnerId].sort((a, b) => a - b);
+            currentChannel = 'chat.' + userIds.join('.');
+
+            window.Echo.private(currentChannel).listen('MessageSent', (e) => {
+                console.log('Received MessageSent event:', e);
+                const incomingMsg = e.message;
+                const isMe = incomingMsg.sender_id === authId;
+
+                if (!isMe && currentPartnerId === incomingMsg.sender_id) {
+                    const msgDiv = appendMessage(incomingMsg, false);
+
+                    if (msgDiv) {
+                        const sound = document.getElementById('chatNotifySound');
+                        if (sound) sound.play();
+
+                        showChatToast(
+                            incomingMsg.sender.name,
+                            incomingMsg.content,
+                            incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                        );
+
+                        if (Notification.permission === "granted") {
+                            new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
+                                body: incomingMsg.content,
+                                icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                            });
+                        } else if (Notification.permission !== "denied") {
+                            Notification.requestPermission().then(permission => {
+                                if (permission === "granted") {
+                                    new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
+                                        body: incomingMsg.content,
+                                        icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+
+            console.log('Subscribed to channel:', currentChannel);
+        }
+
+        function openBoxChat(name, element, partnerId, boxId) {
             currentChat = name;
             currentPartnerId = partnerId;
-            currentJobId = jobId;
+            currentBoxId = boxId;
+            currentJobId = null;
+            window.currentPartnerId = partnerId;
 
-            // Highlight item nếu có element
             if (currentItem) currentItem.classList.remove('active');
             if (element) {
                 currentItem = element;
                 currentItem.classList.add('active');
             }
 
-            // ===== Cập nhật Header (avatar + tên + trạng thái) =====
             const header = document.getElementById('chatHeader');
             const chatInput = document.getElementById('chatInput');
+            const avatarImg = element.querySelector("img");
+            const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/blog/blog-1.jpg') }}";
+            const dot = element.querySelector(".status-dot");
+            const isOnline = dot && dot.classList.contains("status-online");
 
-            if (element) {
-                // Lấy avatar từ list
-                const avatarImg = element.querySelector("img");
-                const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/blog/blog-1.jpg') }}";
-
-                // Lấy trạng thái dot
-                const dot = element.querySelector(".status-dot");
-                const isOnline = dot && dot.classList.contains("status-online");
-
-                /// Render header box chat
-                header.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-            <div class="position-relative" style="width:45px;height:45px;">
-                <img id="chatHeaderAvatar" src="${avatarUrl}" 
-                     class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
-                <span class="status-dot status-offline" id="chatHeaderStatus"></span>
-            </div>
-            <div>
-                <div class="fw-bold" id="chatHeaderName">${name}</div>
-                <div class="small text-muted" id="chatHeaderStatusText">Đang tải...</div>
-            </div>
-        </div>
-    `;
-
-                // === Cập nhật trạng thái header ngay khi mở chat ===
-                const headerDot = document.getElementById("chatHeaderStatus");
-                const headerStatus = document.getElementById("chatHeaderStatusText");
-
-                if (dot && dot.classList.contains("status-online")) {
-                    headerDot.classList.remove("status-offline");
-                    headerDot.classList.add("status-online");
-                    headerStatus.innerText = "Đang hoạt động";
-                } else {
-                    headerDot.classList.remove("status-online");
-                    headerDot.classList.add("status-offline");
-                    headerStatus.innerText = "Ngoại tuyến";
-                }
-
-            } else {
-                header.innerText = name;
-            }
+            header.innerHTML = `
+                <div class="d-flex align-items-center gap-2">
+                    <div class="position-relative" style="width:45px;height:45px;">
+                        <img id="chatHeaderAvatar" src="${avatarUrl}" 
+                             class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                        <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="chatHeaderStatus"></span>
+                    </div>
+                    <div>
+                        <div class="fw-bold" id="chatHeaderName">${name}</div>
+                        <div class="small text-muted" id="chatHeaderStatusText">${isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
+                    </div>
+                </div>
+            `;
 
             chatInput.style.display = 'flex';
 
-            // ===== Load tin nhắn =====
             const chatBox = document.getElementById('chatMessages');
             chatBox.innerHTML = `<div class="message text-muted">Đang tải tin nhắn...</div>`;
             lastMessageTime = null;
 
-            let url = currentJobId ? `/chat/messages/${partnerId}/${currentJobId}` : `/chat/messages/${partnerId}`;
-            fetch(url).then(res => res.json()).then(data => {
-                chatBox.innerHTML = '';
-                if (data.length === 0) {
-                    chatBox.innerHTML = `<div class="message text-muted">Chưa có tin nhắn với ${name}</div>`;
-                } else {
-                    data.forEach(msg => appendMessage(
-                        msg,
-                        msg.sender_id === {{ auth()->id() }},
-                        msg.sender_id === {{ auth()->id() }} ? 'Đã nhận' : ''
-                    ));
-                }
-                scrollToBottom();
-            });
-
-            // ===== Realtime message listening =====
-            if (window.Echo) {
-                if (currentChannel) window.Echo.leave(currentChannel);
-
-                const userIds = [{{ auth()->id() }}, partnerId].sort((a, b) => a - b);
-                const channelName = `job.${jobId ?? 'null'}.${userIds.join('.')}`;
-                currentChannel = `private-${channelName}`;
-
-                window.Echo.private(channelName).listen('MessageSent', e => {
-                    const isMe = e.message.sender.id === {{ auth()->id() }};
-                    const msgDiv = appendMessage(e.message, isMe);
-
-                    if (isMe) {
-                        const statusDiv = msgDiv.querySelector('.message-status');
-                        if (statusDiv) statusDiv.innerText = 'Đã nhận';
+            fetch(`/chat/box/${boxId}/messages`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to load messages');
+                    return res.json();
+                })
+                .then(data => {
+                    chatBox.innerHTML = '';
+                    if (data.length === 0 || (Array.isArray(data) && data.length === 0)) {
+                        chatBox.innerHTML = `<div class="message text-muted">Chưa có tin nhắn với ${name}</div>`;
                     } else {
-                        const sound = document.getElementById('chatNotifySound');
-                        if (sound) sound.play();
-
-                        showChatToast(
-                            e.message.sender.name,
-                            e.message.content,
-                            e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                        );
-
-                        if (Notification.permission === "granted") {
-                            new Notification("Tin nhắn mới từ " + e.message.sender.name, {
-                                body: e.message.content,
-                                icon: e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                            });
-                        } else if (Notification.permission !== "denied") {
-                            Notification.requestPermission().then(permission => {
-                                if (permission === "granted") {
-                                    new Notification("Tin nhắn mới từ " + e.message.sender.name, {
-                                        body: e.message.content,
-                                        icon: e.message.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                                    });
-                                }
-                            });
-                        }
+                        data.forEach(msg => appendMessage(
+                            msg,
+                            msg.sender_id === authId,
+                            msg.sender_id === authId ? 'Đã nhận' : ''
+                        ));
                     }
+                    scrollToBottom();
+                })
+                .catch(err => {
+                    console.error(err);
+                    chatBox.innerHTML = `<div class="message text-muted">Lỗi khi tải tin nhắn.</div>`;
                 });
+
+            if (window.Echo) {
+                subscribeToChannel(partnerId);
             }
 
-            // ===== Mobile: ẩn offcanvas sau khi chọn chat =====
             if (offcanvas && window.innerWidth < 1200) {
                 offcanvas.hide();
             }
         }
 
-
-        // Gửi tin nhắn
         function sendMessage() {
-            if (!currentChat) return alert('Chọn một cuộc trò chuyện trước!');
+            if (!currentChat || !currentPartnerId) return alert('Chọn một cuộc trò chuyện trước!');
             const input = document.getElementById('messageInput');
             const sendBtn = document.getElementById('sendBtn');
-            const text = input.value.trim();
+            let text = input.value.trim();
             if (!text) return;
 
-            // thêm tin nhắn tạm với trạng thái "Đang gửi"
-            const msgDiv = appendMessage({ content: text, sender: { id:{{ auth()->id() }}, name: 'Bạn' }, created_at: new Date().toISOString() }, true, 'Đang gửi');
+            if (replyingTo) {
+                text = `Trả lời ${replyingTo.sender.name}: "${replyingTo.content}"\n` + text;
+                clearReplyPreview();
+            }
+
+            const tempId = 'temp-' + Date.now();
+            const tempMsg = {
+                id: tempId,
+                content: text,
+                sender: { id: authId, name: 'Bạn' },
+                created_at: new Date().toISOString()
+            };
+            const msgDiv = appendMessage(tempMsg, true, 'Đang gửi');
 
             sendBtn.classList.add('sending');
             input.value = '';
 
             axios.post('{{ route("messages.send") }}', {
-                job_id: currentJobId,
+                job_id: currentJobId || null,
                 content: text,
                 receiver_id: currentPartnerId
-            }).then(res => {
-                const statusDiv = msgDiv.querySelector('.message-status');
-                if (statusDiv) statusDiv.innerText = 'Đã gửi';
-                sendBtn.classList.remove('sending');
-            }).catch(err => {
-                const statusDiv = msgDiv.querySelector('.message-status');
-                if (statusDiv) statusDiv.innerText = 'Gửi thất bại';
-                sendBtn.classList.remove('sending');
-                console.error(err);
-            });
+            })
+                .then(res => {
+                    const sentMsg = res.data;
+                    msgDiv.dataset.messageId = sentMsg.id;
+                    const statusDiv = msgDiv.querySelector('.message-status');
+                    if (statusDiv) statusDiv.innerText = 'Đã nhận';
+                    sendBtn.classList.remove('sending');
+                    console.log('Message sent:', sentMsg);
+                })
+                .catch(err => {
+                    const statusDiv = msgDiv.querySelector('.message-status');
+                    if (statusDiv) statusDiv.innerText = 'Gửi thất bại';
+                    sendBtn.classList.remove('sending');
+                    console.error('Send error:', err);
+                    alert('Gửi tin nhắn thất bại!');
+                });
         }
 
         function showChatToast(sender, content, avatarUrl, timeText = "Vừa xong", onClick = null) {
             const container = document.getElementById('chatToastContainer');
-
-            // Toast = card nhỏ
             const toastEl = document.createElement('div');
             toastEl.className = "toast show mb-2 border-0 shadow-sm rounded-3";
             toastEl.setAttribute("role", "alert");
 
             toastEl.innerHTML = `
-                        <div class="toast-body p-2 d-flex align-items-start gap-2">
-                            <img src="${avatarUrl}" alt="avatar" 
-                                 class="rounded-circle flex-shrink-0" width="42" height="42">
-                            <div class="flex-grow-1 overflow-hidden">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-semibold">${sender}</span>
-                                    <small class="text-muted">${timeText}</small>
-                                </div>
-                                <div class="text-truncate">${content}</div>
-                            </div>
+                <div class="toast-body p-2 d-flex align-items-start gap-2">
+                    <img src="${avatarUrl}" alt="avatar" 
+                         class="rounded-circle flex-shrink-0" width="42" height="42">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">${sender}</span>
+                            <small class="text-muted">${timeText}</small>
                         </div>
-                    `;
+                        <div class="text-truncate">${content}</div>
+                    </div>
+                </div>
+            `;
 
-            // click toàn khối để mở chat
             if (onClick) {
                 toastEl.querySelector('.toast-body').addEventListener('click', onClick);
                 toastEl.querySelector('.toast-body').classList.add("cursor-pointer");
@@ -649,7 +854,6 @@
 
             container.appendChild(toastEl);
 
-            // Tự động ẩn sau 5s
             setTimeout(() => {
                 toastEl.classList.remove("show");
                 toastEl.addEventListener("transitionend", () => toastEl.remove());
@@ -657,19 +861,25 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Khởi tạo Offcanvas
             const offcanvasElement = document.getElementById('chatOffcanvas');
             if (offcanvasElement) {
                 offcanvas = new bootstrap.Offcanvas(offcanvasElement);
             }
 
-            @if($job)
-                // Auto open chat nếu có job (không cần element vì không highlight trên mobile)
-                openChat('{{ $employer->name }}', null, {{ $employer->account_id }}, {{ $job->job_id }});
+            @if($box && $employer)
+                const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);
+                if (boxElement) {
+                    openBoxChat('{{ $employer->name }}', boxElement, {{ $box->sender_id == auth()->id() ? $box->receiver_id : $box->sender_id }}, {{ $box->id }});
+                }
             @endif
-                                    });
 
-        // Enter / Ctrl+Enter
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    console.log("Notification permission:", permission);
+                });
+            }
+        });
+
         const messageInput = document.getElementById('messageInput');
         messageInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
@@ -685,48 +895,5 @@
                 }
             }
         });
-        window.addEventListener('DOMContentLoaded', () => {
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    console.log("Notification permission:", permission);
-                });
-            }
-        });
-        // Lắng nghe toàn bộ user online/offline
-        if (window.Echo) {
-            window.Echo.channel('users')
-                .listen('.UserOnline', (e) => {
-                    const userId = e.user.id;
-                    const dot = document.getElementById(`status-${userId}`);
-                    if (dot) {
-                        dot.classList.remove('status-offline');
-                        dot.classList.add('status-online');
-                    }
-
-                    // Nếu đang mở chat với user này
-                    if (currentPartnerId === userId) {
-                        document.getElementById("chatHeaderStatusText").innerText = "Đang hoạt động";
-                        const headerDot = document.getElementById("chatHeaderStatus");
-                        headerDot.classList.remove("status-offline");
-                        headerDot.classList.add("status-online");
-                    }
-                })
-                .listen('.UserOffline', (e) => {
-                    const userId = e.user.id;
-                    const dot = document.getElementById(`status-${userId}`);
-                    if (dot) {
-                        dot.classList.remove('status-online');
-                        dot.classList.add('status-offline');
-                    }
-
-                    if (currentPartnerId === userId) {
-                        document.getElementById("chatHeaderStatusText").innerText = "Ngoại tuyến";
-                        const headerDot = document.getElementById("chatHeaderStatus");
-                        headerDot.classList.remove("status-online");
-                        headerDot.classList.add("status-offline");
-                    }
-                });
-        }
-
     </script>
 @endsection

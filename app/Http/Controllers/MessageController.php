@@ -5,47 +5,85 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Message;
 use App\Models\Job;
+use App\Models\Account;
 use App\Models\BoxChat;
 use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 
 class MessageController extends Controller
 {
-    /**
-     * Hiển thị tất cả cuộc trò chuyện (không lọc job)
-     */
     public function chatAll()
     {
         $userId = Auth::id();
-        $conversations = $this->getConversations($userId);
+
+        $conversations = BoxChat::with([
+            'messages' => function ($q) {
+                $q->latest();
+            },
+            'messages.sender'
+        ])
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                    ->orWhere('receiver_id', $userId);
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($box) {
+                if ($box->messages->isNotEmpty()) {
+                    $latestMsg = $box->messages->first();
+                    try {
+                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to decrypt latest message content in sidebar', [
+                            'message_id' => $latestMsg->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                    }
+                    $box->messages = collect([$latestMsg]); // Giữ lại latest sau khi decrypt
+                }
+                return $box;
+            });
 
         return view('chat.box', [
             'job' => null,
             'messages' => collect([]),
             'receiverId' => null,
+            'box' => null,
             'conversations' => $conversations,
         ]);
     }
 
-    /**
-     * Lấy danh sách conversation cho sidebar
-     */
     private function getConversations($userId, $jobId = null)
     {
-        $query = Message::with('sender')
-            ->where(function ($q) use ($userId) {
+        $query = Message::with('sender');
+
+        if ($jobId !== null) {
+            $jobOwnerId = Job::find($jobId)->account_id ?? null;
+            if (!$jobOwnerId) {
+                return collect();
+            }
+
+            $query->where(function ($q) use ($userId, $jobOwnerId) {
+                $q->where(function ($q2) use ($userId, $jobOwnerId) {
+                    $q2->where('sender_id', $userId)
+                        ->where('conversation_id', $jobOwnerId);
+                })->orWhere(function ($q2) use ($userId, $jobOwnerId) {
+                    $q2->where('sender_id', $jobOwnerId)
+                        ->where('conversation_id', $userId);
+                });
+            });
+        } else {
+            $query->where(function ($q) use ($userId) {
                 $q->where('sender_id', $userId)
                     ->orWhere('conversation_id', $userId);
             });
-
-        if ($jobId !== null) {
-            $query->where('job_id', $jobId);
         }
 
-        // Lấy tất cả tin nhắn mới nhất theo created_at DESC
         $messages = $query->orderBy('created_at', 'desc')->get();
 
-        // Group by partner
         $conversations = $messages->groupBy(function ($msg) use ($userId) {
             return $msg->sender_id == $userId ? $msg->conversation_id : $msg->sender_id;
         });
@@ -53,55 +91,79 @@ class MessageController extends Controller
         return $conversations;
     }
 
-
-    /**
-     * Freelancer chat với chủ job
-     */
     public function chat($jobId)
     {
-        $job = Job::findOrFail($jobId);
         $userId = Auth::id();
-        $employerId = $job->account_id;
 
-        // Nếu không phải chủ job thì check xem có apply chưa
-        if ($userId != $employerId) {
-            $appliedUsers = $job->apply_id ? explode(',', $job->apply_id) : [];
-            if (!in_array($userId, $appliedUsers)) {
-                abort(403, 'Bạn không có quyền vào phòng chat này');
-            }
-        }
+        $job = Job::findOrFail($jobId);
+        $partnerId = $job->account_id;
 
-        // receiver luôn là chủ job (employer)
-        $receiverId = $employerId;
+        $box = BoxChat::firstOrCreate(
+            [
+                'sender_id' => min($userId, $partnerId),
+                'receiver_id' => max($userId, $partnerId),
+            ],
+            [
+                'name' => "Chat: {$userId}-{$partnerId}",
+                'type' => 1,
+            ]
+        );
 
-        // Lấy tất cả tin nhắn giữa user ↔ employer cho job này
-        $messages = Message::with('sender')
-            ->where('job_id', $jobId)
-            ->where(function ($q) use ($userId, $employerId) {
-                $q->where(function ($q2) use ($userId, $employerId) {
-                    $q2->where('sender_id', $userId)
-                        ->where('conversation_id', $employerId);
-                })->orWhere(function ($q2) use ($userId, $employerId) {
-                    $q2->where('sender_id', $employerId)
-                        ->where('conversation_id', $userId);
-                });
-            })
+        $messages = $box->messages()
+            ->with('sender')
             ->orderBy('created_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($message) {
+                try {
+                    $message->content = Crypt::decryptString($message->content);
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrypt message content', [
+                        'message_id' => $message->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $message->content = '[Không thể giải mã tin nhắn]';
+                }
+                return $message;
+            });
 
-        $conversations = $this->getConversations($userId, $jobId);
+        $conversations = BoxChat::with([
+            'messages' => function ($q) {
+                $q->latest();
+            },
+            'messages.sender'
+        ])
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                    ->orWhere('receiver_id', $userId);
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($box) {
+                if ($box->messages->isNotEmpty()) {
+                    $latestMsg = $box->messages->first();
+                    try {
+                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to decrypt latest message content in sidebar', [
+                            'message_id' => $latestMsg->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                    }
+                    $box->messages = collect([$latestMsg]); // Giữ lại latest sau khi decrypt
+                }
+                return $box;
+            });
 
         return view('chat.box', [
             'job' => $job,
             'messages' => $messages,
-            'receiverId' => $receiverId,
+            'receiverId' => $partnerId,
+            'box' => $box,
             'conversations' => $conversations,
         ]);
     }
 
-    /**
-     * Chủ job chat trực tiếp với freelancer
-     */
     public function chatWithFreelancer($jobId, $freelancerId)
     {
         $job = Job::findOrFail($jobId);
@@ -123,7 +185,19 @@ class MessageController extends Controller
                 });
             })
             ->orderBy('created_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($message) {
+                try {
+                    $message->content = Crypt::decryptString($message->content);
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrypt message content', [
+                        'message_id' => $message->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $message->content = '[Không thể giải mã tin nhắn]';
+                }
+                return $message;
+            });
 
         return view('chat.box', [
             'job' => $job,
@@ -132,56 +206,120 @@ class MessageController extends Controller
         ]);
     }
 
-    /**
-     * Gửi tin nhắn
-     */
     public function send(Request $request)
     {
-        $validated = $request->validate([
-            'job_id' => ['required', 'exists:jobs,job_id'],
-            'content' => ['required', 'string'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'job_id' => ['nullable', 'exists:jobs,job_id'],
+                'content' => ['required', 'string', 'max:5000'],
+                'receiver_id' => ['required', 'exists:accounts,account_id'],
+            ]);
 
-        $job = Job::findOrFail($validated['job_id']);
-        $senderId = Auth::id();
+            $senderId = Auth::id();
+            $receiverId = $validated['receiver_id'];
+            $jobId = $validated['job_id'];
 
-        // Xác định người nhận
-        $receiverId = $job->account_id == $senderId
-            ? Message::where('job_id', $job->job_id)
-                ->where('sender_id', '!=', $senderId)
-                ->latest()
-                ->first()?->sender_id
-            : $job->account_id;
+            Log::info('Message send request', [
+                'sender_id' => $senderId,
+                'receiver_id' => $receiverId,
+                'job_id' => $jobId,
+                'content' => $validated['content'],
+            ]);
 
-        if (!$receiverId) {
-            return response()->json(['error' => 'Không xác định được người nhận'], 422);
+            if ($jobId) {
+                $job = Job::find($jobId);
+                if (!$job) {
+                    Log::warning('Job not found', ['job_id' => $jobId]);
+                    return response()->json(['error' => 'Công việc không tồn tại'], 404);
+                }
+                if ($job->account_id != $senderId && $job->account_id != $receiverId) {
+                    Log::warning('Unauthorized job access', [
+                        'job_id' => $jobId,
+                        'sender_id' => $senderId,
+                        'receiver_id' => $receiverId,
+                    ]);
+                    return response()->json(['error' => 'Bạn không có quyền gửi tin nhắn cho công việc này'], 403);
+                }
+            }
+
+            $receiver = Account::find($receiverId);
+            if (!$receiver) {
+                Log::warning('Receiver not found', ['receiver_id' => $receiverId]);
+                return response()->json(['error' => 'Người nhận không tồn tại'], 404);
+            }
+
+            $box = BoxChat::firstOrCreate(
+                [
+                    'sender_id' => min($senderId, $receiverId),
+                    'receiver_id' => max($senderId, $receiverId),
+                ],
+                [
+                    'name' => "Chat: {$senderId}-{$receiverId}",
+                    'type' => 1,
+                ]
+            );
+
+            // Mã hóa nội dung tin nhắn trước khi lưu
+            $encryptedContent = Crypt::encryptString($validated['content']);
+
+            $message = Message::create([
+                'conversation_id' => $receiverId,
+                'sender_id' => $senderId,
+                'job_id' => $jobId,
+                'content' => $encryptedContent, // Lưu nội dung đã mã hóa
+                'type' => 1,
+                'status' => 1,
+                'box_id' => $box->id,
+            ]);
+
+            $message->load('sender');
+
+            if (!$message->sender) {
+                Log::error('Sender not found for message', ['message_id' => $message->id, 'sender_id' => $senderId]);
+                return response()->json(['error' => 'Người gửi không tồn tại'], 500);
+            }
+
+            // Giải mã nội dung để trả về client và broadcast
+            $message->content = $validated['content']; // Sử dụng nội dung gốc để broadcast
+
+            try {
+                broadcast(new MessageSent($message))->toOthers();
+                Log::info('Message broadcasted successfully', ['message_id' => $message->id]);
+            } catch (\Exception $e) {
+                Log::error('Broadcasting failed', [
+                    'message_id' => $message->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return response()->json([
+                'id' => $message->id,
+                'content' => $message->content, // Nội dung gốc
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'name' => $message->sender->name,
+                    'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/blog/blog-1.jpg'),
+                ],
+                'job_id' => $message->job_id,
+                'conversation_id' => $message->conversation_id,
+                'created_at' => $message->created_at->toISOString(),
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in send message', [
+                'errors' => $e->errors(),
+                'request' => $request->all(),
+            ]);
+            return response()->json(['error' => 'Dữ liệu không hợp lệ', 'details' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to send message', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            return response()->json(['error' => 'Lỗi khi gửi tin nhắn: ' . $e->getMessage()], 500);
         }
-
-        $message = Message::create([
-            'conversation_id' => $receiverId,
-            'sender_id' => $senderId,
-            'job_id' => $validated['job_id'],
-            'content' => $validated['content'],
-            'type' => 1,
-            'status' => 1,
-        ]);
-
-        broadcast(new MessageSent($message))->toOthers();
-
-        return response()->json([
-            'id' => $message->id,
-            'content' => $message->content,
-            'sender_id' => $message->sender_id,
-            'sender_name' => $message->sender->name,
-            'job_id' => $message->job_id,
-            'conversation_id' => $message->conversation_id,
-        ]);
     }
 
-
-    /**
-     * API: lấy lịch sử tin nhắn
-     */
     public function getMessages($partnerId, $jobId = null)
     {
         $userId = Auth::id();
@@ -203,9 +341,131 @@ class MessageController extends Controller
             $query->whereNull('job_id');
         }
 
-        $messages = $query->orderBy('created_at', 'asc')->get();
+        $messages = $query->orderBy('created_at', 'asc')->get()->map(function ($message) {
+            try {
+                $message->content = Crypt::decryptString($message->content);
+            } catch (\Exception $e) {
+                Log::error('Failed to decrypt message content', [
+                    'message_id' => $message->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $message->content = '[Không thể giải mã tin nhắn]';
+            }
+            return $message;
+        });
 
-        return response()->json($messages);
+        return response()->json($messages->map(function ($message) {
+            return [
+                'id' => $message->id,
+                'content' => $message->content, // Nội dung đã giải mã
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'name' => $message->sender->name,
+                    'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/blog/blog-1.jpg'),
+                ],
+                'job_id' => $message->job_id,
+                'conversation_id' => $message->conversation_id,
+                'created_at' => $message->created_at->toISOString(),
+            ];
+        }));
     }
 
+    public function getBoxMessages($boxId)
+    {
+        $userId = Auth::id();
+
+        $box = BoxChat::where('id', $boxId)
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                    ->orWhere('receiver_id', $userId);
+            })
+            ->first();
+
+        if (!$box) {
+            return response()->json(['error' => 'Box chat not found or access denied'], 404);
+        }
+
+        $messages = Message::with('sender')
+            ->where('box_id', $boxId)
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($message) {
+                try {
+                    $message->content = Crypt::decryptString($message->content);
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrypt message content', [
+                        'message_id' => $message->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $message->content = '[Không thể giải mã tin nhắn]';
+                }
+                return $message;
+            });
+
+        return response()->json($messages->map(function ($message) {
+            return [
+                'id' => $message->id,
+                'content' => $message->content, // Nội dung đã giải mã
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'name' => $message->sender->name,
+                    'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/blog/blog-1.jpg'),
+                ],
+                'job_id' => $message->job_id,
+                'conversation_id' => $message->conversation_id,
+                'created_at' => $message->created_at->toISOString(),
+            ];
+        }));
+    }
+
+    // Thêm route mới để load chat list via AJAX
+    public function getChatList()
+    {
+        $userId = Auth::id();
+
+        $conversations = BoxChat::with([
+            'messages' => function ($q) {
+                $q->latest();
+            },
+            'messages.sender'
+        ])
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                    ->orWhere('receiver_id', $userId);
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($box) use ($userId) {
+                $partnerId = $box->sender_id == $userId ? $box->receiver_id : $box->sender_id;
+                $partner = Account::find($partnerId);
+                $latestMsg = $box->messages->first();
+
+                if ($latestMsg) {
+                    try {
+                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to decrypt latest message content in chat list', [
+                            'message_id' => $latestMsg->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                    }
+                }
+
+                return [
+                    'box_id' => $box->id,
+                    'partner_id' => $partnerId,
+                    'partner_name' => $partner ? $partner->name : 'Unknown',
+                    'avatar' => $partner ? ($partner->avatar_url ?: asset('assets/img/blog/blog-1.jpg')) : asset('assets/img/blog/blog-1.jpg'),
+                    'latest_msg' => $latestMsg ? [
+                        'sender_id' => $latestMsg->sender_id,
+                        'content' => \Illuminate\Support\Str::limit($latestMsg->content, 25),
+                        'created_at' => $latestMsg->created_at->diffForHumans(),
+                        'sender_name' => $latestMsg->sender->name,
+                    ] : null,
+                ];
+            });
+
+        return response()->json($conversations);
+    }
 }
