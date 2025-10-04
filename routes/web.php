@@ -76,6 +76,9 @@ Route::middleware('auth')->group(function () {
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
 
+    Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
+    Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
+
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');

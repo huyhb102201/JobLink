@@ -3,36 +3,36 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Message extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'box_id',
         'conversation_id',
         'sender_id',
         'job_id',
         'content',
         'type',
         'status',
+        'box_id',
     ];
 
-    /**
-     * Người gửi tin nhắn
-     */
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     public function sender()
     {
         return $this->belongsTo(Account::class, 'sender_id');
     }
 
-    /**
-     * Hộp chat chứa tin nhắn
-     */
+    public function job()
+    {
+        return $this->belongsTo(Job::class, 'job_id');
+    }
+
     public function box()
     {
         return $this->belongsTo(BoxChat::class, 'box_id');
     }
-
 }
