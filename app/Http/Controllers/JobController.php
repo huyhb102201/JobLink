@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Job;
 use App\Models\JobView;
 use App\Models\JobApply;
+use App\Models\Comment;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class JobController extends Controller
 {
@@ -46,7 +49,7 @@ class JobController extends Controller
 
     public function show(Job $job, Request $request)
     {
-        $job->load('jobDetails');
+        $job->load('jobDetails', 'comments.account');
 
         $accountId = auth()->check() ? auth()->id() : null;
         $ip = auth()->check() ? null : $request->ip();
@@ -127,6 +130,46 @@ class JobController extends Controller
             'message' => 'Ứng tuyển thành công!',
             'statusLabel' => 'Chờ duyệt'
         ]);
+    }
+
+
+    public function store(Request $request, Job $job)
+    {
+        try {
+            $validated = $request->validate([
+                'content' => ['required', 'string', 'max:5000'],
+                'parent_id' => ['nullable', 'exists:comments,id'],
+            ]);
+
+            $comment = Comment::create([
+                'account_id' => Auth::id(),
+                'job_id' => $job->job_id, // CHỈNH: dùng $job->id
+                'content' => $validated['content'],
+                'parent_id' => $validated['parent_id'] ?? null,
+            ]);
+
+            $comment->load('account'); // load quan hệ để lấy avatar và name
+
+            return response()->json([
+                'id' => $comment->id,
+                'content' => $comment->content,
+                'parent_id' => $comment->parent_id,
+                'account_id' => $comment->account_id,
+                'account_name' => $comment->account->name ?? 'Khách',
+                'avatar_url' => $comment->account->avatar_url ?? asset('assets/img/blog/comments-1.jpg'),
+                'created_at' => $comment->created_at->format('d M, Y H:i'),
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Dữ liệu không hợp lệ',
+                'details' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Lỗi khi gửi bình luận: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 

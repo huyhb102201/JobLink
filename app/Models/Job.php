@@ -56,4 +56,11 @@ class Job extends Model
             ->withTimestamps();
     }
 
+        // Quan hệ với Comment
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'job_id');
+    }
+
+
 }

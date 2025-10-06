@@ -11,6 +11,7 @@ class Message extends Model
         'sender_id',
         'job_id',
         'content',
+        'img',
         'type',
         'status',
         'box_id',

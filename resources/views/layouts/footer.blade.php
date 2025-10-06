@@ -72,17 +72,24 @@
           © Bản quyền <strong><span>MyWebsite</span></strong>. Đã đăng ký bản quyền
         </div>
         <div class="credits">
-          Thiết kế bởi <a href="https://bootstrapmade.com/">BootstrapMade</a> - Phân phối bởi <a
-            href="https://themewagon.com">ThemeWagon</a>
+          Thiết kế bởi <a href="https://huyhogia.id.vn/">GiaHuyTV</a> - Phân phối bởi <a
+            href="https://daotao.vlute.edu.vn/">VLUTE</a>
         </div>
       </div>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
       <div class="social-links order-first order-lg-last mb-3 mb-lg-0">
-        <a href="#"><i class="bi bi-twitter-x"></i></a>
-        <a href="#"><i class="bi bi-facebook"></i></a>
-        <a href="#"><i class="bi bi-instagram"></i></a>
-        <a href="#"><i class="bi bi-linkedin"></i></a>
+        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=22004027@st.vlute.edu.vn" target="_blank">
+          <i class="fa-brands fa-google"></i>
+        </a>
+        <a href="https://www.facebook.com/nguyen.thanh.hoang.john.nguyen" target="_blank">
+          <i class="bi bi-facebook"></i>
+        </a>
+        <a href="https://github.com/huyhb102201" target="_blank">
+          <i class="fa-brands fa-github"></i>
+        </a>
       </div>
+
 
     </div>
   </div>

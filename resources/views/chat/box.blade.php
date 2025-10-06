@@ -154,13 +154,16 @@
             border-radius: 10px;
         }
 
-        .chat-input input {
+        .chat-input textarea {
             flex: 1;
             padding: 15px 20px;
             border-radius: 25px;
             border: 1px solid #ccc;
             outline: none;
             font-size: 1rem;
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
         }
 
         .chat-input button {
@@ -287,7 +290,8 @@
             background-color: #0056b3;
         }
 
-        .reply-preview {
+        .reply-preview,
+        .image-preview {
             background-color: #f8f9fa;
             border-left: 4px solid #007bff;
             padding: 10px;
@@ -298,11 +302,13 @@
             color: #555;
         }
 
-        .reply-preview.show {
+        .reply-preview.show,
+        .image-preview.show {
             display: block;
         }
 
-        .reply-preview .close-btn {
+        .reply-preview .close-btn,
+        .image-preview .close-btn {
             float: right;
             cursor: pointer;
             color: #aaa;
@@ -327,6 +333,30 @@
 
         .main-text {
             white-space: pre-line;
+        }
+
+        .message-img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 5px;
+            object-fit: contain;
+        }
+
+        .upload-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: #6c757d;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .image-preview img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
         }
     </style>
 
@@ -358,7 +388,7 @@
                                 @if($latestMsg)
                                     <div class="text-muted" style="font-size:0.85rem;">
                                         {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
-                                        {{ \Illuminate\Support\Str::limit($latestMsg->content, 25) }}
+                                        {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
                                         • {{ $latestMsg->created_at->diffForHumans() }}
                                     </div>
                                 @else
@@ -401,7 +431,13 @@
                             <div class="message {{ $msg->sender_id == auth()->id() ? 'me' : 'other' }}"
                                 data-created="{{ $msg->created_at->toISOString() }}" data-message-id="{{ $msg->id }}">
                                 <span class="sender">{{ $msg->sender_id == auth()->id() ? 'Bạn' : $msg->sender->name }}</span>
-                                <p>{{ $msg->content }}</p>
+                                @if($msg->content)
+                                    <p>{{ $msg->content }}</p>
+                                @endif
+                                @if($msg->img)
+                                    <img src="{{ asset($msg->img) }}" class="message-img" alt="Message Image"
+                                        onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '{{ $msg->img }}');">
+                                @endif
                                 @if($msg->sender_id == auth()->id())
                                     <div class="message-status">Đã nhận</div>
                                 @endif
@@ -425,8 +461,18 @@
                     <strong id="replySender"></strong>: <span id="replyContent"></span>
                 </div>
 
+                <!-- Image Preview -->
+                <div id="imagePreview" class="image-preview">
+                    <span class="close-btn" onclick="clearImagePreview()">&times;</span>
+                    <img id="previewImg" src="" alt="Preview Image">
+                </div>
+
                 <div class="chat-input" id="chatInput" style="{{ $box ? 'display:flex;' : 'display:none;' }}">
-                    <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
+                    <button id="uploadBtn" class="upload-btn" onclick="document.getElementById('fileInput').click();">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" style="display:none;">
+                    <textarea id="messageInput" placeholder="Nhập tin nhắn..."></textarea>
                     <button id="sendBtn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
@@ -460,7 +506,7 @@
                                     @if($latestMsg)
                                         <div class="text-muted" style="font-size:0.85rem;">
                                             {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
-                                            {{ \Illuminate\Support\Str::limit($latestMsg->content, 25) }}
+                                            {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
                                             • {{ $latestMsg->created_at->diffForHumans() }}
                                         </div>
                                     @else
@@ -489,6 +535,7 @@
         let offcanvas = null;
         const authId = {{ auth()->id() }};
         let replyingTo = null;
+        let selectedImage = null;
 
         function scrollToBottom() {
             const chatBox = document.getElementById('chatMessages');
@@ -502,7 +549,7 @@
             const chatBox = document.getElementById('chatMessages');
 
             if (document.querySelector(`[data-message-id="${msg.id}"]`)) {
-                return null; // Avoid duplicates
+                return null;
             }
 
             const msgTime = new Date(msg.created_at);
@@ -521,25 +568,29 @@
             msgDiv.dataset.messageId = msg.id;
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
-            const { replyTo, mainContent } = parseReplyContent(msg.content);
 
             let contentHTML = '';
+            const { replyTo, mainContent } = parseReplyContent(msg.content || '');
+
             if (replyTo) {
-                contentHTML = `
-                    <div class="reply-quote">${replyTo}</div>
-                    <div class="main-text">${mainContent}</div>
-                `;
-            } else {
-                contentHTML = `<div class="main-text">${msg.content}</div>`;
+                contentHTML += `<div class="reply-quote">${replyTo}</div>`;
+            }
+            if (mainContent) {
+                contentHTML += `<div class="main-text">${mainContent}</div>`;
+            }
+            if (msg.img) {
+                contentHTML += `
+                        <img src="${msg.img}" class="message-img" alt="Message Image"
+                             onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '${msg.img}');">
+                    `;
             }
 
             msgDiv.innerHTML = `
-                <span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                ${contentHTML}
-                ${statusHTML}
-            `;
+                    <span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
+                    ${contentHTML}
+                    ${statusHTML}
+                `;
 
-            // Show timestamp on click
             msgDiv.addEventListener('click', (e) => {
                 if (msgDiv.dataset.shownTime === 'true' || e.longPress) return;
                 msgDiv.dataset.shownTime = 'true';
@@ -553,7 +604,6 @@
                 }, 5000);
             });
 
-            // Long press for reply
             let pressTimer;
             const startLongPress = (e) => {
                 pressTimer = setTimeout(() => {
@@ -579,28 +629,22 @@
         }
 
         function highlightMessage(msgDiv, msg) {
-            // Remove highlight and reply button from other messages
             document.querySelectorAll('.message.highlight').forEach(el => {
                 el.classList.remove('highlight');
                 const replyBtn = el.querySelector('.reply-btn');
                 if (replyBtn) replyBtn.remove();
             });
 
-            // Add highlight to current message
             msgDiv.classList.add('highlight');
 
-            // Create reply button
             const replyBtn = document.createElement('button');
             replyBtn.className = 'reply-btn';
             replyBtn.innerHTML = "<i class='bi bi-reply'></i> Trả lời";
             replyBtn.addEventListener('click', () => {
-                // Set reply state and show preview
                 replyingTo = msg;
-                showReplyPreview(msg.sender.name, msg.content);
-                // Immediately remove highlight and button
+                showReplyPreview(msg.sender.name, msg.content || '[Hình ảnh]');
                 msgDiv.classList.remove('highlight');
                 replyBtn.remove();
-                // Focus input
                 document.getElementById('messageInput').focus();
             });
 
@@ -620,6 +664,24 @@
             replyingTo = null;
         }
 
+        function showImagePreview(file) {
+            const preview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImg.src = e.target.result;
+                preview.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearImagePreview() {
+            const preview = document.getElementById('imagePreview');
+            preview.classList.remove('show');
+            selectedImage = null;
+            document.getElementById('fileInput').value = '';
+        }
+
         function parseReplyContent(content) {
             if (!content.startsWith("Trả lời ")) return { replyTo: null, mainContent: content };
 
@@ -631,7 +693,7 @@
 
                 if (!rest.startsWith('"')) return { quoted: '', rest };
 
-                rest = rest.slice(1); // Remove opening quote
+                rest = rest.slice(1);
                 let quoted = '';
                 let i = 0;
                 while (i < rest.length) {
@@ -683,20 +745,20 @@
 
                         showChatToast(
                             incomingMsg.sender.name,
-                            incomingMsg.content,
+                            incomingMsg.content || '[Hình ảnh]',
                             incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
                         );
 
                         if (Notification.permission === "granted") {
                             new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
-                                body: incomingMsg.content,
+                                body: incomingMsg.content || '[Hình ảnh]',
                                 icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
                             });
                         } else if (Notification.permission !== "denied") {
                             Notification.requestPermission().then(permission => {
                                 if (permission === "granted") {
                                     new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
-                                        body: incomingMsg.content,
+                                        body: incomingMsg.content || '[Hình ảnh]',
                                         icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
                                     });
                                 }
@@ -730,18 +792,18 @@
             const isOnline = dot && dot.classList.contains("status-online");
 
             header.innerHTML = `
-                <div class="d-flex align-items-center gap-2">
-                    <div class="position-relative" style="width:45px;height:45px;">
-                        <img id="chatHeaderAvatar" src="${avatarUrl}" 
-                             class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
-                        <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="chatHeaderStatus"></span>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="position-relative" style="width:45px;height:45px;">
+                            <img id="chatHeaderAvatar" src="${avatarUrl}" 
+                                 class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                            <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="chatHeaderStatus"></span>
+                        </div>
+                        <div>
+                            <div class="fw-bold" id="chatHeaderName">${name}</div>
+                            <div class="small text-muted" id="chatHeaderStatusText">${isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="fw-bold" id="chatHeaderName">${name}</div>
-                        <div class="small text-muted" id="chatHeaderStatusText">${isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
-                    </div>
-                </div>
-            `;
+                `;
 
             chatInput.style.display = 'flex';
 
@@ -782,21 +844,30 @@
         }
 
         function sendMessage() {
-            if (!currentChat || !currentPartnerId) return alert('Chọn một cuộc trò chuyện trước!');
+            if (!currentChat || !currentPartnerId) {
+                alert('Chọn một cuộc trò chuyện trước!');
+                return;
+            }
             const input = document.getElementById('messageInput');
             const sendBtn = document.getElementById('sendBtn');
+            const fileInput = document.getElementById('fileInput');
             let text = input.value.trim();
-            if (!text) return;
+
+            if (!text && !selectedImage) {
+                alert('Vui lòng nhập nội dung tin nhắn hoặc chọn hình ảnh!');
+                return;
+            }
 
             if (replyingTo) {
-                text = `Trả lời ${replyingTo.sender.name}: "${replyingTo.content}"\n` + text;
+                text = `Trả lời ${replyingTo.sender.name}: "${replyingTo.content || '[Hình ảnh]'}"\n` + text;
                 clearReplyPreview();
             }
 
             const tempId = 'temp-' + Date.now();
             const tempMsg = {
                 id: tempId,
-                content: text,
+                content: text || null,
+                img: selectedImage ? URL.createObjectURL(selectedImage) : null,
                 sender: { id: authId, name: 'Bạn' },
                 created_at: new Date().toISOString()
             };
@@ -805,25 +876,46 @@
             sendBtn.classList.add('sending');
             input.value = '';
 
-            axios.post('{{ route("messages.send") }}', {
-                job_id: currentJobId || null,
-                content: text,
-                receiver_id: currentPartnerId
+            const formData = new FormData();
+            if (text) formData.append('content', text);
+            formData.append('receiver_id', currentPartnerId);
+            if (currentJobId) formData.append('job_id', currentJobId);
+            if (selectedImage) {
+                formData.append('img', selectedImage);
+                console.log('Gửi FormData với ảnh:', selectedImage.name, selectedImage.type, selectedImage.size);
+            } else {
+                console.log('FormData không chứa ảnh');
+            }
+
+            for (let pair of formData.entries()) {
+                console.log('FormData entry:', pair[0], pair[1]);
+            }
+            clearReplyPreview();
+
+            axios.post('{{ route("messages.send") }}', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             })
                 .then(res => {
                     const sentMsg = res.data;
                     msgDiv.dataset.messageId = sentMsg.id;
+                    if (sentMsg.img) {
+                        const imgElem = msgDiv.querySelector('.message-img');
+                        if (imgElem) imgElem.src = sentMsg.img;
+                    }
                     const statusDiv = msgDiv.querySelector('.message-status');
                     if (statusDiv) statusDiv.innerText = 'Đã nhận';
                     sendBtn.classList.remove('sending');
+                    selectedImage = null;
+                    fileInput.value = '';
+                    clearImagePreview();
                     console.log('Message sent:', sentMsg);
                 })
                 .catch(err => {
+                    console.error('Send error:', err);
                     const statusDiv = msgDiv.querySelector('.message-status');
                     if (statusDiv) statusDiv.innerText = 'Gửi thất bại';
                     sendBtn.classList.remove('sending');
-                    console.error('Send error:', err);
-                    alert('Gửi tin nhắn thất bại!');
+                    alert('Gửi tin nhắn thất bại: ' + (err.response?.data?.error || err.message));
                 });
         }
 
@@ -834,18 +926,18 @@
             toastEl.setAttribute("role", "alert");
 
             toastEl.innerHTML = `
-                <div class="toast-body p-2 d-flex align-items-start gap-2">
-                    <img src="${avatarUrl}" alt="avatar" 
-                         class="rounded-circle flex-shrink-0" width="42" height="42">
-                    <div class="flex-grow-1 overflow-hidden">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">${sender}</span>
-                            <small class="text-muted">${timeText}</small>
+                    <div class="toast-body p-2 d-flex align-items-start gap-2">
+                        <img src="${avatarUrl}" alt="avatar" 
+                             class="rounded-circle flex-shrink-0" width="42" height="42">
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold">${sender}</span>
+                                <small class="text-muted">${timeText}</small>
+                            </div>
+                            <div class="text-truncate">${content}</div>
                         </div>
-                        <div class="text-truncate">${content}</div>
                     </div>
-                </div>
-            `;
+                `;
 
             if (onClick) {
                 toastEl.querySelector('.toast-body').addEventListener('click', onClick);
@@ -873,27 +965,79 @@
                 }
             @endif
 
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
                 Notification.requestPermission().then(permission => {
                     console.log("Notification permission:", permission);
                 });
             }
-        });
 
-        const messageInput = document.getElementById('messageInput');
-        messageInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                if (e.ctrlKey || e.metaKey) {
-                    const cursorPos = this.selectionStart;
-                    const value = this.value;
-                    this.value = value.substring(0, cursorPos) + "\n" + value.substring(cursorPos);
-                    this.selectionEnd = cursorPos + 1;
-                    e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    selectedImage = e.target.files[0];
+                    console.log('File ảnh đã chọn:', selectedImage.name, selectedImage.type, selectedImage.size);
+                    showImagePreview(selectedImage);
                 } else {
-                    e.preventDefault();
-                    sendMessage();
+                    console.log('Không có file ảnh được chọn');
+                    selectedImage = null;
+                    clearImagePreview();
                 }
-            }
+            });
+
+            const messageInput = document.getElementById('messageInput');
+            messageInput.addEventListener('paste', (e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        selectedImage = items[i].getAsFile();
+                        console.log('Ảnh dán từ clipboard:', selectedImage.name, selectedImage.type, selectedImage.size);
+                        showImagePreview(selectedImage);
+                        e.preventDefault();
+                        break;
+                    }
+                }
+            });
+
+            const chatArea = document.getElementById('chatArea');
+            chatArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                chatArea.style.backgroundColor = '#e9ecef';
+            });
+            chatArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                chatArea.style.backgroundColor = '#fff';
+            });
+            chatArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                chatArea.style.backgroundColor = '#fff';
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    selectedImage = files[0];
+                    console.log('Ảnh kéo thả:', selectedImage.name, selectedImage.type, selectedImage.size);
+                    showImagePreview(selectedImage);
+                    fileInput.files = e.dataTransfer.files;
+                }
+            });
+
+            messageInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    if (e.ctrlKey || e.metaKey) {
+                        const cursorPos = this.selectionStart;
+                        const value = this.value;
+                        this.value = value.substring(0, cursorPos) + "\n" + value.substring(cursorPos);
+                        this.selectionEnd = cursorPos + 1;
+                        e.preventDefault();
+                    } else {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                }
+            });
+
+            messageInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
         });
     </script>
 @endsection

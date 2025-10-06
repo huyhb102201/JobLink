@@ -96,7 +96,7 @@
                 @endif
 
                 <!-- Liên hệ & MXH -->
-               <div class="card shadow-sm border-0 mb-4">
+                <div class="card shadow-sm border-0 mb-4">
                     <div class="card-body">
                         <h5 class="fw-bold mb-3"><i class="bi bi-share me-2"></i>Liên hệ & Mạng xã hội</h5>
 
@@ -138,7 +138,7 @@
                         <div class="position-relative" id="job-list">
                             @forelse($jobs as $index => $job)
                                 @php
-                                    $applicantsCount = $job->apply_id ? count(explode(',', $job->apply_id)) : 0;
+                                    $applicantsCount = $job->applicants()->count();
                                 @endphp
 
                                 <div class="row g-0 mb-4 job-item {{ $index >= 3 ? 'd-none' : '' }}">
