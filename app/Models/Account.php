@@ -83,4 +83,12 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Job::class, 'account_id', 'account_id');
     }
+
+
+     // Quan hệ với Comment
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'account_id');
+    }
+
 }

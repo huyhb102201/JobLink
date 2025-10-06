@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\File;
 
 class MessageController extends Controller
 {
@@ -34,7 +35,9 @@ class MessageController extends Controller
                 if ($box->messages->isNotEmpty()) {
                     $latestMsg = $box->messages->first();
                     try {
-                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        if ($latestMsg->content) {
+                            $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        }
                     } catch (\Exception $e) {
                         Log::error('Failed to decrypt latest message content in sidebar', [
                             'message_id' => $latestMsg->id,
@@ -42,7 +45,7 @@ class MessageController extends Controller
                         ]);
                         $latestMsg->content = '[Không thể giải mã tin nhắn]';
                     }
-                    $box->messages = collect([$latestMsg]); // Giữ lại latest sau khi decrypt
+                    $box->messages = collect([$latestMsg]);
                 }
                 return $box;
             });
@@ -115,7 +118,9 @@ class MessageController extends Controller
             ->get()
             ->map(function ($message) {
                 try {
-                    $message->content = Crypt::decryptString($message->content);
+                    if ($message->content) {
+                        $message->content = Crypt::decryptString($message->content);
+                    }
                 } catch (\Exception $e) {
                     Log::error('Failed to decrypt message content', [
                         'message_id' => $message->id,
@@ -142,7 +147,9 @@ class MessageController extends Controller
                 if ($box->messages->isNotEmpty()) {
                     $latestMsg = $box->messages->first();
                     try {
-                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        if ($latestMsg->content) {
+                            $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        }
                     } catch (\Exception $e) {
                         Log::error('Failed to decrypt latest message content in sidebar', [
                             'message_id' => $latestMsg->id,
@@ -150,7 +157,7 @@ class MessageController extends Controller
                         ]);
                         $latestMsg->content = '[Không thể giải mã tin nhắn]';
                     }
-                    $box->messages = collect([$latestMsg]); // Giữ lại latest sau khi decrypt
+                    $box->messages = collect([$latestMsg]);
                 }
                 return $box;
             });
@@ -188,7 +195,9 @@ class MessageController extends Controller
             ->get()
             ->map(function ($message) {
                 try {
-                    $message->content = Crypt::decryptString($message->content);
+                    if ($message->content) {
+                        $message->content = Crypt::decryptString($message->content);
+                    }
                 } catch (\Exception $e) {
                     Log::error('Failed to decrypt message content', [
                         'message_id' => $message->id,
@@ -209,23 +218,35 @@ class MessageController extends Controller
     public function send(Request $request)
     {
         try {
-            $validated = $request->validate([
+            // Validate input
+            $request->validate([
                 'job_id' => ['nullable', 'exists:jobs,job_id'],
-                'content' => ['required', 'string', 'max:5000'],
+                'content' => ['nullable', 'string', 'max:5000'],
                 'receiver_id' => ['required', 'exists:accounts,account_id'],
+                'img' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
             ]);
 
-            $senderId = Auth::id();
-            $receiverId = $validated['receiver_id'];
-            $jobId = $validated['job_id'];
+            // Kiểm tra ít nhất content hoặc img
+            if (!$request->filled('content') && !$request->hasFile('img')) {
+                return response()->json(['error' => 'Phải cung cấp ít nhất nội dung tin nhắn hoặc hình ảnh.'], 422);
+            }
 
+            $senderId = Auth::id();
+            $receiverId = $request->input('receiver_id');
+            $jobId = $request->input('job_id');
+            $content = $request->input('content');
+
+            // Log request
             Log::info('Message send request', [
                 'sender_id' => $senderId,
                 'receiver_id' => $receiverId,
                 'job_id' => $jobId,
-                'content' => $validated['content'],
+                'content_preview' => substr($content ?? '', 0, 50),
+                'has_img' => $request->hasFile('img'),
+                'img_name' => $request->hasFile('img') ? $request->file('img')->getClientOriginalName() : null,
             ]);
 
+            // Kiểm tra job
             if ($jobId) {
                 $job = Job::find($jobId);
                 if (!$job) {
@@ -242,12 +263,14 @@ class MessageController extends Controller
                 }
             }
 
+            // Kiểm tra receiver
             $receiver = Account::find($receiverId);
             if (!$receiver) {
                 Log::warning('Receiver not found', ['receiver_id' => $receiverId]);
                 return response()->json(['error' => 'Người nhận không tồn tại'], 404);
             }
 
+            // Tạo hoặc lấy box chat
             $box = BoxChat::firstOrCreate(
                 [
                     'sender_id' => min($senderId, $receiverId),
@@ -259,14 +282,59 @@ class MessageController extends Controller
                 ]
             );
 
-            // Mã hóa nội dung tin nhắn trước khi lưu
-            $encryptedContent = Crypt::encryptString($validated['content']);
+            // Mã hóa content
+            $encryptedContent = $content ? Crypt::encryptString($content) : null;
 
+            // Xử lý ảnh
+            $imgPath = null;
+            if ($request->hasFile('img')) {
+                $file = $request->file('img');
+                if ($file->isValid()) {
+                    $directory = public_path('img/messages');
+                    if (!File::exists($directory)) {
+                        File::makeDirectory($directory, 0755, true);
+                        Log::info('Created directory for messages images', ['directory' => $directory]);
+                    }
+
+                    $filename = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
+                    $fullPath = $directory . '/' . $filename;
+
+                    try {
+                        $file->move($directory, $filename);
+                        $imgPath = 'img/messages/' . $filename;
+
+                        // Kiểm tra file tồn tại
+                        if (File::exists($fullPath)) {
+                            Log::info('Image saved and verified', [
+                                'path' => $imgPath,
+                                'full_path' => $fullPath,
+                                'size' => File::size($fullPath),
+                            ]);
+                        } else {
+                            Log::error('Image saved but not found on disk', ['full_path' => $fullPath]);
+                            return response()->json(['error' => 'Lưu ảnh thất bại: File không tồn tại sau khi lưu.'], 500);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Failed to save image', [
+                            'error' => $e->getMessage(),
+                            'filename' => $filename,
+                            'tmp_path' => $file->getPathname(),
+                        ]);
+                        return response()->json(['error' => 'Lỗi khi lưu hình ảnh: ' . $e->getMessage()], 500);
+                    }
+                } else {
+                    Log::error('Invalid image file uploaded', ['tmp_path' => $file->getPathname()]);
+                    return response()->json(['error' => 'File ảnh không hợp lệ.'], 422);
+                }
+            }
+
+            // Tạo message
             $message = Message::create([
                 'conversation_id' => $receiverId,
                 'sender_id' => $senderId,
                 'job_id' => $jobId,
-                'content' => $encryptedContent, // Lưu nội dung đã mã hóa
+                'content' => $encryptedContent,
+                'img' => $imgPath,
                 'type' => 1,
                 'status' => 1,
                 'box_id' => $box->id,
@@ -279,9 +347,8 @@ class MessageController extends Controller
                 return response()->json(['error' => 'Người gửi không tồn tại'], 500);
             }
 
-            // Giải mã nội dung để trả về client và broadcast
-            $message->content = $validated['content']; // Sử dụng nội dung gốc để broadcast
-
+            // Broadcast
+            $plainContent = $content;
             try {
                 broadcast(new MessageSent($message))->toOthers();
                 Log::info('Message broadcasted successfully', ['message_id' => $message->id]);
@@ -294,7 +361,8 @@ class MessageController extends Controller
 
             return response()->json([
                 'id' => $message->id,
-                'content' => $message->content, // Nội dung gốc
+                'content' => $plainContent,
+                'img' => $message->img ? asset($message->img) : null,
                 'sender_id' => $message->sender_id,
                 'sender' => [
                     'name' => $message->sender->name,
@@ -304,6 +372,7 @@ class MessageController extends Controller
                 'conversation_id' => $message->conversation_id,
                 'created_at' => $message->created_at->toISOString(),
             ], 201);
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validation error in send message', [
                 'errors' => $e->errors(),
@@ -343,7 +412,9 @@ class MessageController extends Controller
 
         $messages = $query->orderBy('created_at', 'asc')->get()->map(function ($message) {
             try {
-                $message->content = Crypt::decryptString($message->content);
+                if ($message->content) {
+                    $message->content = Crypt::decryptString($message->content);
+                }
             } catch (\Exception $e) {
                 Log::error('Failed to decrypt message content', [
                     'message_id' => $message->id,
@@ -357,7 +428,8 @@ class MessageController extends Controller
         return response()->json($messages->map(function ($message) {
             return [
                 'id' => $message->id,
-                'content' => $message->content, // Nội dung đã giải mã
+                'content' => $message->content,
+                'img' => $message->img ? asset($message->img) : null,
                 'sender_id' => $message->sender_id,
                 'sender' => [
                     'name' => $message->sender->name,
@@ -391,7 +463,9 @@ class MessageController extends Controller
             ->get()
             ->map(function ($message) {
                 try {
-                    $message->content = Crypt::decryptString($message->content);
+                    if ($message->content) {
+                        $message->content = Crypt::decryptString($message->content);
+                    }
                 } catch (\Exception $e) {
                     Log::error('Failed to decrypt message content', [
                         'message_id' => $message->id,
@@ -405,7 +479,8 @@ class MessageController extends Controller
         return response()->json($messages->map(function ($message) {
             return [
                 'id' => $message->id,
-                'content' => $message->content, // Nội dung đã giải mã
+                'content' => $message->content,
+                'img' => $message->img ? asset($message->img) : null,
                 'sender_id' => $message->sender_id,
                 'sender' => [
                     'name' => $message->sender->name,
@@ -418,7 +493,6 @@ class MessageController extends Controller
         }));
     }
 
-    // Thêm route mới để load chat list via AJAX
     public function getChatList()
     {
         $userId = Auth::id();
@@ -442,7 +516,9 @@ class MessageController extends Controller
 
                 if ($latestMsg) {
                     try {
-                        $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        if ($latestMsg->content) {
+                            $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        }
                     } catch (\Exception $e) {
                         Log::error('Failed to decrypt latest message content in chat list', [
                             'message_id' => $latestMsg->id,
@@ -459,7 +535,8 @@ class MessageController extends Controller
                     'avatar' => $partner ? ($partner->avatar_url ?: asset('assets/img/blog/blog-1.jpg')) : asset('assets/img/blog/blog-1.jpg'),
                     'latest_msg' => $latestMsg ? [
                         'sender_id' => $latestMsg->sender_id,
-                        'content' => \Illuminate\Support\Str::limit($latestMsg->content, 25),
+                        'content' => \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25),
+                        'img' => $latestMsg->img ? asset($latestMsg->img) : null,
                         'created_at' => $latestMsg->created_at->diffForHumans(),
                         'sender_name' => $latestMsg->sender->name,
                     ] : null,

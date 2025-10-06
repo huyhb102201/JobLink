@@ -80,6 +80,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
 
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
+    Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
+
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -234,21 +236,22 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
 
-Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
+Route::get('/settings/company', [CompanyController::class, 'index'])->name('settings.company');
 Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
 Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
-        ->name('company.members.add');
+    ->name('company.members.add');
 Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
-        ->name('company.members.invite');
+    ->name('company.members.invite');
 Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
     ->name('company.invite.accept');
 
 Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
     ->name('company.members.remove');
 
-Route::post('/settings/company/{org}/verify-request',
-        [CompanyController::class, 'requestVerification']
-    )->name('company.verify.request');
+Route::post(
+    '/settings/company/{org}/verify-request',
+    [CompanyController::class, 'requestVerification']
+)->name('company.verify.request');
 
 Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])
     ->name('company.verification.submit');
