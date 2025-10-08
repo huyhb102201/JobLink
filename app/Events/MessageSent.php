@@ -26,9 +26,15 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        $userIds = [$this->message->sender_id, $this->message->conversation_id];
-        sort($userIds);
-        return new PrivateChannel('chat.' . implode('.', $userIds));
+        if ($this->message->conversation_id === 0 && $this->message->job_id) {
+            // Chat nhóm
+            return new PresenceChannel('chat-group.' . $this->message->job_id);
+        } else {
+            // Chat 1-1
+            $userIds = [$this->message->sender_id, $this->message->conversation_id];
+            sort($userIds);
+            return new PrivateChannel('chat.' . implode('.', $userIds));
+        }
     }
 
     public function broadcastWith()

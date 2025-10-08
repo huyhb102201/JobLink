@@ -367,27 +367,54 @@
             <!-- Desktop Sidebar -->
             <div id="chatListDesktop" class="chat-panel col-xl-3 bg-white p-3 shadow-sm d-none d-xl-block h-100">
                 @foreach($conversations as $boxItem)
-                    @php
-                        $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
-                        $partner = \App\Models\Account::find($partnerId);
-                        $latestMsg = $boxItem->messages->first();
-                        $avatar = $partner?->avatar_url ?: asset('assets/img/blog/blog-1.jpg');
-                        $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
-                    @endphp
+                    @if($boxItem->type == 1)
+                        @php
+                            $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
+                            $partner = \App\Models\Account::find($partnerId);
+                            $latestMsg = $boxItem->messages->first();
+                            $avatar = $partner?->avatar_url ?: asset('assets/img/defaultavatar.jpg');
+                            $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                        @endphp
 
-                    @if($partner)
+                        @if($partner)
+                            <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                                data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
+                                onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
+                                <div class="position-relative me-2" style="width:55px;height:55px;">
+                                    <img src="{{ $avatar }}" class="rounded-circle" style="width:55px;height:55px;object-fit:cover;">
+                                    <span class="status-dot status-offline" id="status-{{ $partner->account_id }}"></span>
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ $partner->name }}</div>
+                                    @if($latestMsg)
+                                        <div class="text-muted" style="font-size:0.85rem;">
+                                            {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
+                                            {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
+                                            • {{ $latestMsg->created_at->diffForHumans() }}
+                                        </div>
+                                    @else
+                                        <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    @else
+                        @php
+                            $latestMsg = $boxItem->messages->first();
+                            $avatar = asset('assets/img/group-icon.png'); // Icon nhóm
+                            $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                        @endphp
                         <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
-                            data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
-                            onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
+                            data-box-id="{{ $boxItem->id }}" data-job-id="{{ $boxItem->job_id }}"
+                            onclick="openBoxChat('{{ $boxItem->name }}', this, null, {{ $boxItem->id }}, {{ $boxItem->job_id }})">
                             <div class="position-relative me-2" style="width:55px;height:55px;">
                                 <img src="{{ $avatar }}" class="rounded-circle" style="width:55px;height:55px;object-fit:cover;">
-                                <span class="status-dot status-offline" id="status-{{ $partner->account_id }}"></span>
                             </div>
                             <div>
-                                <div class="fw-bold">{{ $partner->name }}</div>
+                                <div class="fw-bold">{{ $boxItem->name }}</div>
                                 @if($latestMsg)
                                     <div class="text-muted" style="font-size:0.85rem;">
-                                        {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
+                                        {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
                                         {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
                                         • {{ $latestMsg->created_at->diffForHumans() }}
                                     </div>
@@ -410,9 +437,9 @@
                 </div>
 
                 <div class="chat-header d-flex align-items-center gap-2 mb-2" id="chatHeader">
-                    @if($box && $employer)
+                    @if($box && $employer && $receiverId)
                         <div class="position-relative" style="width:45px;height:45px;">
-                            <img id="chatHeaderAvatar" src="{{ $employer->avatar_url ?? asset('assets/img/blog/blog-1.jpg') }}"
+                            <img id="chatHeaderAvatar" src="{{ $employer->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                                 class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
                             <span class="status-dot status-offline" id="chatHeaderStatus"></span>
                         </div>
@@ -420,6 +447,9 @@
                             <div class="fw-bold" id="chatHeaderName">{{ $employer->name }}</div>
                             <div class="small text-muted" id="chatHeaderStatusText">Ngoại tuyến</div>
                         </div>
+                    @elseif($box && !$receiverId)
+                        <div class="fw-bold" id="chatHeaderName">{{ $box->name }}</div>
+                        <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>
                     @else
                         <div class="fw-bold">Chọn một cuộc trò chuyện</div>
                     @endif
@@ -443,9 +473,13 @@
                                 @endif
                             </div>
                         @endforeach
-                    @elseif($box && $employer)
+                    @elseif($box && $employer && $receiverId)
                         <div class="message text-muted">
                             Chưa có tin nhắn với {{ $employer->name }}.
+                        </div>
+                    @elseif($box && !$receiverId)
+                        <div class="message text-muted">
+                            Chưa có tin nhắn trong nhóm.
                         </div>
                     @else
                         <div class="welcome-message">
@@ -488,24 +522,50 @@
             <div class="offcanvas-body p-3" style="overflow-y: auto;">
                 <div id="chatListMobile">
                     @foreach($conversations as $boxItem)
-                        @php
-                            $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
-                            $partner = \App\Models\Account::find($partnerId);
-                            $latestMsg = $boxItem->messages->first();
-                            $avatar = $partner?->avatar_url ?: asset('assets/img/blog/blog-1.jpg');
-                            $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
-                        @endphp
-                        @if($partner)
+                        @if($boxItem->type == 1)
+                            @php
+                                $partnerId = $boxItem->sender_id == auth()->id() ? $boxItem->receiver_id : $boxItem->sender_id;
+                                $partner = \App\Models\Account::find($partnerId);
+                                $latestMsg = $boxItem->messages->first();
+                                $avatar = $partner?->avatar_url ?: asset('assets/img/defaultavatar.jpg');
+                                $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                            @endphp
+                            @if($partner)
+                                <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                                    data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
+                                    onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
+                                    <img src="{{ $avatar }}" alt="avatar" class="rounded-circle me-2"
+                                        style="width:55px;height:55px;object-fit:cover;">
+                                    <div>
+                                        <div class="fw-bold">{{ $partner->name }}</div>
+                                        @if($latestMsg)
+                                            <div class="text-muted" style="font-size:0.85rem;">
+                                                {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
+                                                {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
+                                                • {{ $latestMsg->created_at->diffForHumans() }}
+                                            </div>
+                                        @else
+                                            <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                        @else
+                            @php
+                                $latestMsg = $boxItem->messages->first();
+                                $avatar = asset('assets/img/group-icon.png');
+                                $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                            @endphp
                             <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
-                                data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
-                                onclick="openBoxChat('{{ $partner->name }}', this, {{ $partner->account_id }}, {{ $boxItem->id }})">
-                                <img src="{{ $avatar }}" alt="avatar" class="rounded-circle me-2"
+                                data-box-id="{{ $boxItem->id }}" data-job-id="{{ $boxItem->job_id }}"
+                                onclick="openBoxChat('{{ $boxItem->name }}', this, null, {{ $boxItem->id }}, {{ $boxItem->job_id }})">
+                                <img src="{{ $avatar }}" alt="group" class="rounded-circle me-2"
                                     style="width:55px;height:55px;object-fit:cover;">
                                 <div>
-                                    <div class="fw-bold">{{ $partner->name }}</div>
+                                    <div class="fw-bold">{{ $boxItem->name }}</div>
                                     @if($latestMsg)
                                         <div class="text-muted" style="font-size:0.85rem;">
-                                            {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
+                                            {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
                                             {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
                                             • {{ $latestMsg->created_at->diffForHumans() }}
                                         </div>
@@ -527,8 +587,8 @@
     <script>
         let currentChat = '';
         let currentItem = null;
-        let currentPartnerId = {{ $box ? ($box->sender_id == auth()->id() ? $box->receiver_id : $box->sender_id) : 'null' }};
-        let currentJobId = {{ $job ? $job->job_id : 'null' }};
+        let currentPartnerId = {{ $box && $receiverId ? $receiverId : 'null' }};
+        let currentJobId = {{ $box && !$receiverId ? $box->job_id : 'null' }};
         let currentBoxId = {{ $box ? $box->id : 'null' }};
         let currentChannel = null;
         let lastMessageTime = null;
@@ -723,60 +783,74 @@
             };
         }
 
-        function subscribeToChannel(partnerId) {
+        function subscribeToChannel(partnerId, jobId = null) {
             if (currentChannel) {
                 window.Echo.leave(currentChannel);
             }
 
-            const userIds = [authId, partnerId].sort((a, b) => a - b);
-            currentChannel = 'chat.' + userIds.join('.');
-
-            window.Echo.private(currentChannel).listen('MessageSent', (e) => {
-                console.log('Received MessageSent event:', e);
-                const incomingMsg = e.message;
-                const isMe = incomingMsg.sender_id === authId;
-
-                if (!isMe && currentPartnerId === incomingMsg.sender_id) {
-                    const msgDiv = appendMessage(incomingMsg, false);
-
-                    if (msgDiv) {
-                        const sound = document.getElementById('chatNotifySound');
-                        if (sound) sound.play();
-
-                        showChatToast(
-                            incomingMsg.sender.name,
-                            incomingMsg.content || '[Hình ảnh]',
-                            incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                        );
-
-                        if (Notification.permission === "granted") {
-                            new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
-                                body: incomingMsg.content || '[Hình ảnh]',
-                                icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                            });
-                        } else if (Notification.permission !== "denied") {
-                            Notification.requestPermission().then(permission => {
-                                if (permission === "granted") {
-                                    new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
-                                        body: incomingMsg.content || '[Hình ảnh]',
-                                        icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
-                                    });
-                                }
-                            });
-                        }
-                    }
-                }
-            });
+            if (partnerId) {
+                // Chat 1-1
+                const userIds = [authId, partnerId].sort((a, b) => a - b);
+                currentChannel = 'chat.' + userIds.join('.');
+                window.Echo.private(currentChannel).listen('MessageSent', handleMessageEvent);
+            } else if (jobId) {
+                // Chat nhóm
+                currentChannel = 'chat-group.' + jobId;
+                window.Echo.join(currentChannel).listen('MessageSent', handleMessageEvent);
+            }
 
             console.log('Subscribed to channel:', currentChannel);
         }
 
-        function openBoxChat(name, element, partnerId, boxId) {
+        function handleMessageEvent(e) {
+            console.log('Received MessageSent event:', e);
+            const incomingMsg = e.message;
+            const isMe = incomingMsg.sender_id === authId;
+
+            if (!isMe && (currentPartnerId === incomingMsg.sender_id || currentJobId === incomingMsg.job_id)) {
+                const msgDiv = appendMessage(incomingMsg, false);
+
+                if (msgDiv) {
+                    const sound = document.getElementById('chatNotifySound');
+                    if (sound) sound.play();
+
+                    showChatToast(
+                        incomingMsg.sender.name,
+                        incomingMsg.content || '[Hình ảnh]',
+                        incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                    );
+
+                    if (Notification.permission === "granted") {
+                        new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
+                            body: incomingMsg.content || '[Hình ảnh]',
+                            icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                        });
+                    } else if (Notification.permission !== "denied") {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === "granted") {
+                                new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
+                                    body: incomingMsg.content || '[Hình ảnh]',
+                                    icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/blog/blog-1.jpg') }}"
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        function openBoxChat(name, element, partnerId, boxId, jobId = null) {
             currentChat = name;
-            currentPartnerId = partnerId;
             currentBoxId = boxId;
-            currentJobId = null;
-            window.currentPartnerId = partnerId;
+            if (partnerId) {
+                currentPartnerId = partnerId;
+                currentJobId = null;
+            } else {
+                currentPartnerId = null;
+                currentJobId = jobId;
+            }
+            window.currentPartnerId = currentPartnerId;
+            window.currentJobId = currentJobId;
 
             if (currentItem) currentItem.classList.remove('active');
             if (element) {
@@ -786,12 +860,15 @@
 
             const header = document.getElementById('chatHeader');
             const chatInput = document.getElementById('chatInput');
-            const avatarImg = element.querySelector("img");
-            const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/blog/blog-1.jpg') }}";
-            const dot = element.querySelector(".status-dot");
-            const isOnline = dot && dot.classList.contains("status-online");
 
-            header.innerHTML = `
+            if (partnerId) {
+                // 1-1
+                const avatarImg = element.querySelector("img");
+                const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/defaultavatar.jpg') }}";
+                const dot = element.querySelector(".status-dot");
+                const isOnline = dot && dot.classList.contains("status-online");
+
+                header.innerHTML = `
                     <div class="d-flex align-items-center gap-2">
                         <div class="position-relative" style="width:45px;height:45px;">
                             <img id="chatHeaderAvatar" src="${avatarUrl}" 
@@ -804,6 +881,13 @@
                         </div>
                     </div>
                 `;
+            } else {
+                // Nhóm
+                header.innerHTML = `
+                    <div class="fw-bold" id="chatHeaderName">${name}</div>
+                    <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>
+                `;
+            }
 
             chatInput.style.display = 'flex';
 
@@ -835,7 +919,7 @@
                 });
 
             if (window.Echo) {
-                subscribeToChannel(partnerId);
+                subscribeToChannel(partnerId, jobId);
             }
 
             if (offcanvas && window.innerWidth < 1200) {
@@ -844,7 +928,7 @@
         }
 
         function sendMessage() {
-            if (!currentChat || !currentPartnerId) {
+            if (!currentChat || (!currentPartnerId && !currentJobId)) {
                 alert('Chọn một cuộc trò chuyện trước!');
                 return;
             }
@@ -878,8 +962,11 @@
 
             const formData = new FormData();
             if (text) formData.append('content', text);
-            formData.append('receiver_id', currentPartnerId);
-            if (currentJobId) formData.append('job_id', currentJobId);
+            if (currentPartnerId) {
+                formData.append('receiver_id', currentPartnerId);
+            } else {
+                formData.append('job_id', currentJobId);
+            }
             if (selectedImage) {
                 formData.append('img', selectedImage);
                 console.log('Gửi FormData với ảnh:', selectedImage.name, selectedImage.type, selectedImage.size);
@@ -958,14 +1045,19 @@
                 offcanvas = new bootstrap.Offcanvas(offcanvasElement);
             }
 
-            @if($box && $employer)
+            @if($box && $receiverId)
                 const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);
                 if (boxElement) {
-                    openBoxChat('{{ $employer->name }}', boxElement, {{ $box->sender_id == auth()->id() ? $box->receiver_id : $box->sender_id }}, {{ $box->id }});
+                    openBoxChat('{{ $employer->name }}', boxElement, {{ $receiverId }}, {{ $box->id }});
+                }
+            @elseif($box && !$receiverId)
+                const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);
+                if (boxElement) {
+                    openBoxChat('{{ $box->name }}', boxElement, null, {{ $box->id }}, {{ $box->job_id }});
                 }
             @endif
 
-                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
                 Notification.requestPermission().then(permission => {
                     console.log("Notification permission:", permission);
                 });

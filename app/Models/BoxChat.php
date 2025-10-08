@@ -23,4 +23,10 @@ class BoxChat extends Model
     {
         return $this->belongsTo(Account::class, 'receiver_id');
     }
+
+    public function job()
+    {
+        return $this->belongsTo(\App\Models\Job::class, 'job_id', 'job_id');
+    }
+
 }
