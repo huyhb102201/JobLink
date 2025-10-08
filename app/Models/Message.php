@@ -10,6 +10,7 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'job_id',
+        'org_id',
         'content',
         'img',
         'type',

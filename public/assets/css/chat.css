@@ -32,11 +32,39 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     background: #f9f9f9;
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 10px;
+}
+
+.message-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 100%;
+}
+
+.message-container.me {
+    justify-content: flex-end;
+}
+
+.message-container.other {
+    justify-content: flex-start;
+}
+
+.avatar-container {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.avatar-container img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .message {
@@ -52,30 +80,32 @@
     cursor: pointer;
 }
 
-.message:hover {
-    background-color: #e0e0e0;
-}
-
 .message.me {
-    align-self: flex-end;
     background: #007bff;
     color: #fff;
     border-bottom-right-radius: 0;
 }
 
-.message.me:hover {
-    background: #0056b3;
-}
-
 .message.other {
-    align-self: flex-start;
     background: #f1f0f0;
     color: #000;
     border-bottom-left-radius: 0;
 }
 
-.message.other:hover {
-    background: #e0e0e0;
+.message-container.me .avatar-container {
+    display: none; /* Ẩn avatar cho tin nhắn của người dùng hiện tại */
+}
+
+.message-container.hide-avatar .avatar-container {
+    visibility: hidden; /* Ẩn avatar cho tin nhắn liên tiếp của cùng người gửi, giữ khoảng trống */
+}
+
+.message:hover {
+    background-color: #e0e0e0;
+}
+
+.message.me:hover {
+    background: #0056b3;
 }
 
 .sender {
@@ -114,17 +144,14 @@
         opacity: 0;
         transform: translateY(10px);
     }
-
     10% {
         opacity: 1;
         transform: translateY(0);
     }
-
     90% {
         opacity: 1;
         transform: translateY(0);
     }
-
     100% {
         opacity: 0;
         transform: translateY(-10px);
@@ -173,7 +200,6 @@
     0% {
         transform: rotate(0deg);
     }
-
     100% {
         transform: rotate(360deg);
     }
@@ -206,7 +232,6 @@
         opacity: 0;
         transform: translateY(20px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -218,7 +243,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-
     to {
         opacity: 0;
         transform: translateY(20px);
@@ -345,4 +369,35 @@
     max-width: 100px;
     max-height: 100px;
     border-radius: 8px;
+}
+
+/* CSS cho biểu tượng phân biệt */
+.chat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 12px;
+    margin-left: 6px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.chat-icon:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.icon-1-1 {
+    background-color: #28a745; /* Xanh lá cho chat 1-1 */
+}
+
+.icon-group {
+    background-color: #007bff; /* Xanh dương cho nhóm công việc */
+}
+
+.icon-org {
+    background-color: #ffc107; /* Vàng cho doanh nghiệp */
 }
