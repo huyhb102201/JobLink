@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\BoxChat;
 use App\Models\Org;
 use App\Models\OrgMember;
+use App\Models\Profile;
 use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\Log;
@@ -218,6 +219,124 @@ class MessageController extends Controller
         ]);
     }
 
+    public function chatWithUser($username)
+    {
+        $userId = Auth::id();
+
+        // Tìm account_id từ username trong bảng profile
+        $profile = Profile::where('username', $username)->first();
+        if (!$profile) {
+            abort(404, 'Người dùng không tồn tại');
+        }
+
+        $partnerId = $profile->account_id;
+        if ($partnerId == $userId) {
+            abort(403, 'Bạn không thể chat với chính mình');
+        }
+
+        // Kiểm tra hoặc tạo BoxChat
+        $box = BoxChat::firstOrCreate(
+            [
+                'sender_id' => min($userId, $partnerId),
+                'receiver_id' => max($userId, $partnerId),
+                'type' => 1, // Chat 1-1
+            ],
+            [
+                'name' => "Chat: {$userId}-{$partnerId}",
+            ]
+        );
+
+        // Lấy danh sách tin nhắn
+        $messages = $box->messages()
+            ->with('sender')
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($message) {
+                try {
+                    if ($message->content) {
+                        $message->content = Crypt::decryptString($message->content);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrypt message content', [
+                        'message_id' => $message->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $message->content = '[Không thể giải mã tin nhắn]';
+                }
+                return $message;
+            });
+
+        // Lấy danh sách các cuộc trò chuyện
+        $conversations = BoxChat::with([
+            'messages' => function ($q) {
+                $q->latest();
+            },
+            'messages.sender'
+        ])
+            ->where(function ($q) use ($userId) {
+                $q->where(function ($q2) use ($userId) {
+                    $q2->where('type', 1)
+                        ->where(function ($q3) use ($userId) {
+                            $q3->where('sender_id', $userId)
+                                ->orWhere('receiver_id', $userId);
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 2)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('jobs')
+                                ->whereColumn('jobs.job_id', 'box_chat.job_id')
+                                ->where('jobs.status', 'in_progress')
+                                ->where(function ($q4) use ($userId) {
+                                    $q4->where('jobs.account_id', $userId)
+                                        ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
+                                });
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
+                });
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($box) {
+                if ($box->messages->isNotEmpty()) {
+                    $latestMsg = $box->messages->first();
+                    try {
+                        if ($latestMsg->content) {
+                            $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Failed to decrypt latest message content in sidebar', [
+                            'message_id' => $latestMsg->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                    }
+                    $box->messages = collect([$latestMsg]);
+                }
+                return $box;
+            });
+
+        // Lấy thông tin partner
+        $partner = Account::findOrFail($partnerId);
+
+        return view('chat.box', [
+            'job' => null,
+            'org' => null,
+            'messages' => $messages,
+            'receiverId' => $partnerId,
+            'box' => $box,
+            'conversations' => $conversations,
+            'employer' => $partner, // Để hiển thị thông tin đối tác trong giao diện
+        ]);
+    }
     public function chatGroup($jobId)
     {
         $userId = Auth::id();

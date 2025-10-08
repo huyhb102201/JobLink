@@ -76,13 +76,212 @@
 
             {{-- Right --}}
             <ul class="navbar-nav ms-auto align-items-lg-center">
-                {{-- (Tuỳ chọn) Ô tìm kiếm nhanh jobs --}}
-                <li class="nav-item me-lg-2 my-2 my-lg-0" style="min-width: 240px;">
-                    <form action="{{ url('/jobs') }}" method="GET" class="d-flex" role="search">
-                        <input name="q" class="form-control form-control-sm" type="search"
-                            placeholder="Tìm công việc..." aria-label="Search">
+                {{-- Nút Thông báo --}}
+                <li class="nav-item me-lg-2 my-2 my-lg-0 position-relative">
+                    <a class="nav-link" href="{{ url('/notifications') }}">
+                        <i class="bi bi-bell fs-5"></i>
+                        {{-- Badge số lượng thông báo --}}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            3
+                        </span>
+                    </a>
+                </li>
+
+                {{-- Nút Chat --}}
+                <li class="nav-item me-lg-2 my-2 my-lg-0 position-relative">
+                    <a class="nav-link" href="{{ url('/chats') }}">
+                        <i class="bi bi-chat-dots fs-5"></i>
+                        {{-- Badge số tin nhắn chưa đọc --}}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            5
+                        </span>
+                    </a>
+                </li>
+
+                {{-- Ô tìm kiếm --}}
+                <li class="nav-item me-lg-2 my-2 my-lg-0" style="min-width: 300px; position: relative;">
+                    <form action="#" method="GET" class="d-flex" role="search" id="searchForm">
+                        <div class="input-group w-100 rounded-pill overflow-hidden shadow-sm" style="height: 36px;">
+                            <select id="searchCategory" class="form-select border-0 bg-light px-2" name="category"
+                                style="max-width: 120px; font-size: 14px;">
+                                <option value="job" {{ request('category') == 'job' ? 'selected' : '' }}>Công việc
+                                </option>
+                                <option value="account" {{ request('category') == 'account' ? 'selected' : '' }}>Tài khoản
+                                </option>
+                            </select>
+
+                            <input id="searchInput" name="q" value="{{ request('q') }}"
+                                class="form-control border-0 bg-light px-2" type="search"
+                                placeholder="{{ request('category') == 'account' ? 'Nhập username...' : 'Nhập công việc...' }}"
+                                aria-label="Search" style="font-size: 14px;" autocomplete="off">
+
+                            <button class="btn btn-primary px-3" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+
+                        <ul id="searchSuggestions" class="list-group position-absolute w-100 shadow-sm d-none"
+                            style="top: 42px; z-index: 1000; max-height: 300px; overflow-y: auto;"></ul>
                     </form>
                 </li>
+
+
+                <script>
+                    const category = document.getElementById('searchCategory');
+                    const input = document.getElementById('searchInput');
+                    const suggestions = document.getElementById('searchSuggestions');
+                    const form = document.getElementById('searchForm');
+                    let debounceTimer;
+                    let cache = {};
+                    const defaultAvatar = "/assets/img/defaultavatar.jpg";
+
+                    window.addEventListener("load", () => {
+                        let saved = localStorage.getItem("lastSearch");
+                        if (saved) {
+                            let { type, query, data } = JSON.parse(saved);
+                            category.value = type;
+                            input.value = query;
+
+                        }
+                    });
+
+                    category.addEventListener('change', function () {
+                        if (this.value === 'account') {
+                            input.placeholder = "Vui lòng nhập username...";
+                        } else {
+                            input.placeholder = "Nhập công việc...";
+                        }
+                        suggestions.classList.add('d-none');
+                    });
+
+                    input.addEventListener('input', function () {
+                        // Nếu input bị xóa rỗng (dùng cả nút x của trình duyệt)
+                        if (this.value.trim().length === 0) {
+                            localStorage.removeItem("lastSearch"); // xóa localStorage
+                            suggestions.classList.add('d-none');   // ẩn gợi ý
+                        } else {
+                            // debounce fetch data như bình thường
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => {
+                                fetchData(this.value.trim());
+                            }, 300);
+                        }
+                    });
+
+
+                    input.addEventListener('focus', () => {
+                        if (input.value.length >= 2) {
+                            let saved = localStorage.getItem("lastSearch");
+                            if (saved) {
+                                let { type, query, data } = JSON.parse(saved);
+                                if (query === input.value && type === category.value) {
+                                    renderSuggestions(data, type);
+                                    return;
+                                }
+                            }
+                            fetchData(input.value);
+                        }
+                    });
+
+                    document.addEventListener('click', function (e) {
+                        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                            suggestions.classList.add('d-none');
+                        }
+                    });
+
+                    form.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        if (input.value.trim().length >= 2) {
+                            fetchData(input.value.trim());
+                        }
+                    });
+
+                    async function fetchData(query) {
+                        if (query.length < 2) {
+                            suggestions.classList.add('d-none');
+                            return;
+                        }
+
+                        showMessage(`<div class="d-flex justify-content-center align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-2 text-primary"></div>
+                                        <span>Đang tìm...</span>
+                                    </div>`);
+
+                        let type = category.value;
+                        let cacheKey = type + "_" + query;
+
+                        if (cache[cacheKey]) {
+                            renderSuggestions(cache[cacheKey], type);
+                            return;
+                        }
+
+                        try {
+                            let response = await fetch(`/search?q=${encodeURIComponent(query)}&type=${type}`);
+                            let data = await response.json();
+                            cache[cacheKey] = data;
+
+                            localStorage.setItem("lastSearch", JSON.stringify({
+                                type: type,
+                                query: query,
+                                data: data
+                            }));
+
+                            renderSuggestions(data, type);
+                        } catch (e) {
+                            console.error("Lỗi fetch:", e);
+                            showMessage("Có lỗi xảy ra, vui lòng thử lại");
+                        }
+                    }
+
+                    function renderSuggestions(data, type) {
+                        suggestions.innerHTML = "";
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                let li = document.createElement('li');
+                                li.className = "list-group-item list-group-item-action d-flex align-items-center";
+                                li.style.cursor = "pointer";
+
+                                if (type === 'account') {
+                                    let avatar = document.createElement('img');
+                                    avatar.src = item.avatar_url ? item.avatar_url : defaultAvatar;
+                                    avatar.className = "rounded-circle me-2";
+                                    avatar.style.width = "32px";
+                                    avatar.style.height = "32px";
+                                    avatar.style.objectFit = "cover";
+
+                                    let text = document.createElement('span');
+                                    text.textContent = `${item.username} (${item.fullname ?? ''})`;
+
+                                    li.appendChild(avatar);
+                                    li.appendChild(text);
+
+                                    li.onclick = () => window.location.href = `/portfolios/${item.username}`;
+                                } else {
+                                    let icon = document.createElement('i');
+                                    icon.className = "bi bi-briefcase-fill me-2 text-primary";
+
+                                    let text = document.createElement('span');
+                                    text.textContent = item.title;
+
+                                    li.appendChild(icon);
+                                    li.appendChild(text);
+
+                                    li.onclick = () => window.location.href = `/jobs/${item.id}`;
+                                }
+
+                                suggestions.appendChild(li);
+                            });
+                            suggestions.classList.remove('d-none');
+                        } else {
+                            showMessage("Không tìm thấy kết quả nào");
+                        }
+                    }
+
+                    function showMessage(msg) {
+                        suggestions.innerHTML = `<li class="list-group-item text-muted text-center py-2">${msg}</li>`;
+                        suggestions.classList.remove('d-none');
+                    }
+                </script>
 
                 @auth
                     {{-- ... dropdown người dùng của bạn giữ nguyên ... --}}
@@ -137,7 +336,7 @@
                                     Loại tài khoản:
                                     <span class="badge bg-light text-dark">{{ $typeName }}</span>
                                 </li>
-                                @if ($typeCode === 'F_BASIC'||$typeCode === 'CLIENT')
+                                @if ($typeCode === 'F_BASIC' || $typeCode === 'CLIENT')
                                     <div class="border rounded-3 p-3 mb-3"
                                         style="border:1px solid #f8e8a0; background:linear-gradient(90deg, #fdfdfd, #fffef9);">
                                         <a href="{{ route('settings.upgrade') }}"
@@ -167,11 +366,12 @@
                                     </a>
                                 </li>
                                 @if ($typeCode === 'ADMIN')
-                                <li>
-                                    <a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('admin.accounts.index') }}">
-                                        <i class="bi bi-speedometer2"></i> Bảng điều khiển
-                                    </a>
-                                </li>
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center gap-2"
+                                            href="{{ route('admin.accounts.index') }}">
+                                            <i class="bi bi-speedometer2"></i> Bảng điều khiển
+                                        </a>
+                                    </li>
                                 @endif
                                 <li>
                                     <hr class="dropdown-divider">

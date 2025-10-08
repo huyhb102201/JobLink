@@ -28,6 +28,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
+use App\Http\Controllers\SearchController;
 // Routes đăng ký 
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -72,7 +73,7 @@ Route::middleware('auth')->group(function () {
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
-
+    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.user');
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
 
@@ -255,3 +256,7 @@ Route::post(
 
 Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])
     ->name('company.verification.submit');
+
+Route::get('/search', [SearchController::class, 'search']);
+
+

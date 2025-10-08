@@ -717,7 +717,7 @@
                 id: tempId,
                 content: text || null,
                 img: selectedImage ? URL.createObjectURL(selectedImage) : null,
-                sender: { id: authId, name: 'Bạn' },
+                sender: { id: authId, name: 'Bạn', avatar_url: '{{ auth()->user()->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}' },
                 created_at: new Date().toISOString()
             };
             const msgDiv = appendMessage(tempMsg, true, 'Đang gửi');

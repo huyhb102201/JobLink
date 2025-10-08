@@ -16,14 +16,31 @@
                         class="rounded-circle border border-4 border-white shadow-lg"
                         style="width:160px; height:160px; object-fit:cover;">
 
-                    <!-- Trạng thái xác minh-->
-                    <span
-                        class="position-absolute bottom-0 end-0 bg-secondary border border-white rounded-circle d-flex align-items-center justify-content-center"
-                        style="width:36px; height:36px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;">
-                        <i class="bi bi-camera-fill text-white fs-6"></i>
-                    </span>
+                    @if($account->account_type_id == 2)
+                        <span
+                            class="position-absolute bottom-0 end-0 bg-warning border border-white rounded-circle d-flex align-items-center justify-content-center"
+                            style="width:36px; height:36px; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+                            <i class="bi bi-patch-check-fill text-white" style="font-size:20px;"></i>
+                        </span>
+                    @endif
+
+                    {{-- Nút upload ảnh (chỉ hiện khi đúng chủ tài khoản) --}}
+                    @if(Auth::check() && Auth::id() === $account->account_id)
+                        <form action="#" method="POST" enctype="multipart/form-data" id="avatarForm">
+                            @csrf
+                            <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display:none"
+                                onchange="document.getElementById('avatarForm').submit()">
+                        </form>
+                        <span
+                            class="position-absolute bottom-0 end-0 bg-secondary border border-white rounded-circle d-flex align-items-center justify-content-center"
+                            style="width:42px; height:42px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;"
+                            onclick="document.getElementById('avatarInput').click()">
+                            <i class="bi bi-camera-fill text-white fs-6"></i>
+                        </span>
+                    @endif
                 </div>
             </div>
+
         </div>
 
         <!-- Name + Stats -->
@@ -70,11 +87,14 @@
                 </div>
 
                 <!-- Liên hệ ngay -->
-                <div class="d-grid mb-4">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#chatModal">
-                        <i class="bi bi-chat-dots me-2"></i> Liên hệ ngay
-                    </button>
-                </div>
+                @if(Auth::check() && Auth::id() != $account->account_id)
+                    <div class="d-grid mb-4">
+                        <a href="{{ url('/portfolios/' . $profile->username . '/chat') }}" class="btn btn-primary">
+                            <i class="bi bi-chat-dots me-2"></i> Liên hệ ngay
+                        </a>
+                    </div>
+
+                @endif
 
                 <!-- Kỹ năng -->
                 @if(in_array($profile->account_type, [1, 2]))
