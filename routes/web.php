@@ -122,6 +122,8 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/tax', [SettingsController::class, 'tax'])->name('tax');
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
+    Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
+
 });
 // Routes Xác minh Email
 Route::get('/email/verify', function () {
@@ -170,9 +172,11 @@ Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->g
     Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
     Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch('/jobs/{job_id}/applications/{user_id}',
-      [MyJobsController::class, 'update']
+    Route::patch(
+        '/jobs/{job_id}/applications/{user_id}',
+        [MyJobsController::class, 'update']
     )->name('jobs.applications.update');
+     Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
 });
 Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->group(function () {
     Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
@@ -184,9 +188,13 @@ Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->gro
     Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
     Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-     Route::patch('/jobs/{job_id}/applications/{user_id}',
-      [MyJobsController::class, 'update']
+    Route::patch(
+        '/jobs/{job_id}/applications/{user_id}',
+        [MyJobsController::class, 'update']
     )->name('jobs.applications.update');
+    // routes/web.php
+    Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
+
 });
 // routes/web.php (hoặc routes/api.php)
 Route::get('/checkout', function () {
@@ -217,33 +225,35 @@ Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('setti
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
 Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
-        // ... các route khác
-        Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
-        Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
-        Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
-        Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
-    });
+    Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
+    // ... các route khác
+    Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
+    Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
+    Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+});
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
 
-Route::get('/settings/company',  [CompanyController::class, 'index'])->name('settings.company');
+Route::get('/settings/company', [CompanyController::class, 'index'])->name('settings.company');
 Route::post('/settings/company', [CompanyController::class, 'store'])->name('settings.company.store');
 Route::post('/settings/company/members/add', [CompanyController::class, 'addMemberByUsername'])
-        ->name('company.members.add');
+    ->name('company.members.add');
 Route::post('/settings/company/members/invite', [CompanyController::class, 'inviteByUsername'])
-        ->name('company.members.invite');
+    ->name('company.members.invite');
 Route::get('/invite/{token}', [CompanyController::class, 'acceptInvite'])
     ->name('company.invite.accept');
 
 Route::delete('/settings/company/{org}/member/{account}', [CompanyController::class, 'removeMember'])
     ->name('company.members.remove');
 
-Route::post('/settings/company/{org}/verify-request',
-        [CompanyController::class, 'requestVerification']
-    )->name('company.verify.request');
+Route::post(
+    '/settings/company/{org}/verify-request',
+    [CompanyController::class, 'requestVerification']
+)->name('company.verify.request');
 
 Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])
     ->name('company.verification.submit');
 Route::get('/cfg', fn() => config('cloudinary'));
+Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');

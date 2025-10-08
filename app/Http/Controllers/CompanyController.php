@@ -281,84 +281,119 @@ public function index(Request $r)
         }
     }
 
-    public function inviteByUsername(Request $r)
-    {
-        $r->validate([
-            'org_id' => 'required|integer',
-            'username' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9._-]+$/'],
-            '_modal' => 'nullable|string',
+public function inviteByUsername(Request $r)
+{
+    $r->validate([
+        'org_id'   => 'required|integer',
+        'username' => ['required','string','max:255','regex:/^[A-Za-z0-9._-]+$/'],
+        '_modal'   => 'nullable|string',
+    ]);
+
+    $me = $r->user()->loadMissing('type');
+    if (($me->type?->code) !== 'BUSS') {
+        return back()->withErrors(['msg' => 'Chỉ Business mới được mời thành viên.']);
+    }
+
+    // Chỉ OWNER của org mới được mời
+    $org = Org::where('org_id', $r->org_id)
+        ->where('owner_account_id', $me->account_id)
+        ->first();
+
+    if (!$org) {
+        return back()->withErrors(['msg' => 'Bạn không có quyền với tổ chức này.'])->withInput();
+    }
+
+    // Lấy account theo username (case-insensitive an toàn với collation)
+    $username = trim($r->username);
+    $target = Account::query()
+        ->join('profiles as p', 'p.account_id', '=', 'accounts.account_id')
+        ->whereRaw('LOWER(p.username) = ?', [mb_strtolower($username)])
+        ->select('accounts.*') // tránh lấy trùng cột
+        ->first();
+
+    if (!$target) {
+        return back()->withErrors(['username' => 'Không tìm thấy username này.'])->withInput();
+    }
+
+    // Không mời chính mình
+    if ((int) $target->account_id === (int) $me->account_id) {
+        return back()->withErrors(['username' => 'Bạn là chủ tổ chức này.'])->withInput();
+    }
+
+    // ---- CHẶN NẾU USER ĐÃ THUỘC DOANH NGHIỆP KHÁC ----
+    // 1) Người này là OWNER của một org khác
+    $ownerOrg = Org::where('owner_account_id', $target->account_id)->first();
+    if ($ownerOrg && (int) $ownerOrg->org_id !== (int) $org->org_id) {
+        return back()->withErrors([
+            'username' => "Tài khoản này đang thuộc doanh nghiệp khác."
+        ])->withInput();
+    }
+
+    // 2) Người này đã là member ACTIVE/PENDING ở org khác
+    $otherMembership = \DB::table('org_members')
+        ->where('account_id', $target->account_id)
+        ->whereIn('status', ['ACTIVE','PENDING'])
+        ->where('org_id', '<>', $org->org_id)
+        ->first();
+
+    if ($otherMembership) {
+        $other = Org::find($otherMembership->org_id);
+        $otherName = $other?->name ? "{$other->name} (#{$other->org_id})" : "#{$otherMembership->org_id}";
+        return back()->withErrors([
+            'username' => "Người này đã thuộc doanh nghiệp khác."
+        ])->withInput();
+    }
+
+    // ---- NẾU ĐÃ Ở TRONG CÙNG ORG NÀY THÌ BÁO LẠI ----
+    $sameOrgMember = \DB::table('org_members')
+        ->where('org_id', $org->org_id)
+        ->where('account_id', $target->account_id)
+        ->first();
+
+    if ($sameOrgMember && $sameOrgMember->status === 'ACTIVE') {
+        return back()->withErrors(['username' => 'Người này đã là thành viên của tổ chức.'])->withInput();
+    }
+    if ($sameOrgMember && $sameOrgMember->status === 'PENDING') {
+        return back()->withErrors(['username' => 'Bạn đã mời người này, đang chờ xác nhận.'])->withInput();
+    }
+
+    // ---- TẠO/ TÁI SỬ DỤNG INVITE CÒN HẠN ----
+    $invite = OrgInvitation::where('org_id', $org->org_id)
+        ->where('email', $target->email)
+        ->where('status', 'PENDING')
+        ->where(function ($q) {
+            $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+        })
+        ->first();
+
+    if (!$invite) {
+        $invite = OrgInvitation::create([
+            'org_id'     => $org->org_id,
+            'email'      => $target->email,
+            'role'       => 'MEMBER',
+            'token'      => Str::random(48),
+            'expires_at' => now()->addDays(7),
+            'status'     => 'PENDING',
         ]);
 
-        $me = $r->user()->loadMissing('type');
-        if (($me->type?->code) !== 'BUSS') {
-            return back()->withErrors(['msg' => 'Chỉ Business mới được mời thành viên.']);
-        }
-
-        $org = Org::where('org_id', $r->org_id)
-            ->where('owner_account_id', $me->account_id)
-            ->first();
-        if (!$org)
-            return back()->withErrors(['msg' => 'Bạn không có quyền với tổ chức này.'])->withInput();
-
-        // tìm user theo profiles.username
-        $username = trim($r->username);
-        $target = Account::with('profile')
-            ->whereHas('profile', fn($q) => $q->where('username', $username))
-            ->first();
-        if (!$target)
-            return back()->withErrors(['username' => 'Không tìm thấy username này.'])->withInput();
-
-        // đã là member?
-        $exists = DB::table('org_members')->where('org_id', $org->org_id)->where('account_id', $target->account_id)->exists();
-        if ($exists)
-            return back()->withErrors(['username' => 'Người này đã trong tổ chức.'])->withInput();
-
-        // kiếm invite còn hạn, nếu chưa thì tạo mới
-        $invite = OrgInvitation::where('org_id', $org->org_id)
-            ->where('email', $target->email)
-            ->where('status', 'PENDING')
-            ->where(function ($q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-            })
-            ->first();
-
-        if (!$invite) {
-            $invite = OrgInvitation::create([
-                'org_id' => $org->org_id,
-                'email' => $target->email,
-                'role' => 'MEMBER',
-                'token' => Str::random(48),
-                'expires_at' => now()->addDays(7),
-                'status' => 'PENDING',
-            ]);
-            // KHÔNG đếm ghế ở bước mời; chỉ đếm khi accept
-            $member = \DB::table('org_members')
-                ->where('org_id', $org->org_id)
-                ->where('account_id', $target->account_id)
-                ->first();
-
-            if ($member && $member->status === 'ACTIVE') {
-                return back()->withErrors(['username' => 'Người này đã là thành viên.'])->withInput();
-            }
-
-            \DB::table('org_members')->updateOrInsert(
-                ['org_id' => $org->org_id, 'account_id' => $target->account_id],
-                [
-                    'role' => $invite->role ?? 'MEMBER',
-                    'status' => 'PENDING',
-                    'updated_at' => now(),
-                    // nếu là dòng mới cần cả created_at
-                    'created_at' => $member ? $member->created_at : now(),
-                ]
-            );
-
-        }
-
-        // gửi mail qua SendGrid
-        $this->sendOrgInviteEmail($target, $org, $invite);
-
-        return back()->with('ok', 'Đã gửi lời mời tới ' . $target->email . '.');
+        // KHÔNG đếm ghế ở bước mời; chỉ đếm khi accept
+        \DB::table('org_members')->updateOrInsert(
+            ['org_id' => $org->org_id, 'account_id' => $target->account_id],
+            [
+                'role'       => $invite->role ?? 'MEMBER',
+                'status'     => 'PENDING',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
     }
+
+    // Gửi email mời
+    $this->sendOrgInviteEmail($target, $org, $invite);
+
+    return back()->with('ok', 'Đã gửi lời mời tới ' . $target->email . '.');
+}
+
     public function acceptInvite(Request $r, string $token)
     {
         $invite = OrgInvitation::where('token', $token)->first();
@@ -556,5 +591,42 @@ public function submitVerification(Request $r)
 
     return back()->with('ok', 'Đã gửi hồ sơ xác minh doanh nghiệp (Cloudinary).');
 }
+
+// app/Http/Controllers/CompanyController.php
+
+public function leaveOrg(Request $r, int $org)
+{
+    $user = $r->user();
+
+    // membership hiện tại của user
+    $member = \DB::table('org_members')
+        ->where('org_id', $org)
+        ->where('account_id', $user->account_id)
+        ->first();
+
+    if (!$member) {
+        return back()->withErrors(['msg' => 'Bạn không thuộc tổ chức này.']);
+    }
+
+    if (strtoupper($member->role) === 'OWNER') {
+        return back()->withErrors(['msg' => 'Chủ sở hữu không thể rời tổ chức.']);
+    }
+
+    // Xoá membership
+    \DB::table('org_members')
+        ->where('org_id', $org)
+        ->where('account_id', $user->account_id)
+        ->delete();
+
+    // Option: nếu có lời mời đang pending theo email -> huỷ
+    \DB::table('org_invitations')
+        ->where('org_id', $org)
+        ->where('email', $user->email)
+        ->where('status', 'PENDING')
+        ->update(['status' => 'CANCELLED', 'updated_at' => now()]);
+
+    return redirect()->route('settings.company')->with('ok', 'Bạn đã rời khỏi doanh nghiệp.');
+}
+
 
 }
