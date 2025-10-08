@@ -26,9 +26,14 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        if ($this->message->conversation_id === 0 && $this->message->job_id) {
-            // Chat nhóm
-            return new PresenceChannel('chat-group.' . $this->message->job_id);
+        if ($this->message->conversation_id === 0) {
+            if ($this->message->job_id) {
+                // Chat nhóm công việc
+                return new PresenceChannel('chat-group.' . $this->message->job_id);
+            } elseif ($this->message->org_id) {
+                // Chat nhóm tổ chức
+                return new PresenceChannel('chat-org.' . $this->message->org_id);
+            }
         } else {
             // Chat 1-1
             $userIds = [$this->message->sender_id, $this->message->conversation_id];
@@ -39,7 +44,6 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        // Giải mã content trước khi broadcast
         try {
             $this->message->content = $this->message->content ? Crypt::decryptString($this->message->content) : null;
         } catch (\Exception $e) {
@@ -50,7 +54,6 @@ class MessageSent implements ShouldBroadcast
             $this->message->content = '[Không thể giải mã tin nhắn]';
         }
 
-        // Trả về message với content đã giải mã
         return [
             'message' => [
                 'id' => $this->message->id,
@@ -59,9 +62,10 @@ class MessageSent implements ShouldBroadcast
                 'sender_id' => $this->message->sender_id,
                 'sender' => [
                     'name' => $this->message->sender->name ?? 'Unknown',
-                    'avatar_url' => $this->message->sender->avatar_url ?? asset('assets/img/blog/blog-1.jpg'),
+                    'avatar_url' => $this->message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
                 ],
                 'job_id' => $this->message->job_id,
+                'org_id' => $this->message->org_id,
                 'conversation_id' => $this->message->conversation_id,
                 'created_at' => $this->message->created_at->toISOString(),
             ]

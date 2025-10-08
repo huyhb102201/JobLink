@@ -23,6 +23,21 @@ Broadcast::channel('chat-group.{jobId}', function ($user, $jobId) {
     return false;
 });
 
+Broadcast::channel('chat-org.{orgId}', function ($user, $orgId) {
+    $member = \App\Models\OrgMember::where('org_id', $orgId)
+        ->where('account_id', $user->account_id)
+        ->where('status', 'ACTIVE')
+        ->first();
+    if ($member) {
+        return [
+            'id' => $user->account_id,
+            'name' => $user->name,
+            'avatar' => $user->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
+        ];
+    }
+    return false;
+});
+
 Broadcast::channel('online-users', function ($user) {
     return [
         'id'     => $user->account_id,

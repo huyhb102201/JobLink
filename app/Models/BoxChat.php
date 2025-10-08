@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class BoxChat extends Model
 {
     protected $table = 'box_chat';
-    protected $fillable = ['sender_id', 'receiver_id', 'name', 'type'];
+    protected $fillable = ['sender_id', 'receiver_id','job_id','org_id', 'name', 'type'];
 
     public function messages()
     {
@@ -26,7 +26,11 @@ class BoxChat extends Model
 
     public function job()
     {
-        return $this->belongsTo(\App\Models\Job::class, 'job_id', 'job_id');
+        return $this->belongsTo(Job::class, 'job_id', 'job_id');
     }
 
+    public function org()
+    {
+        return $this->belongsTo(Org::class, 'org_id', 'org_id');
+    }
 }

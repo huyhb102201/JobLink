@@ -6,359 +6,12 @@
     @php
         if ($job ?? false) {
             $employer = \App\Models\Account::find($job->account_id);
+        } elseif ($org ?? false) {
+            // Org chat, name from org
         }
     @endphp
 
-    <style>
-        .chat-panel {
-            transition: transform 0.3s ease;
-        }
-
-        .chat-item.active {
-            background-color: #d1e7ff !important;
-            border-radius: 12px;
-        }
-
-        .chat-item {
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .chat-item:hover {
-            background-color: #e3f2fd;
-        }
-
-        #chatListDesktop,
-        #chatListMobile {
-            overflow-y: auto;
-            height: 100%;
-        }
-
-        #chatArea {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-
-        .message {
-            max-width: 75%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            position: relative;
-            transition: background-color 0.2s ease;
-            cursor: pointer;
-        }
-
-        .message:hover {
-            background-color: #e0e0e0;
-        }
-
-        .message.me {
-            align-self: flex-end;
-            background: #007bff;
-            color: #fff;
-            border-bottom-right-radius: 0;
-        }
-
-        .message.me:hover {
-            background: #0056b3;
-        }
-
-        .message.other {
-            align-self: flex-start;
-            background: #f1f0f0;
-            color: #000;
-            border-bottom-left-radius: 0;
-        }
-
-        .message.other:hover {
-            background: #e0e0e0;
-        }
-
-        .sender {
-            font-weight: bold;
-            font-size: 0.85rem;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .message-status {
-            font-size: 0.7rem;
-            color: gray;
-            text-align: right;
-            margin-top: 3px;
-        }
-
-        .message-time-center {
-            text-align: center;
-            font-size: 0.75rem;
-            color: gray;
-            margin: 10px 0;
-        }
-
-        .message-time-bottom {
-            font-size: 0.7rem;
-            color: gray;
-            text-align: right;
-            margin-top: 5px;
-            opacity: 0;
-            transform: translateY(10px);
-            animation: fadeInOut 5s forwards;
-        }
-
-        @keyframes fadeInOut {
-            0% {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            10% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-
-            90% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-
-            100% {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-        }
-
-        .chat-input {
-            display: flex;
-            gap: 8px;
-            padding: 15px 20px;
-            border-top: 1px solid #ccc;
-            background: #fff;
-            position: sticky;
-            bottom: 0;
-            border-radius: 10px;
-        }
-
-        .chat-input textarea {
-            flex: 1;
-            padding: 15px 20px;
-            border-radius: 25px;
-            border: 1px solid #ccc;
-            outline: none;
-            font-size: 1rem;
-            resize: none;
-            min-height: 50px;
-            max-height: 150px;
-        }
-
-        .chat-input button {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
-            background: #007bff;
-            color: #fff;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .sending {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .welcome-message {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2rem;
-            color: #555;
-            text-align: center;
-        }
-
-        .chat-toast {
-            background: #007bff;
-            color: #fff;
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-top: 10px;
-            min-width: 250px;
-            max-width: 300px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            animation: fadeIn 0.4s, fadeOut 0.4s 4.6s forwards;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeOut {
-            from {
-                opacity: 1;
-                transform: translateY(0);
-            }
-
-            to {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-        }
-
-        .status-dot {
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid #fff;
-        }
-
-        .status-online {
-            background-color: #28a745;
-        }
-
-        .status-offline {
-            background-color: #6c757d;
-        }
-
-        .message.highlight {
-            border: 2px solid #007bff;
-            background-color: #e6f0ff;
-            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .reply-btn {
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            margin-top: 8px;
-            transition: background-color 0.2s ease;
-            display: block;
-            width: fit-content;
-        }
-
-        .message.me .reply-btn {
-            margin-left: 5px;
-            margin-right: auto;
-        }
-
-        .message.other .reply-btn {
-            margin-right: 5px;
-            margin-left: auto;
-        }
-
-        .reply-btn:hover {
-            background-color: #0056b3;
-        }
-
-        .reply-preview,
-        .image-preview {
-            background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            display: none;
-            font-size: 0.9rem;
-            color: #555;
-        }
-
-        .reply-preview.show,
-        .image-preview.show {
-            display: block;
-        }
-
-        .reply-preview .close-btn,
-        .image-preview .close-btn {
-            float: right;
-            cursor: pointer;
-            color: #aaa;
-            font-weight: bold;
-        }
-
-        .reply-quote {
-            font-size: 0.85rem;
-            color: #555;
-            background: #f1f0f0;
-            border-left: 3px solid #007bff;
-            padding: 4px 8px;
-            margin-bottom: 6px;
-            border-radius: 6px;
-        }
-
-        .message.me .reply-quote {
-            background: rgba(255, 255, 255, 0.2);
-            color: #e0e0e0;
-            border-left: 3px solid #fff;
-        }
-
-        .main-text {
-            white-space: pre-line;
-        }
-
-        .message-img {
-            max-width: 100%;
-            max-height: 200px;
-            border-radius: 8px;
-            margin-top: 5px;
-            object-fit: contain;
-        }
-
-        .upload-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
-            background: #6c757d;
-            color: #fff;
-            cursor: pointer;
-        }
-
-        .image-preview img {
-            max-width: 100px;
-            max-height: 100px;
-            border-radius: 8px;
-        }
-    </style>
+    <link href="{{ asset('assets/css/chat.css') }}" rel="stylesheet">
 
     <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
@@ -375,7 +28,6 @@
                             $avatar = $partner?->avatar_url ?: asset('assets/img/defaultavatar.jpg');
                             $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
                         @endphp
-
                         @if($partner)
                             <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
                                 data-box-id="{{ $boxItem->id }}" data-partner-id="{{ $partner->account_id }}"
@@ -385,7 +37,7 @@
                                     <span class="status-dot status-offline" id="status-{{ $partner->account_id }}"></span>
                                 </div>
                                 <div>
-                                    <div class="fw-bold">{{ $partner->name }}</div>
+                                    <div class="fw-bold">{{ $partner->name }} <span class="chat-icon icon-1-1"><i class="bi bi-person"></i></span></div>
                                     @if($latestMsg)
                                         <div class="text-muted" style="font-size:0.85rem;">
                                             {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
@@ -398,10 +50,10 @@
                                 </div>
                             </div>
                         @endif
-                    @else
+                    @elseif($boxItem->type == 2)
                         @php
                             $latestMsg = $boxItem->messages->first();
-                            $avatar = asset('assets/img/group-icon.png'); // Icon nhóm
+                            $avatar = asset('assets/img/group-icon.png'); // Icon nhóm job
                             $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
                         @endphp
                         <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
@@ -411,7 +63,33 @@
                                 <img src="{{ $avatar }}" class="rounded-circle" style="width:55px;height:55px;object-fit:cover;">
                             </div>
                             <div>
-                                <div class="fw-bold">{{ $boxItem->name }}</div>
+                                <div class="fw-bold">{{ $boxItem->name }} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
+                                @if($latestMsg)
+                                    <div class="text-muted" style="font-size:0.85rem;">
+                                        {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
+                                        {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
+                                        • {{ $latestMsg->created_at->diffForHumans() }}
+                                    </div>
+                                @else
+                                    <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
+                                @endif
+                            </div>
+                        </div>
+                    @else
+                        {{-- Type 3: Org group --}}
+                        @php
+                            $latestMsg = $boxItem->messages->first();
+                            $avatar = asset('assets/img/org-icon.png'); // Icon tổ chức
+                            $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                        @endphp
+                        <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                            data-box-id="{{ $boxItem->id }}" data-org-id="{{ $boxItem->org_id }}"
+                            onclick="openBoxChat('{{ $boxItem->name }}', this, null, {{ $boxItem->id }}, null, {{ $boxItem->org_id }})">
+                            <div class="position-relative me-2" style="width:55px;height:55px;">
+                                <img src="{{ $avatar }}" class="rounded-circle" style="width:55px;height:55px;object-fit:cover;">
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ $boxItem->name }} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div>
                                 @if($latestMsg)
                                     <div class="text-muted" style="font-size:0.85rem;">
                                         {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
@@ -439,17 +117,21 @@
                 <div class="chat-header d-flex align-items-center gap-2 mb-2" id="chatHeader">
                     @if($box && $employer && $receiverId)
                         <div class="position-relative" style="width:45px;height:45px;">
-                            <img id="chatHeaderAvatar" src="{{ $employer->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
+                            <img id="chatHeaderAvatar"
+                                src="{{ $employer->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                                 class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
                             <span class="status-dot status-offline" id="chatHeaderStatus"></span>
                         </div>
                         <div>
-                            <div class="fw-bold" id="chatHeaderName">{{ $employer->name }}</div>
+                            <div class="fw-bold" id="chatHeaderName">{{ $employer->name }} <span class="chat-icon icon-1-1"><i class="bi bi-person"></i></span></div>
                             <div class="small text-muted" id="chatHeaderStatusText">Ngoại tuyến</div>
                         </div>
-                    @elseif($box && !$receiverId)
-                        <div class="fw-bold" id="chatHeaderName">{{ $box->name }}</div>
+                    @elseif($box && !$receiverId && $box->job_id)
+                        <div class="fw-bold" id="chatHeaderName">{{ $box->name }} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
                         <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>
+                    @elseif($box && !$receiverId && $box->org_id)
+                        <div class="fw-bold" id="chatHeaderName">{{ $box->name }} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div>
+                        <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm tổ chức</div>
                     @else
                         <div class="fw-bold">Chọn một cuộc trò chuyện</div>
                     @endif
@@ -457,20 +139,38 @@
 
                 <div id="chatMessages" class="chat-messages">
                     @if($box && $messages && $messages->count())
+                        @php
+                            $previousSenderId = null;
+                        @endphp
                         @foreach($messages as $msg)
-                            <div class="message {{ $msg->sender_id == auth()->id() ? 'me' : 'other' }}"
+                            @php
+                                $isMe = $msg->sender_id == auth()->id();
+                                $hideAvatar = !$isMe && $previousSenderId === $msg->sender_id;
+                                $previousSenderId = $msg->sender_id;
+                            @endphp
+                            <div class="message-container {{ $isMe ? 'me' : 'other' }} {{ $hideAvatar ? 'hide-avatar' : '' }}"
                                 data-created="{{ $msg->created_at->toISOString() }}" data-message-id="{{ $msg->id }}">
-                                <span class="sender">{{ $msg->sender_id == auth()->id() ? 'Bạn' : $msg->sender->name }}</span>
-                                @if($msg->content)
-                                    <p>{{ $msg->content }}</p>
+                                @if(!$isMe)
+                                    <div class="avatar-container">
+                                        <img src="{{ $msg->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
+                                            alt="Sender Avatar">
+                                    </div>
+                                @else
+                                    <div class="avatar-container"></div> <!-- Placeholder để giữ cấu trúc -->
                                 @endif
-                                @if($msg->img)
-                                    <img src="{{ asset($msg->img) }}" class="message-img" alt="Message Image"
-                                        onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '{{ $msg->img }}');">
-                                @endif
-                                @if($msg->sender_id == auth()->id())
-                                    <div class="message-status">Đã nhận</div>
-                                @endif
+                                <div class="message {{ $isMe ? 'me' : 'other' }}">
+                                    <span class="sender">{{ $isMe ? 'Bạn' : $msg->sender->name }}</span>
+                                    @if($msg->content)
+                                        <p>{{ $msg->content }}</p>
+                                    @endif
+                                    @if($msg->img)
+                                        <img src="{{ asset($msg->img) }}" class="message-img" alt="Message Image"
+                                            onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '{{ $msg->img }}');">
+                                    @endif
+                                    @if($isMe)
+                                        <div class="message-status">Đã nhận</div>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     @elseif($box && $employer && $receiverId)
@@ -479,7 +179,7 @@
                         </div>
                     @elseif($box && !$receiverId)
                         <div class="message text-muted">
-                            Chưa có tin nhắn trong nhóm.
+                            Chưa có tin nhắn trong {{ isset($org) ? 'tổ chức' : 'nhóm' }}.
                         </div>
                     @else
                         <div class="welcome-message">
@@ -537,7 +237,7 @@
                                     <img src="{{ $avatar }}" alt="avatar" class="rounded-circle me-2"
                                         style="width:55px;height:55px;object-fit:cover;">
                                     <div>
-                                        <div class="fw-bold">{{ $partner->name }}</div>
+                                        <div class="fw-bold">{{ $partner->name }} <span class="chat-icon icon-1-1"><i class="bi bi-person"></i></span></div>
                                         @if($latestMsg)
                                             <div class="text-muted" style="font-size:0.85rem;">
                                                 {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $partner->name . ': ' }}
@@ -550,7 +250,7 @@
                                     </div>
                                 </div>
                             @endif
-                        @else
+                        @elseif($boxItem->type == 2)
                             @php
                                 $latestMsg = $boxItem->messages->first();
                                 $avatar = asset('assets/img/group-icon.png');
@@ -562,7 +262,32 @@
                                 <img src="{{ $avatar }}" alt="group" class="rounded-circle me-2"
                                     style="width:55px;height:55px;object-fit:cover;">
                                 <div>
-                                    <div class="fw-bold">{{ $boxItem->name }}</div>
+                                    <div class="fw-bold">{{ $boxItem->name }} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
+                                    @if($latestMsg)
+                                        <div class="text-muted" style="font-size:0.85rem;">
+                                            {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
+                                            {{ $latestMsg->img ? '[Hình ảnh]' : \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25) }}
+                                            • {{ $latestMsg->created_at->diffForHumans() }}
+                                        </div>
+                                    @else
+                                        <div class="text-muted" style="font-size:0.85rem;">Chưa có dữ liệu chat</div>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            {{-- Type 3: Org group --}}
+                            @php
+                                $latestMsg = $boxItem->messages->first();
+                                $avatar = asset('assets/img/org-icon.png');
+                                $isActive = ($box && $box->id == $boxItem->id) ? 'active' : '';
+                            @endphp
+                            <div class="chat-item d-flex align-items-center mb-2 p-2 rounded {{ $isActive }}"
+                                data-box-id="{{ $boxItem->id }}" data-org-id="{{ $boxItem->org_id }}"
+                                onclick="openBoxChat('{{ $boxItem->name }}', this, null, {{ $boxItem->id }}, null, {{ $boxItem->org_id }})">
+                                <img src="{{ $avatar }}" alt="org" class="rounded-circle me-2"
+                                    style="width:55px;height:55px;object-fit:cover;">
+                                <div>
+                                    <div class="fw-bold">{{ $boxItem->name }} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div>
                                     @if($latestMsg)
                                         <div class="text-muted" style="font-size:0.85rem;">
                                             {{ $latestMsg->sender_id == auth()->id() ? 'Bạn: ' : $latestMsg->sender->name . ': ' }}
@@ -588,7 +313,8 @@
         let currentChat = '';
         let currentItem = null;
         let currentPartnerId = {{ $box && $receiverId ? $receiverId : 'null' }};
-        let currentJobId = {{ $box && !$receiverId ? $box->job_id : 'null' }};
+        let currentJobId = {{ ($box && !$receiverId && $box->job_id) ? $box->job_id : 'null' }};
+        let currentOrgId = {{ ($box && !$receiverId && $box->org_id) ? $box->org_id : 'null' }};
         let currentBoxId = {{ $box ? $box->id : 'null' }};
         let currentChannel = null;
         let lastMessageTime = null;
@@ -604,6 +330,8 @@
                 behavior: 'smooth'
             });
         }
+
+        let lastSenderId = null; // Biến toàn cục để theo dõi người gửi trước đó
 
         function appendMessage(msg, isMe = false, status = 'Đang gửi') {
             const chatBox = document.getElementById('chatMessages');
@@ -621,11 +349,25 @@
             }
             lastMessageTime = msgTime;
 
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message ' + (isMe ? 'me' : 'other');
-            msgDiv.dataset.created = msg.created_at;
-            msgDiv.dataset.shownTime = 'false';
-            msgDiv.dataset.messageId = msg.id;
+            const hideAvatar = !isMe && lastSenderId === msg.sender_id;
+            lastSenderId = msg.sender_id; // Cập nhật người gửi trước đó
+
+            const msgContainer = document.createElement('div');
+            msgContainer.className = `message-container ${isMe ? 'me' : 'other'} ${hideAvatar ? 'hide-avatar' : ''}`;
+            msgContainer.dataset.created = msg.created_at;
+            msgContainer.dataset.messageId = msg.id;
+
+            let avatarHTML = '';
+            if (!isMe) {
+                avatarHTML = `
+                <div class="avatar-container">
+                    <img src="${msg.sender.avatar_url ?? '{{ asset('assets/img/defaultavatar.jpg') }}'}" 
+                         alt="Sender Avatar">
+                </div>
+            `;
+            } else {
+                avatarHTML = `<div class="avatar-container"></div>`; // Placeholder cho tin nhắn của người dùng hiện tại
+            }
 
             let statusHTML = isMe ? `<div class="message-status">${status}</div>` : '';
 
@@ -640,27 +382,30 @@
             }
             if (msg.img) {
                 contentHTML += `
-                        <img src="${msg.img}" class="message-img" alt="Message Image"
-                             onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '${msg.img}');">
-                    `;
+                <img src="${msg.img}" class="message-img" alt="Message Image"
+                     onerror="this.src='{{ asset('assets/img/blog/blog-1.jpg') }}'; this.onerror=null; console.error('Image load failed:', '${msg.img}');">
+            `;
             }
 
-            msgDiv.innerHTML = `
-                    <span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
-                    ${contentHTML}
-                    ${statusHTML}
-                `;
+            msgContainer.innerHTML = `
+            ${avatarHTML}
+            <div class="message ${isMe ? 'me' : 'other'}">
+                <span class="sender">${isMe ? 'Bạn' : msg.sender.name}</span>
+                ${contentHTML}
+                ${statusHTML}
+            </div>
+        `;
 
-            msgDiv.addEventListener('click', (e) => {
-                if (msgDiv.dataset.shownTime === 'true' || e.longPress) return;
-                msgDiv.dataset.shownTime = 'true';
+            msgContainer.addEventListener('click', (e) => {
+                if (msgContainer.dataset.shownTime === 'true' || e.longPress) return;
+                msgContainer.dataset.shownTime = 'true';
                 const timeLabel = document.createElement('div');
                 timeLabel.className = 'message-time-bottom';
                 timeLabel.innerText = msgTime.toLocaleString('vi-VN');
-                msgDiv.appendChild(timeLabel);
+                msgContainer.querySelector('.message').appendChild(timeLabel);
                 setTimeout(() => {
                     if (timeLabel.parentNode) timeLabel.remove();
-                    msgDiv.dataset.shownTime = 'false';
+                    msgContainer.dataset.shownTime = 'false';
                 }, 5000);
             });
 
@@ -668,7 +413,7 @@
             const startLongPress = (e) => {
                 pressTimer = setTimeout(() => {
                     e.longPress = true;
-                    highlightMessage(msgDiv, msg);
+                    highlightMessage(msgContainer, msg);
                 }, 500);
             };
 
@@ -676,26 +421,26 @@
                 clearTimeout(pressTimer);
             };
 
-            msgDiv.addEventListener('mousedown', startLongPress);
-            msgDiv.addEventListener('mouseup', cancelLongPress);
-            msgDiv.addEventListener('mouseleave', cancelLongPress);
-            msgDiv.addEventListener('touchstart', startLongPress);
-            msgDiv.addEventListener('touchend', cancelLongPress);
-            msgDiv.addEventListener('touchmove', cancelLongPress);
+            msgContainer.addEventListener('mousedown', startLongPress);
+            msgContainer.addEventListener('mouseup', cancelLongPress);
+            msgContainer.addEventListener('mouseleave', cancelLongPress);
+            msgContainer.addEventListener('touchstart', startLongPress);
+            msgContainer.addEventListener('touchend', cancelLongPress);
+            msgContainer.addEventListener('touchmove', cancelLongPress);
 
-            chatBox.appendChild(msgDiv);
+            chatBox.appendChild(msgContainer);
             scrollToBottom();
-            return msgDiv;
+            return msgContainer;
         }
 
-        function highlightMessage(msgDiv, msg) {
-            document.querySelectorAll('.message.highlight').forEach(el => {
+        function highlightMessage(msgContainer, msg) {
+            document.querySelectorAll('.message-container.highlight').forEach(el => {
                 el.classList.remove('highlight');
                 const replyBtn = el.querySelector('.reply-btn');
                 if (replyBtn) replyBtn.remove();
             });
 
-            msgDiv.classList.add('highlight');
+            msgContainer.classList.add('highlight');
 
             const replyBtn = document.createElement('button');
             replyBtn.className = 'reply-btn';
@@ -703,12 +448,12 @@
             replyBtn.addEventListener('click', () => {
                 replyingTo = msg;
                 showReplyPreview(msg.sender.name, msg.content || '[Hình ảnh]');
-                msgDiv.classList.remove('highlight');
+                msgContainer.classList.remove('highlight');
                 replyBtn.remove();
                 document.getElementById('messageInput').focus();
             });
 
-            msgDiv.appendChild(replyBtn);
+            msgContainer.querySelector('.message').appendChild(replyBtn);
         }
 
         function showReplyPreview(sender, content) {
@@ -783,7 +528,7 @@
             };
         }
 
-        function subscribeToChannel(partnerId, jobId = null) {
+        function subscribeToChannel(partnerId, jobId = null, orgId = null) {
             if (currentChannel) {
                 window.Echo.leave(currentChannel);
             }
@@ -794,8 +539,12 @@
                 currentChannel = 'chat.' + userIds.join('.');
                 window.Echo.private(currentChannel).listen('MessageSent', handleMessageEvent);
             } else if (jobId) {
-                // Chat nhóm
+                // Chat nhóm job
                 currentChannel = 'chat-group.' + jobId;
+                window.Echo.join(currentChannel).listen('MessageSent', handleMessageEvent);
+            } else if (orgId) {
+                // Chat nhóm org
+                currentChannel = 'chat-org.' + orgId;
                 window.Echo.join(currentChannel).listen('MessageSent', handleMessageEvent);
             }
 
@@ -807,7 +556,7 @@
             const incomingMsg = e.message;
             const isMe = incomingMsg.sender_id === authId;
 
-            if (!isMe && (currentPartnerId === incomingMsg.sender_id || currentJobId === incomingMsg.job_id)) {
+            if (!isMe && (currentPartnerId === incomingMsg.sender_id || currentJobId === incomingMsg.job_id || currentOrgId === incomingMsg.org_id)) {
                 const msgDiv = appendMessage(incomingMsg, false);
 
                 if (msgDiv) {
@@ -839,18 +588,25 @@
             }
         }
 
-        function openBoxChat(name, element, partnerId, boxId, jobId = null) {
+        function openBoxChat(name, element, partnerId, boxId, jobId = null, orgId = null) {
             currentChat = name;
             currentBoxId = boxId;
             if (partnerId) {
                 currentPartnerId = partnerId;
                 currentJobId = null;
-            } else {
+                currentOrgId = null;
+            } else if (jobId) {
                 currentPartnerId = null;
                 currentJobId = jobId;
+                currentOrgId = null;
+            } else if (orgId) {
+                currentPartnerId = null;
+                currentJobId = null;
+                currentOrgId = orgId;
             }
             window.currentPartnerId = currentPartnerId;
             window.currentJobId = currentJobId;
+            window.currentOrgId = currentOrgId;
 
             if (currentItem) currentItem.classList.remove('active');
             if (element) {
@@ -876,17 +632,26 @@
                             <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="chatHeaderStatus"></span>
                         </div>
                         <div>
-                            <div class="fw-bold" id="chatHeaderName">${name}</div>
+                            <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-1-1"><i class="bi bi-person"></i></span></div>
                             <div class="small text-muted" id="chatHeaderStatusText">${isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
                         </div>
                     </div>
                 `;
-            } else {
-                // Nhóm
+            } else if (jobId) {
+                // Nhóm công việc
                 header.innerHTML = `
-                    <div class="fw-bold" id="chatHeaderName">${name}</div>
+                    <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
                     <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>
                 `;
+            } else if (orgId) {
+                // Nhóm tổ chức
+                header.innerHTML = `
+                    <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div>
+                    <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm tổ chức</div>
+                `;
+            } else {
+                // Không có cuộc trò chuyện
+                header.innerHTML = `<div class="fw-bold">Chọn một cuộc trò chuyện</div>`;
             }
 
             chatInput.style.display = 'flex';
@@ -919,7 +684,7 @@
                 });
 
             if (window.Echo) {
-                subscribeToChannel(partnerId, jobId);
+                subscribeToChannel(partnerId, jobId, orgId);
             }
 
             if (offcanvas && window.innerWidth < 1200) {
@@ -928,7 +693,7 @@
         }
 
         function sendMessage() {
-            if (!currentChat || (!currentPartnerId && !currentJobId)) {
+            if (!currentChat || (!currentPartnerId && !currentJobId && !currentOrgId)) {
                 alert('Chọn một cuộc trò chuyện trước!');
                 return;
             }
@@ -964,8 +729,10 @@
             if (text) formData.append('content', text);
             if (currentPartnerId) {
                 formData.append('receiver_id', currentPartnerId);
-            } else {
+            } else if (currentJobId) {
                 formData.append('job_id', currentJobId);
+            } else if (currentOrgId) {
+                formData.append('org_id', currentOrgId);
             }
             if (selectedImage) {
                 formData.append('img', selectedImage);
@@ -1013,18 +780,18 @@
             toastEl.setAttribute("role", "alert");
 
             toastEl.innerHTML = `
-                    <div class="toast-body p-2 d-flex align-items-start gap-2">
-                        <img src="${avatarUrl}" alt="avatar" 
-                             class="rounded-circle flex-shrink-0" width="42" height="42">
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold">${sender}</span>
-                                <small class="text-muted">${timeText}</small>
-                            </div>
-                            <div class="text-truncate">${content}</div>
+                <div class="toast-body p-2 d-flex align-items-start gap-2">
+                    <img src="${avatarUrl}" alt="avatar" 
+                         class="rounded-circle flex-shrink-0" width="42" height="42">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">${sender}</span>
+                            <small class="text-muted">${timeText}</small>
                         </div>
+                        <div class="text-truncate">${content}</div>
                     </div>
-                `;
+                </div>
+            `;
 
             if (onClick) {
                 toastEl.querySelector('.toast-body').addEventListener('click', onClick);
@@ -1050,10 +817,15 @@
                 if (boxElement) {
                     openBoxChat('{{ $employer->name }}', boxElement, {{ $receiverId }}, {{ $box->id }});
                 }
-            @elseif($box && !$receiverId)
+            @elseif($box && !$receiverId && $box->job_id)
                 const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);
                 if (boxElement) {
                     openBoxChat('{{ $box->name }}', boxElement, null, {{ $box->id }}, {{ $box->job_id }});
+                }
+            @elseif($box && !$receiverId && $box->org_id)
+                const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);
+                if (boxElement) {
+                    openBoxChat('{{ $box->name }}', boxElement, null, {{ $box->id }}, null, {{ $box->org_id }});
                 }
             @endif
 

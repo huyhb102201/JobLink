@@ -7,6 +7,8 @@ use App\Models\Message;
 use App\Models\Job;
 use App\Models\Account;
 use App\Models\BoxChat;
+use App\Models\Org;
+use App\Models\OrgMember;
 use Illuminate\Support\Facades\Auth;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\Log;
@@ -45,7 +47,16 @@ class MessageController extends Controller
                                         ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
                                 });
                         });
-                });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
+                    });
             })
             ->orderBy('updated_at', 'desc')
             ->get()
@@ -70,6 +81,7 @@ class MessageController extends Controller
 
         return view('chat.box', [
             'job' => null,
+            'org' => null,
             'messages' => collect([]),
             'receiverId' => null,
             'box' => null,
@@ -306,6 +318,118 @@ class MessageController extends Controller
         ]);
     }
 
+    public function chatOrg($orgId)
+    {
+        $userId = Auth::id();
+
+        $org = Org::findOrFail($orgId);
+
+        // Kiểm tra user có trong tổ chức
+        $member = OrgMember::where('org_id', $orgId)
+            ->where('account_id', $userId)
+            ->where('status', 'ACTIVE')
+            ->first();
+
+        if (!$member) {
+            abort(403, 'Bạn không có quyền truy cập chat nhóm này');
+        }
+
+        $box = BoxChat::firstOrCreate(
+            [
+                'org_id' => $orgId,
+                'type' => 3, // Type 3 cho chat nhóm tổ chức
+            ],
+            [
+                'name' => "Chat nhóm tổ chức {$orgId}",
+            ]
+        );
+
+        $messages = $box->messages()
+            ->with('sender')
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($message) {
+                try {
+                    if ($message->content) {
+                        $message->content = Crypt::decryptString($message->content);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrypt message content', [
+                        'message_id' => $message->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $message->content = '[Không thể giải mã tin nhắn]';
+                }
+                return $message;
+            });
+
+        $conversations = BoxChat::with([
+            'messages' => function ($q) {
+                $q->latest();
+            },
+            'messages.sender'
+        ])
+            ->where(function ($q) use ($userId) {
+                $q->where(function ($q2) use ($userId) {
+                    $q2->where('type', 1)
+                        ->where(function ($q3) use ($userId) {
+                            $q3->where('sender_id', $userId)
+                                ->orWhere('receiver_id', $userId);
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 2)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('jobs')
+                                ->whereColumn('jobs.job_id', 'box_chat.job_id')
+                                ->where('jobs.status', 'in_progress')
+                                ->where(function ($q4) use ($userId) {
+                                    $q4->where('jobs.account_id', $userId)
+                                        ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
+                                });
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
+                });
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($box) {
+                if ($box->messages->isNotEmpty()) {
+                    $latestMsg = $box->messages->first();
+                    try {
+                        if ($latestMsg->content) {
+                            $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Failed to decrypt latest message content in sidebar', [
+                            'message_id' => $latestMsg->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                    }
+                    $box->messages = collect([$latestMsg]);
+                }
+                return $box;
+            });
+
+        return view('chat.box', [
+            'job' => null,
+            'org' => $org,
+            'messages' => $messages,
+            'receiverId' => null,
+            'box' => $box,
+            'conversations' => $conversations,
+        ]);
+    }
+
     public function chatWithFreelancer($jobId, $freelancerId)
     {
         $job = Job::findOrFail($jobId);
@@ -356,6 +480,7 @@ class MessageController extends Controller
             // Validate input
             $request->validate([
                 'job_id' => ['nullable', 'exists:jobs,job_id'],
+                'org_id' => ['nullable', 'exists:orgs,org_id'],
                 'content' => ['nullable', 'string', 'max:5000'],
                 'receiver_id' => ['nullable', 'exists:accounts,account_id'],
                 'img' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
@@ -369,6 +494,7 @@ class MessageController extends Controller
             $senderId = Auth::id();
             $receiverId = $request->input('receiver_id');
             $jobId = $request->input('job_id');
+            $orgId = $request->input('org_id');
             $content = $request->input('content');
 
             // Log request
@@ -376,6 +502,7 @@ class MessageController extends Controller
                 'sender_id' => $senderId,
                 'receiver_id' => $receiverId,
                 'job_id' => $jobId,
+                'org_id' => $orgId,
                 'content_preview' => substr($content ?? '', 0, 50),
                 'has_img' => $request->hasFile('img'),
                 'img_name' => $request->hasFile('img') ? $request->file('img')->getClientOriginalName() : null,
@@ -401,7 +528,6 @@ class MessageController extends Controller
                         $file->move($directory, $filename);
                         $imgPath = 'img/messages/' . $filename;
 
-                        // Kiểm tra file tồn tại
                         if (File::exists($fullPath)) {
                             Log::info('Image saved and verified', [
                                 'path' => $imgPath,
@@ -428,14 +554,12 @@ class MessageController extends Controller
 
             if ($receiverId) {
                 // Chat 1-1
-                // Kiểm tra receiver
                 $receiver = Account::find($receiverId);
                 if (!$receiver) {
                     Log::warning('Receiver not found', ['receiver_id' => $receiverId]);
                     return response()->json(['error' => 'Người nhận không tồn tại'], 404);
                 }
 
-                // Tạo hoặc lấy box chat
                 $box = BoxChat::firstOrCreate(
                     [
                         'sender_id' => min($senderId, $receiverId),
@@ -447,7 +571,6 @@ class MessageController extends Controller
                     ]
                 );
 
-                // Kiểm tra job nếu có
                 if ($jobId) {
                     $job = Job::find($jobId);
                     if (!$job) {
@@ -475,7 +598,7 @@ class MessageController extends Controller
                     'box_id' => $box->id,
                 ]);
             } elseif ($jobId) {
-                // Chat nhóm
+                // Chat nhóm công việc
                 $job = Job::find($jobId);
                 if (!$job) {
                     Log::warning('Job not found', ['job_id' => $jobId]);
@@ -504,7 +627,7 @@ class MessageController extends Controller
                 );
 
                 $message = Message::create([
-                    'conversation_id' => 0,  // Marker cho nhóm
+                    'conversation_id' => 0,
                     'sender_id' => $senderId,
                     'job_id' => $jobId,
                     'content' => $encryptedContent,
@@ -513,8 +636,54 @@ class MessageController extends Controller
                     'status' => 1,
                     'box_id' => $box->id,
                 ]);
+            } elseif ($orgId) {
+                // Chat nhóm tổ chức
+                $org = Org::find($orgId);
+                if (!$org) {
+                    Log::warning('Org not found', ['org_id' => $orgId]);
+                    return response()->json(['error' => 'Tổ chức không tồn tại'], 404);
+                }
+
+                $member = OrgMember::where('org_id', $orgId)
+                    ->where('account_id', $senderId)
+                    ->where('status', 'ACTIVE')
+                    ->first();
+                if (!$member) {
+                    Log::warning('Unauthorized org access', ['sender_id' => $senderId, 'org_id' => $orgId]);
+                    return response()->json(['error' => 'Bạn không có quyền gửi tin nhắn trong nhóm tổ chức này'], 403);
+                }
+
+                $box = BoxChat::firstOrCreate(
+                    [
+                        'org_id' => $orgId,
+                        'type' => 3,
+                    ],
+                    [
+                        'name' => "Chat nhóm tổ chức {$orgId}",
+                    ]
+                );
+
+                $message = Message::create([
+                    'conversation_id' => 0,
+                    'sender_id' => $senderId,
+                    'org_id' => $orgId,
+                    'content' => $encryptedContent,
+                    'img' => $imgPath,
+                    'type' => 1,
+                    'status' => 1,
+                    'box_id' => $box->id,
+                ]);
             } else {
-                return response()->json(['error' => 'Phải cung cấp receiver_id hoặc job_id cho chat nhóm'], 422);
+                return response()->json(['error' => 'Phải cung cấp receiver_id, job_id hoặc org_id'], 422);
+            }
+
+            // CẬP NHẬT UPDATED_AT CỦA BOX_CHAT SAU KHI TẠO TIN NHẮN
+            if ($message->box_id) {
+                $boxToUpdate = BoxChat::find($message->box_id);
+                if ($boxToUpdate) {
+                    $boxToUpdate->touch(); // Cập nhật updated_at (và created_at nếu cần, nhưng chủ yếu updated_at)
+                    Log::info('Updated box_chat updated_at after new message', ['box_id' => $boxToUpdate->id, 'new_updated_at' => $boxToUpdate->updated_at]);
+                }
             }
 
             $message->load('sender');
@@ -546,10 +715,10 @@ class MessageController extends Controller
                     'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
                 ],
                 'job_id' => $message->job_id,
+                'org_id' => $message->org_id,
                 'conversation_id' => $message->conversation_id,
                 'created_at' => $message->created_at->toISOString(),
             ], 201);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validation error in send message', [
                 'errors' => $e->errors(),
@@ -643,6 +812,15 @@ class MessageController extends Controller
                                         ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
                                 });
                         });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
                 });
             })
             ->first();
@@ -681,6 +859,7 @@ class MessageController extends Controller
                     'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
                 ],
                 'job_id' => $message->job_id,
+                'org_id' => $message->org_id,
                 'conversation_id' => $message->conversation_id,
                 'created_at' => $message->created_at->toISOString(),
             ];
@@ -716,6 +895,15 @@ class MessageController extends Controller
                                         ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
                                 });
                         });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
                 });
             })
             ->orderBy('updated_at', 'desc')
@@ -744,6 +932,7 @@ class MessageController extends Controller
                         'box_id' => $box->id,
                         'partner_id' => $partnerId,
                         'job_id' => null,
+                        'org_id' => null,
                         'partner_name' => $partner ? $partner->name : 'Unknown',
                         'avatar' => $partner ? ($partner->avatar_url ?: asset('assets/img/defaultavatar.jpg')) : asset('assets/img/defaultavatar.jpg'),
                         'latest_msg' => $latestMsg ? [
@@ -754,8 +943,7 @@ class MessageController extends Controller
                             'sender_name' => $latestMsg->sender->name,
                         ] : null,
                     ];
-                } else {
-                    // Type 2: Group
+                } elseif ($box->type == 2) {
                     $latestMsg = $box->messages->first();
 
                     if ($latestMsg) {
@@ -776,8 +964,42 @@ class MessageController extends Controller
                         'box_id' => $box->id,
                         'partner_id' => null,
                         'job_id' => $box->job_id,
+                        'org_id' => null,
                         'partner_name' => $box->name,
-                        'avatar' => asset('assets/img/group-icon.png'), // Giả sử có icon nhóm
+                        'avatar' => asset('assets/img/group-icon.png'),
+                        'latest_msg' => $latestMsg ? [
+                            'sender_id' => $latestMsg->sender_id,
+                            'content' => \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25),
+                            'img' => $latestMsg->img ? asset($latestMsg->img) : null,
+                            'created_at' => $latestMsg->created_at->diffForHumans(),
+                            'sender_name' => $latestMsg->sender->name,
+                        ] : null,
+                    ];
+                } else {
+                    // Type 3: Org group
+                    $latestMsg = $box->messages->first();
+
+                    if ($latestMsg) {
+                        try {
+                            if ($latestMsg->content) {
+                                $latestMsg->content = Crypt::decryptString($latestMsg->content);
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('Failed to decrypt latest message content in chat list', [
+                                'message_id' => $latestMsg->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                            $latestMsg->content = '[Không thể giải mã tin nhắn]';
+                        }
+                    }
+
+                    return [
+                        'box_id' => $box->id,
+                        'partner_id' => null,
+                        'job_id' => null,
+                        'org_id' => $box->org_id,
+                        'partner_name' => $box->name,
+                        'avatar' => asset('assets/img/org-icon.png'), // Icon cho tổ chức
                         'latest_msg' => $latestMsg ? [
                             'sender_id' => $latestMsg->sender_id,
                             'content' => \Illuminate\Support\Str::limit($latestMsg->content ?? '', 25),

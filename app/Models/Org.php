@@ -44,4 +44,14 @@ class Org extends Model
     public function scopeVerified($q)   { return $q->where('status', 'VERIFIED'); }
 
     public function invitations()      { return $this->hasMany(OrgInvitation::class, 'org_id', 'org_id'); }
+
+    public function boxChats()
+    {
+        return $this->hasMany(BoxChat::class, 'org_id', 'org_id');
+    }
+
+    public function members()
+    {
+        return $this->hasMany(OrgMember::class, 'org_id', 'org_id');
+    }
 }
