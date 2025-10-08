@@ -9,9 +9,19 @@
       {{-- Sidebar trái --}}
       <aside class="col-12 col-lg-3 col-xl-3">
         @php
+          use Illuminate\Support\Facades\DB;
+
           $acct = ($account ?? auth()->user()?->loadMissing('type'));
-          $isBusiness = (($acct?->type?->code) === 'BUSS'); // code gói Business
+
+          // BUSS hoặc là thành viên tổ chức (đang ACTIVE)
+          $isBusiness = (($acct?->type?->code) === 'BUSS')
+            || ($acct?->account_id
+              && DB::table('org_members')
+                ->where('account_id', $acct->account_id)
+                ->where('status', 'ACTIVE')    // nếu muốn tính cả PENDING thì dùng whereIn(['ACTIVE','PENDING'])
+                ->exists());
         @endphp
+
         <nav class="nav flex-column fs-5 sidebar-simple">
           <a href="{{ route('settings.myinfo') }}"
             class="nav-link @if(request()->routeIs('settings.myinfo')) active @endif">
