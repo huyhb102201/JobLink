@@ -15,7 +15,7 @@ class JobController extends Controller
     public function index(Request $request)
     {
         $jobs = Job::with('account.profile', 'jobCategory')
-            ->whereNotIn('status', ['spending', 'cancel']);
+            ->whereNotIn('status', ['pending', 'cancelled']);
 
         // Lọc theo payment_type
         if ($request->has('payment_type') && is_array($request->payment_type)) {
@@ -49,6 +49,10 @@ class JobController extends Controller
 
     public function show(Job $job, Request $request)
     {
+        if (in_array($job->status, ['pending', 'cancelled'])) {
+            abort(404);
+        }
+
         $job->load('jobDetails', 'comments.account');
 
         $accountId = auth()->check() ? auth()->id() : null;
@@ -73,6 +77,7 @@ class JobController extends Controller
         $relatedJobs = Job::with('account.profile')
             ->where('job_id', '!=', $job->job_id)
             ->where('category_id', $job->category_id)
+            ->whereNotIn('status', ['pending', 'cancelled'])
             ->latest()
             ->take(5)
             ->get();
@@ -82,6 +87,7 @@ class JobController extends Controller
             $moreJobs = Job::with('account.profile')
                 ->where('job_id', '!=', $job->job_id)
                 ->where('account_id', $job->account_id)
+                ->whereNotIn('status', ['pending', 'cancelled'])
                 ->latest()
                 ->take(5 - $relatedJobs->count())
                 ->get();

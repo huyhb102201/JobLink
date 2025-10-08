@@ -93,7 +93,7 @@
                                                 href="blog-details.html">{{ $job->created_at->format('d/m/Y') }}</time></a>
                                         </li>
                                         <li class="d-flex align-items-center"><i class="bi bi-chat-dots"></i> <a
-                                                href="blog-details.html">12 Bình luận</a></li>
+                                                href="blog-details.html">{{ $job->comments->count() }} Bình luận</a></li>
                                     </ul>
                                 </div><!-- End meta top -->
 
@@ -130,7 +130,7 @@
 
                         <div class="container">
                             <div class="author-container d-flex align-items-center">
-                                <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                                     class="rounded-circle flex-shrink-0" alt="">
                                 <div>
                                     <h4>
@@ -300,7 +300,7 @@
                                             {{ $related->created_at->isoFormat('D MMMM, YYYY') }}
                                         </time>
                                         <div class="author-info" style="margin-top: 5px; display: flex; align-items: center;">
-                                            <img src="{{ $related->account?->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                            <img src="{{ $related->account?->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                                                 alt="avatar"
                                                 style="width: 25px; height: 25px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
 

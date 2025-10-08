@@ -21,7 +21,7 @@ class PortfolioController extends Controller
         $account = $profile->account;
 
         // Lấy tất cả jobs (sắp xếp mới nhất trước)
-        $jobs = $account->jobs()->latest()->get();
+        $jobs = $account->jobs()->whereNotIn('status', ['pending', 'cancelled'])->latest()->get();
 
         $stats = [
             'total_jobs' => $jobs->count(),

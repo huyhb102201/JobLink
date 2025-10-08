@@ -12,7 +12,7 @@
             <!-- Avatar -->
             <div class="position-absolute top-100 start-50 translate-middle" style="margin-top: -60px;">
                 <div class="position-relative d-inline-block">
-                    <img src="{{ $account->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                    <img src="{{ $account->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                         class="rounded-circle border border-4 border-white shadow-lg"
                         style="width:160px; height:160px; object-fit:cover;">
 

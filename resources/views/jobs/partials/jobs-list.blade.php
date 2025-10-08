@@ -38,7 +38,7 @@
 
                             <!-- Người đăng -->
                             <div class="d-flex align-items-center mb-2">
-                                <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/blog/blog-author.jpg') }}"
+                                <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                                     alt="{{ optional($job->account)->name ?? 'Người đăng' }}" class="rounded-circle me-2"
                                     width="40" height="40">
                                 <div>
