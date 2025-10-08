@@ -18,52 +18,110 @@ class CompanyController extends Controller
 {
     // Trang "Doanh nghiệp của tôi"
     // CompanyController@index
-    public function index(Request $r)
+public function index(Request $r)
 {
-    $account     = $r->user()->loadMissing(['type','profile']);
-    $isBusiness  = ($account?->type?->code === 'BUSS');
+    $account = $r->user()->loadMissing(['type','profile']);
 
-    $org = null;
-    $members = collect();
-    $usedSeats = 0;
-    $latestVerification = null;   // <-- có biến này
+    // Business nếu: BUSS hoặc là thành viên 1 org (ACTIVE/PENDING)
+    $isMember = \DB::table('org_members')
+        ->where('account_id', $account->account_id)
+        ->whereIn('status', ['ACTIVE','PENDING'])
+        ->exists();
+    $isBusiness = (($account?->type?->code) === 'BUSS') || $isMember;
+
+    $org = null; $members = collect(); $usedSeats = 0;
+    $latestVerification = null; $owner = null; $pendingInvites = collect();
+    $isOwner = false;         // <-- CHỈ DÙNG BIẾN NÀY
 
     if ($isBusiness) {
+        // Ưu tiên org mà user là chủ
         $org = \App\Models\Org::where('owner_account_id', $account->account_id)->first();
 
+        // Nếu không phải chủ, lấy org mà user là member (ACTIVE/PENDING) gần nhất
+        if (!$org) {
+            $mm = \DB::table('org_members as om')
+                ->join('orgs as o', 'o.org_id', '=', 'om.org_id')
+                ->where('om.account_id', $account->account_id)
+                ->whereIn('om.status', ['ACTIVE','PENDING'])
+                ->orderByDesc('om.created_at')
+                ->select('o.org_id')
+                ->first();
+            if ($mm) $org = \App\Models\Org::find($mm->org_id);
+        }
+
         if ($org) {
-            // ... phần query $members của bạn giữ nguyên ...
+            // Tính isOwner
+            $isOwner = ((int)$org->owner_account_id === (int)$account->account_id);
+
+            // Thông tin chủ sở hữu (để hiển thị đúng tên chủ thay vì user hiện tại)
+            $owner = \App\Models\Account::with('profile')->find($org->owner_account_id);
+
+            // Danh sách thành viên của org
             $members = \DB::table('org_members as om')
-                    ->join('accounts as a', 'a.account_id', '=', 'om.account_id')
-                    ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
-                    ->where('om.org_id', $org->org_id)
-                    ->select(
-                        'a.account_id',
-                        'a.email',
-                        'p.fullname',
-                        'om.role',
-                        'om.status',
-                        'om.created_at as joined_at',
-                        'om.updated_at'
-                    )
-                    ->orderByRaw("FIELD(om.status,'PENDING','ACTIVE')") // đưa pending lên/ xuống tuỳ ý
-                    ->orderByRaw("FIELD(om.role,'OWNER','ADMIN','MANAGER','MEMBER','BILLING')")
-                    ->orderBy('p.fullname')
-                    ->get();
-            // LẤY HỒ SƠ XÁC MINH GẦN NHẤT
+                ->join('accounts as a', 'a.account_id', '=', 'om.account_id')
+                ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
+                ->where('om.org_id', $org->org_id)
+                ->select(
+                    'a.account_id', 'a.email',
+                    'p.fullname',
+                    'om.role', 'om.status',
+                    'om.created_at as joined_at', 'om.updated_at'
+                )
+                ->orderByRaw("FIELD(om.status,'PENDING','ACTIVE')")
+                ->orderByRaw("FIELD(om.role,'OWNER','ADMIN','MANAGER','MEMBER','BILLING')")
+                ->orderBy('p.fullname')
+                ->get();
+
+            // Ghế ACTIVE
+            $usedSeats = $members->where('status', 'ACTIVE')->count();
+
+            // Hồ sơ xác minh gần nhất
             $latestVerification = \DB::table('org_verifications')
                 ->where('org_id', $org->org_id)
-                ->orderByDesc('created_at')
+                ->latest('created_at')
                 ->first();
 
-            $usedSeats = $members->count();
+            // Chỉ chủ sở hữu mới thấy danh sách lời mời đang chờ
+            if ($isOwner) {
+                $pendingInvites = \DB::table('org_invitations as oi')
+                    ->where('oi.org_id', $org->org_id)
+                    ->where('oi.status', 'PENDING')
+                    ->where(function ($q) {
+                        $q->whereNull('oi.expires_at')->orWhere('oi.expires_at', '>', now());
+                    })
+                    ->leftJoin('accounts as a', function ($join) {
+                        $join->on(
+                            \DB::raw('a.email COLLATE utf8mb4_unicode_ci'),
+                            '=',
+                            \DB::raw('oi.email COLLATE utf8mb4_unicode_ci')
+                        );
+                    })
+                    ->leftJoin('profiles as p', 'p.account_id', '=', 'a.account_id')
+                    ->select(
+                        'oi.*',
+                        'a.email as invitee_email',
+                        'p.fullname as invitee_fullname',
+                        'p.username as invitee_username'
+                    )
+                    ->orderByDesc('oi.created_at')
+                    ->get();
+            }
         }
     }
 
     return view('settings.company', compact(
-        'account','isBusiness','org','usedSeats','members','latestVerification'
+        'account',
+        'isBusiness',
+        'org',
+        'members',
+        'usedSeats',
+        'latestVerification',
+        'owner',
+        'pendingInvites',
+        'isOwner' // <-- nhớ truyền
     ));
 }
+
 
     // Tạo doanh nghiệp
     public function store(Request $r)
@@ -96,10 +154,23 @@ class CompanyController extends Controller
             'org_id' => $org->org_id,
             'account_id' => $account->account_id,
             'role' => 'OWNER',
+            'status' => 'ACTIVE',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
+         $exists = DB::table('box_chat')->where('org_id', $org->org_id)->exists();
+        if (!$exists) {
+            DB::table('box_chat')->insert([
+                'name'       => 'Nhóm doanh nghiệp ' . Str::limit($org->name, 230),
+                'type'       => 3,              // 3 = nhóm doanh nghiệp
+                'receiver_id'=> null,
+                'sender_id'  => null,
+                'job_id'     => null,
+                'org_id'     => $org->org_id,   // liên kết org
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
         return redirect()->route('settings.company')->with('ok', 'Đã tạo doanh nghiệp.');
     }
     public function addMemberByUsername(Request $r)
