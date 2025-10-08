@@ -12,6 +12,7 @@ class OrgVerification extends Model
         'submitted_by_account_id',
         'status',                 // PENDING | APPROVED | REJECTED
         'file_path',
+        'file_url',
         'mime_type',
         'file_size',
         'review_note',

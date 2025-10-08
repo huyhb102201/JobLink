@@ -46,21 +46,27 @@ class Job extends Model
     }
 
     public function applicants()
-    {
-        return $this->belongsToMany(
-            \App\Models\Account::class, // model Account
-            'job_apply',                // bảng trung gian
-            'job_id',                   // foreign key của Job trong job_apply
-            'user_id'                   // foreign key của Account trong job_apply
-        )->withPivot('status')
-            ->withTimestamps();
-    }
+{
+    return $this->belongsToMany(
+            \App\Models\Account::class, // model liên quan
+            'job_apply',                // bảng pivot
+            'job_id',                   // FK của Job trong pivot
+            'user_id',                  // FK của Account trong pivot
+            'job_id',                   // khóa chính của Job
+            'account_id'                // khóa chính của Account
+        )
+        ->withPivot(['id','status','introduction','created_at','updated_at'])
+        ->withTimestamps()
+        ->with('profile'); // eager profile cho mỗi account
+}
 
         // Quan hệ với Comment
     public function comments()
     {
         return $this->hasMany(Comment::class, 'job_id');
     }
+
+
 
 
 }

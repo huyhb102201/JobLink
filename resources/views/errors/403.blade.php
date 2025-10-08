@@ -9,7 +9,7 @@
     </h1>
     <h3 class="mb-3">Bạn không có quyền truy cập trang này</h3>
     <p class="text-muted mb-4">
-        Vui lòng đăng nhập bằng tài khoản có quyền <strong>Admin</strong> để tiếp tục.
+        Vui lòng đăng nhập bằng tài khoản có quyền để tiếp tục.
     </p>
 
     <a href="{{ route('login') }}" class="btn btn-primary">

@@ -51,25 +51,25 @@
                             <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
                                 <div>
                                     <div class="d-flex align-items-center gap-2 mb-1">
-  <i class="bi bi-buildings text-primary fs-4"></i>
-  <h3 class="m-0 fw-bold text-dark">{{ $org->name }}</h3>
+                                        <i class="bi bi-buildings text-primary fs-4"></i>
+                                        <h3 class="m-0 fw-bold text-dark">{{ $org->name }}</h3>
 
-  @php
-    $v = $org->status ?? 'UNVERIFIED';
-    $map = [
-      'VERIFIED'   => ['bg' => '#dcfce7', 'color' => '#166534', 'icon' => 'bi-patch-check-fill', 'text' => 'Đã xác minh'],
-      'PENDING'    => ['bg' => '#fff4cc', 'color' => '#8a6d3b', 'icon' => 'bi-hourglass-split', 'text' => 'Đang chờ duyệt'],
-      'REJECTED'   => ['bg' => '#ffe4e6', 'color' => '#9f1239', 'icon' => 'bi-x-octagon-fill', 'text' => 'Bị từ chối'],
-      'UNVERIFIED' => ['bg' => '#e2e8f0', 'color' => '#0f172a', 'icon' => 'bi-shield-exclamation', 'text' => 'Chưa xác minh'],
-    ];
-    $b = $map[$v] ?? $map['UNVERIFIED'];
-  @endphp
+                                        @php
+                                            $v = $org->status ?? 'UNVERIFIED';
+                                            $map = [
+                                                'VERIFIED' => ['bg' => '#dcfce7', 'color' => '#166534', 'icon' => 'bi-patch-check-fill', 'text' => 'Đã xác minh'],
+                                                'PENDING' => ['bg' => '#fff4cc', 'color' => '#8a6d3b', 'icon' => 'bi-hourglass-split', 'text' => 'Đang chờ duyệt'],
+                                                'REJECTED' => ['bg' => '#ffe4e6', 'color' => '#9f1239', 'icon' => 'bi-x-octagon-fill', 'text' => 'Bị từ chối'],
+                                                'UNVERIFIED' => ['bg' => '#e2e8f0', 'color' => '#0f172a', 'icon' => 'bi-shield-exclamation', 'text' => 'Chưa xác minh'],
+                                            ];
+                                            $b = $map[$v] ?? $map['UNVERIFIED'];
+                                          @endphp
 
-  <span class="badge d-inline-flex align-items-center"
-        style="background: {{ $b['bg'] }}; color: {{ $b['color'] }}; gap:.35rem; border-radius:999px; padding:.35rem .6rem;">
-    <i class="bi {{ $b['icon'] }}"></i> {{ $b['text'] }}
-  </span>
-</div>
+                                        <span class="badge d-inline-flex align-items-center"
+                                            style="background: {{ $b['bg'] }}; color: {{ $b['color'] }}; gap:.35rem; border-radius:999px; padding:.35rem .6rem;">
+                                            <i class="bi {{ $b['icon'] }}"></i> {{ $b['text'] }}
+                                        </span>
+                                    </div>
 
                                     @if($org->description)
                                         <div class="text-secondary mb-2">{{ $org->description }}</div>
@@ -77,117 +77,129 @@
                                     <span class="chip-light">Mã tổ chức: #{{ $org->org_id }}</span>
                                 </div>
 
-                                @php
-  $v = $org->verified_status ?? 'UNVERIFIED';
-@endphp
+                                <div class="text-end">
+                                    <div class="fw-semibold text-dark">Số lượng: {{ $used }} / {{ $total }}</div>
+                                    {{-- Hiển thị đúng Chủ sở hữu theo $owner --}}
+                                    <div class="small text-secondary">
+                                        Chủ sở hữu: {{ $owner?->profile?->fullname ?? $owner?->email ?? '—' }}
+                                    </div>
 
-<div class="text-end">
-  <div class="fw-semibold text-dark">Số lượng: {{ $used }} / {{ $total }}</div>
-  <div class="small text-secondary">Chủ sở hữu: {{ $account->profile->fullname ?? $account->email }}</div>
+                                    <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
+                                        {{-- Thumbnail / nút xác minh: chỉ Owner mới thấy --}}
+                                        @if($isOwner)
+                                            @if(!empty($latestVerification))
+                                                @php
+                                                    $isImg = str_starts_with($latestVerification->mime_type ?? '', 'image/');
+                                                    $fileUrl = $latestVerification->file_url
+                                                        ?? \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::getUrl($latestVerification->file_path);
+                                                  @endphp
+                                                @if($isImg)
+                                                    <button type="button" class="p-0 border-0 bg-transparent" data-bs-toggle="modal"
+                                                        data-bs-target="#verifyOrgModal" title="Xem hồ sơ đã gửi">
+                                                        <img src="{{ $fileUrl }}" alt="Giấy tờ đã gửi" class="verify-thumb">
+                                                    </button>
+                                                @else
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill"
+                                                        data-bs-toggle="modal" data-bs-target="#verifyOrgModal" title="Xem hồ sơ đã gửi">
+                                                        <i class="bi bi-file-earmark-text me-1"></i> Tệp đã gửi
+                                                    </button>
+                                                @endif
+                                            @endif
 
-  <div class="d-flex align-items-center justify-content-end gap-2 mt-2">
-    {{-- Thumbnail hồ sơ đã gửi (nếu có) --}}
-    @if(!empty($latestVerification))
-      @php
-        $isImg = str_starts_with($latestVerification->mime_type ?? '', 'image/');
-        $fileUrl = asset('storage/'.$latestVerification->file_path);
-      @endphp
-
-      @if($isImg)
-        <button type="button" class="p-0 border-0 bg-transparent"
-                data-bs-toggle="modal" data-bs-target="#verifyOrgModal"
-                title="Xem hồ sơ đã gửi">
-          <img src="{{ $fileUrl }}" alt="Giấy tờ đã gửi" class="verify-thumb">
-        </button>
-      @else
-        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill"
-                data-bs-toggle="modal" data-bs-target="#verifyOrgModal"
-                title="Xem hồ sơ đã gửi">
-          <i class="bi bi-file-earmark-text me-1"></i> Tệp đã gửi
-        </button>
-      @endif
-    @endif
-
-    {{-- Nút xác minh / trạng thái --}}
-    @if(in_array($org->status, ['UNVERIFIED','REJECTED']))
-      <button class="btn btn-outline-primary btn-sm rounded-pill"
-              data-bs-toggle="modal" data-bs-target="#verifyOrgModal">
-        <i class="bi bi-upload me-1"></i> Xác minh doanh nghiệp
-      </button>
-    @elseif($org->status === 'PENDING')
-      <button class="btn btn-outline-secondary btn-sm rounded-pill" disabled>
-        <i class="bi bi-hourglass me-1"></i> Đã gửi xác minh
-      </button>
-    @endif
-  </div>
-</div>
-
-
+                                            {{-- Nút xác minh / trạng thái (Owner) --}}
+                                            @if(in_array($org->status, ['UNVERIFIED', 'REJECTED']))
+                                                <button class="btn btn-outline-primary btn-sm rounded-pill" data-bs-toggle="modal"
+                                                    data-bs-target="#verifyOrgModal">
+                                                    <i class="bi bi-upload me-1"></i> Xác minh doanh nghiệp
+                                                </button>
+                                            @elseif($org->status === 'PENDING')
+                                                <button class="btn btn-outline-secondary btn-sm rounded-pill" disabled>
+                                                    <i class="bi bi-hourglass me-1"></i> Đã gửi xác minh
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
                             </div>
 
-                            {{-- MODAL: Xác minh doanh nghiệp --}}
-<div class="modal fade" id="verifyOrgModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content rounded-4">
-      <form method="POST" action="{{ route('company.verification.submit') }}" enctype="multipart/form-data">
-        @csrf
-        <input type="hidden" name="_modal" value="verify_org">
+                            {{-- MODAL: Xác minh doanh nghiệp (chỉ Owner) --}}
+                            @if($isOwner)
+                                <div class="modal fade" id="verifyOrgModal" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-md modal-dialog-centered">
+                                        <div class="modal-content rounded-4">
+                                            <form method="POST" action="{{ route('company.verification.submit') }}"
+                                                enctype="multipart/form-data">
+                                                @csrf
+                                                <input type="hidden" name="_modal" value="verify_org">
 
-        <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-bold text-dark">
-            <i class="bi bi-patch-check me-2"></i> Xác minh doanh nghiệp
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-        </div>
+                                                <div class="modal-header border-0 pb-0">
+                                                    <h5 class="modal-title fw-bold text-dark">
+                                                        <i class="bi bi-patch-check me-2"></i> Xác minh doanh nghiệp
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Đóng"></button>
+                                                </div>
 
-        <div class="modal-body">
-          @if($errors->any() && old('_modal') === 'verify_org')
-            <div class="alert alert-danger rounded-3">{{ $errors->first() }}</div>
-          @endif
+                                                <div class="modal-body">
+                                                    @if($errors->any() && old('_modal') === 'verify_org')
+                                                        <div class="alert alert-danger rounded-3">{{ $errors->first() }}</div>
+                                                    @endif
 
-          <p class="text-secondary">Tải lên giấy phép/giấy chứng nhận doanh nghiệp (ảnh hoặc PDF).</p>
+                                                    <p class="text-secondary">Tải lên giấy phép/giấy chứng nhận doanh nghiệp (ảnh
+                                                        hoặc PDF).</p>
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Tệp đính kèm</label>
-            <input type="file" name="file" class="form-control" accept="image/*,application/pdf" required>
-            <div class="form-text">Hỗ trợ: JPG, PNG, WEBP, PDF. Tối đa 10MB.</div>
-            @error('file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-          </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Tệp đính kèm</label>
+                                                        <input type="file" name="file" class="form-control"
+                                                            accept="image/*,application/pdf" required>
+                                                        <div class="form-text">Hỗ trợ: JPG, PNG, WEBP, PDF. Tối đa 10MB.</div>
+                                                        @error('file') <div class="text-danger small mt-1">{{ $message }}</div>
+                                                        @enderror
+                                                    </div>
 
-          @if(!empty($latestVerification))
-            <div class="p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
-              <div class="small text-secondary mb-1">Lần gửi gần nhất:</div>
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-light text-dark">{{ $latestVerification->status }}</span>
-                <span class="text-secondary small">
-                  {{ \Carbon\Carbon::parse($latestVerification->created_at)->format('d/m/Y H:i') }}
-                </span>
-              </div>
-              @if($latestVerification->review_note)
-                <div class="mt-2 small">Ghi chú: <span class="text-secondary">{{ $latestVerification->review_note }}</span></div>
-              @endif
-              @php
-                $previewable = str_starts_with(($latestVerification->mime_type ?? ''), 'image/');
-              @endphp
-              @if($previewable)
-                <div class="mt-2">
-                  <img src="{{ asset('storage/'.$latestVerification->file_path) }}" alt="preview" style="max-width:100%; border-radius:8px;">
-                </div>
-              @endif
-            </div>
-          @endif
-        </div>
+                                                    @if(!empty($latestVerification))
+                                                        <div class="p-3 rounded-3"
+                                                            style="background:#f8fafc; border:1px solid #e2e8f0;">
+                                                            <div class="small text-secondary mb-1">Lần gửi gần nhất:</div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <span
+                                                                    class="badge bg-light text-dark">{{ $latestVerification->status }}</span>
+                                                                <span class="text-secondary small">
+                                                                    {{ \Carbon\Carbon::parse($latestVerification->created_at)->format('d/m/Y H:i') }}
+                                                                </span>
+                                                            </div>
+                                                            @if($latestVerification->review_note)
+                                                                <div class="mt-2 small">Ghi chú: <span
+                                                                        class="text-secondary">{{ $latestVerification->review_note }}</span>
+                                                                </div>
+                                                            @endif
+                                                            @php $previewable = str_starts_with(($latestVerification->mime_type ?? ''), 'image/'); @endphp
+                                                            @if($previewable)
+                                                                <div class="mt-2">
+                                                                    @php
+                                                                        $previewUrl = $latestVerification->file_url
+                                                                            ?? \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::getUrl($latestVerification->file_path);
+                                                                    @endphp
+                                                                    <img src="{{ $previewUrl }}" alt="preview"
+                                                                        style="max-width:100%; border-radius:8px;">
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                </div>
 
-        <div class="modal-footer border-0 pt-0">
-          <button class="btn btn-primary rounded-pill px-4" type="submit">
-            <i class="bi bi-send-check me-2"></i>Gửi xác minh
-          </button>
-          <button class="btn btn-outline-secondary rounded-pill" type="button" data-bs-dismiss="modal">Hủy</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+                                                <div class="modal-footer border-0 pt-0">
+                                                    <button class="btn btn-primary rounded-pill px-4" type="submit">
+                                                        <i class="bi bi-send-check me-2"></i>Gửi xác minh
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary rounded-pill" type="button"
+                                                        data-bs-dismiss="modal">Hủy</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="mt-3">
                                 <div class="progress rounded-pill" style="height: 10px;background:#eef2ff;">
@@ -206,11 +218,24 @@
                     <div class="card border-0 rounded-4 shadow-xs">
                         <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
                             <h5 class="fw-semibold text-dark mb-3">Thành viên</h5>
-                            <button class="btn btn-primary rounded-pill" data-bs-toggle="modal"
-                                data-bs-target="#addMemberModal">
-                                <i class="bi bi-person-plus me-2"></i>Thêm thành viên
-                            </button>
+
+                            @if($isOwner)
+                                <button class="btn btn-primary rounded-pill" data-bs-toggle="modal"
+                                    data-bs-target="#addMemberModal">
+                                    <i class="bi bi-person-plus me-2"></i>Thêm thành viên
+                                </button>
+                            @else
+                                <form method="POST" action="{{ route('company.members.leave', ['org' => $org->org_id]) }}"
+                                    class="m-0" onsubmit="return confirm('Bạn chắc chắn muốn rời doanh nghiệp này?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger rounded-pill">
+                                        <i class="bi bi-box-arrow-right me-2"></i> Rời doanh nghiệp
+                                    </button>
+                                </form>
+                            @endif
                         </div>
+
 
                         <div class="list-group list-group-flush member-list">
                             {{-- DANH SÁCH THÀNH VIÊN --}}
@@ -226,6 +251,7 @@
                                         'MEMBER' => 'badge-member',
                                         'BILLING' => 'badge-billing',
                                     ][$role] ?? 'badge-member';
+                                    $state = $m->status ?? 'ACTIVE';
                                   @endphp
 
                                 <div class="list-group-item px-4 py-3">
@@ -237,7 +263,7 @@
                                                 <div class="text-secondary small">{{ $m->email }}</div>
                                             </div>
                                         </div>
-                                        @php $state = $m->status ?? 'ACTIVE'; @endphp
+
                                         <div class="d-flex align-items-center gap-3">
                                             @if($state === 'PENDING')
                                                 <span class="badge rounded-pill"
@@ -253,26 +279,22 @@
                                                     {{ \Carbon\Carbon::parse($m->invited_at ?? $m->joined_at)->format('d/m/Y H:i') }}
                                                 @endif
                                             </span>
-                                            @if($role !== 'OWNER') {{-- không cho xoá Owner --}}
-  <form method="POST"
-        action="{{ route('company.members.remove', ['org' => $org->org_id, 'account' => $m->account_id]) }}"
-        class="d-inline js-remove-form">
-    @csrf
-    @method('DELETE')
 
-    <button type="button"
-            class="btn btn-icon btn-soft-danger"
-            data-name="{{ $name ?? $m->email }}"
-            title="Xoá khỏi tổ chức"
-            aria-label="Xoá khỏi tổ chức">
-      <i class="bi bi-x-lg"></i>
-    </button>
-  </form>
-@endif
-
-
+                                            {{-- Xoá thành viên: chỉ Owner và không xoá Owner --}}
+                                            @if($isOwner && $role !== 'OWNER')
+                                                <form method="POST"
+                                                    action="{{ route('company.members.remove', ['org' => $org->org_id, 'account' => $m->account_id]) }}"
+                                                    class="d-inline js-remove-form">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="button" class="btn btn-icon btn-soft-danger"
+                                                        data-name="{{ $name ?? $m->email }}" title="Xoá khỏi tổ chức"
+                                                        aria-label="Xoá khỏi tổ chức">
+                                                        <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
-
                                     </div>
                                 </div>
                             @empty
@@ -281,8 +303,8 @@
                                 </div>
                             @endforelse
 
-                            {{-- LỜI MỜI ĐANG CHỜ NGAY DƯỚI DANH SÁCH THÀNH VIÊN --}}
-                            @if(!empty($pendingInvites) && $pendingInvites->isNotEmpty())
+                            {{-- LỜI MỜI ĐANG CHỜ: chỉ Owner --}}
+                            @if($isOwner && !empty($pendingInvites) && $pendingInvites->isNotEmpty())
                                 <div class="list-group-item px-4 py-2 bg-white">
                                     <span class="text-secondary small fw-semibold">
                                         Đang chờ xác nhận ({{ $pendingInvites->count() }})
@@ -395,8 +417,8 @@
         </div>
     </div>
 
-    {{-- MODAL: Thêm thành viên bằng username --}}
-    @if(!empty($org))
+    {{-- MODAL: Thêm thành viên bằng username (chỉ Owner) --}}
+    @if($isOwner && !empty($org))
         <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-md modal-dialog-centered">
                 <div class="modal-content rounded-4">
@@ -523,49 +545,83 @@
                 background: #ffe4e6;
                 color: #9f1239;
             }
-            .btn-icon{
-    width: 34px; height: 34px; padding: 0;
-    display: inline-grid; place-items: center;
-    border-radius: 999px; line-height: 1;
-  }
-  .btn-soft-danger{
-    background: #fff5f5;        /* nền đỏ nhạt */
-    border: 1px solid #ffe0e0;  /* viền nhạt */
-    color: #c1121f;             /* biểu tượng đỏ */
-  }
-  .btn-soft-danger:hover{
-    background: #ffe5e5;
-    border-color: #ffc9c9;
-    color: #a50e19;
-    box-shadow: 0 0 0 .2rem rgba(220,53,69,.12);
-  }
-  .btn-soft-danger:active{
-    transform: translateY(1px);
-  }
-  .verify-badge{
-  border-radius:999px; font-weight:600; padding:.25rem .6rem;
-  display:inline-flex; align-items:center; gap:.35rem; font-size:.8rem;
-  border:1px solid transparent;
-}
-.verify-badge.verified{  background:#e8f7ef; color:#166534; border-color:#c7eed8; }
-.verify-badge.unverified{background:#fff7ed; color:#9a3412; border-color:#ffedd5;}
-.verify-badge.pending{  background:#fefce8; color:#854d0e; border-color:#fde68a; }
-.verify-badge.rejected{ background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
-/* thumbnail hồ sơ xác minh – hiển thị nhỏ gọn */
-.verify-thumb{
-  width: 48px;           /* nhỏ gọn */
-  height: 36px;
-  object-fit: cover;     /* không méo ảnh */
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0,0,0,.05);
-  display: block;
-}
-.verify-thumb:hover{
-  transform: scale(1.03);
-  box-shadow: 0 4px 10px rgba(0,0,0,.08);
-}
 
+            .btn-icon {
+                width: 34px;
+                height: 34px;
+                padding: 0;
+                display: inline-grid;
+                place-items: center;
+                border-radius: 999px;
+                line-height: 1;
+            }
+
+            .btn-soft-danger {
+                background: #fff5f5;
+                border: 1px solid #ffe0e0;
+                color: #c1121f;
+            }
+
+            .btn-soft-danger:hover {
+                background: #ffe5e5;
+                border-color: #ffc9c9;
+                color: #a50e19;
+                box-shadow: 0 0 0 .2rem rgba(220, 53, 69, .12);
+            }
+
+            .btn-soft-danger:active {
+                transform: translateY(1px);
+            }
+
+            .verify-badge {
+                border-radius: 999px;
+                font-weight: 600;
+                padding: .25rem .6rem;
+                display: inline-flex;
+                align-items: center;
+                gap: .35rem;
+                font-size: .8rem;
+                border: 1px solid transparent;
+            }
+
+            .verify-badge.verified {
+                background: #e8f7ef;
+                color: #166534;
+                border-color: #c7eed8;
+            }
+
+            .verify-badge.unverified {
+                background: #fff7ed;
+                color: #9a3412;
+                border-color: #ffedd5;
+            }
+
+            .verify-badge.pending {
+                background: #fefce8;
+                color: #854d0e;
+                border-color: #fde68a;
+            }
+
+            .verify-badge.rejected {
+                background: #fee2e2;
+                color: #7f1d1d;
+                border-color: #fecaca;
+            }
+
+            .verify-thumb {
+                width: 48px;
+                height: 36px;
+                object-fit: cover;
+                border-radius: 8px;
+                border: 1px solid #e5e7eb;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+                display: block;
+            }
+
+            .verify-thumb:hover {
+                transform: scale(1.03);
+                box-shadow: 0 4px 10px rgba(0, 0, 0, .08);
+            }
         </style>
     @endpush
 
@@ -588,37 +644,36 @@
                         const addEl = document.getElementById('addMemberModal');
                         if (addEl) new bootstrap.Modal(addEl).show();
                     @endif
-          });
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.js-remove-form .btn-icon').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      const name = this.dataset.name || 'thành viên';
-      if (confirm(`Xoá ${name} khỏi tổ chức?`)) {
-        // lock + spinner
-        this.disabled = true;
-        const html = this.innerHTML;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        });
 
-        // submit
-        this.closest('form').submit();
+            // Xoá thành viên (chỉ Owner mới render nút)
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('.js-remove-form .btn-icon').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        const name = this.dataset.name || 'thành viên';
+                        if (confirm(`Xoá ${name} khỏi tổ chức?`)) {
+                            this.disabled = true;
+                            const html = this.innerHTML;
+                            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                            this.closest('form').submit();
+                            setTimeout(() => {
+                                if (!document.hidden) {
+                                    this.disabled = false;
+                                    this.innerHTML = html;
+                                }
+                            }, 8000);
+                        }
+                    });
+                });
+            });
 
-        // (phòng trường hợp không redirect) tự trả lại icon sau vài giây
-        setTimeout(() => {
-          if (!document.hidden) {
-            this.disabled = false;
-            this.innerHTML = html;
-          }
-        }, 8000);
-      }
-    });
-  });
-});
-document.addEventListener('DOMContentLoaded', function () {
-    @if($errors->any() && old('_modal') === 'verify_org')
-      const el = document.getElementById('verifyOrgModal');
-      if (el) new bootstrap.Modal(el).show();
-    @endif
-  });
+            // Nếu có lỗi xác minh thì tự mở modal (chỉ mở nếu modal tồn tại — tức Owner)
+            document.addEventListener('DOMContentLoaded', function () {
+                @if($errors->any() && old('_modal') === 'verify_org')
+                    const el = document.getElementById('verifyOrgModal');
+                    if (el) new bootstrap.Modal(el).show();
+                @endif
+        });
         </script>
     @endpush
 

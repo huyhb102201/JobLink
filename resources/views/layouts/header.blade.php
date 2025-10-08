@@ -29,8 +29,8 @@
                 @auth
                     @php
                         $acc = Auth::user()->loadMissing('type');
-                        $isClient = strtoupper($acc->type->code ?? '') === 'CLIENT';
-
+                        $code = strtoupper($acc->type->code ?? '');
+                        $isClient = $code === 'CLIENT' || $code === 'BUSS';
                         // những route được coi là "Đăng công việc"
                         $activePost = request()->routeIs(
                             'client.jobs.choose',
