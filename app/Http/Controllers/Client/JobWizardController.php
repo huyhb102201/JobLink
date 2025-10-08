@@ -12,6 +12,7 @@ use App\Models\JobDetail;
 use App\Models\JobCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class JobWizardController extends Controller
 {
@@ -109,32 +110,46 @@ class JobWizardController extends Controller
     {
         $d = $this->data();
 
-        // 1) tạo JOB (mô tả cơ bản)
-        $job = Job::create([
-            'account_id' => Auth::id(),
-            'title' => $d['title'],
-            'description' => $d['description'],            // plain text
-            'category_id' => $d['category_id'] ?? null,
-            'budget' => $d['budget'] ?? null,
-            'payment_type' => $d['payment_type'],
-            'deadline' => $d['deadline'] ?? null,
-            'status' => 'open',
-        ]);
+        $user = $r->user()->loadMissing('type');                 // Account hiện tại + AccountType
+        $autoApprove = (bool) optional($user->type)->auto_approve_job_posts;
+        $status = $autoApprove ? 'open' : 'pending';
 
-        // 2) tạo JOB_DETAIL (nội dung định dạng)
-        if (!empty($d['content'])) {
-            $job->jobDetails()->create([
-                'content' => $d['content'],               // HTML từ editor
-                'notes' => $d['notes'] ?? null,
-                'created_at' => now(),                       // vì $timestamps=false trong model
-                'updated_at' => now(),
+        DB::beginTransaction();
+        try {
+            // 1) Tạo JOB (mô tả cơ bản)
+            $job = Job::create([
+                'account_id' => $user->account_id,            // hoặc Auth::id() nếu guard trả về account_id
+                'title' => $d['title'],
+                'description' => $d['description'],            // plain text
+                'category_id' => $d['category_id'] ?? null,
+                'budget' => $d['budget'] ?? null,
+                'payment_type' => $d['payment_type'],
+                'deadline' => $d['deadline'] ?? null,
+                'status' => $status,                      // <-- quyết định ở đây
             ]);
+
+            // 2) Tạo JOB_DETAIL (nội dung định dạng)
+            if (!empty($d['content'])) {
+                $job->jobDetails()->create([
+                    'content' => $d['content'],              // HTML từ editor
+                    'notes' => $d['notes'] ?? null,
+                    'created_at' => now(),                      // vì $timestamps=false trong model
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['msg' => 'Không thể tạo job: ' . $e->getMessage()]);
         }
 
         session()->forget($this->bag);
 
         return redirect()
             ->route('client.jobs.mine')
-            ->with('success', 'Đăng job thành công!');
+            ->with('success', $autoApprove
+                ? 'Đăng job thành công!'
+                : 'Đã gửi job, đang chờ xét duyệt.');
     }
 }

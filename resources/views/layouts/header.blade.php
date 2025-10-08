@@ -29,8 +29,8 @@
                 @auth
                     @php
                         $acc = Auth::user()->loadMissing('type');
-                        $isClient = strtoupper($acc->type->code ?? '') === 'CLIENT';
-
+                        $code = strtoupper($acc->type->code ?? '');
+                        $isClient = $code === 'CLIENT' || $code === 'BUSS';
                         // những route được coi là "Đăng công việc"
                         $activePost = request()->routeIs(
                             'client.jobs.choose',
@@ -137,7 +137,7 @@
                                     Loại tài khoản:
                                     <span class="badge bg-light text-dark">{{ $typeName }}</span>
                                 </li>
-                                @if ($typeCode === 'F_BASIC'||$typeCode === 'CLIENT')
+                                @if ($typeCode === 'F_BASIC' || $typeCode === 'CLIENT')
                                     <div class="border rounded-3 p-3 mb-3"
                                         style="border:1px solid #f8e8a0; background:linear-gradient(90deg, #fdfdfd, #fffef9);">
                                         <a href="{{ route('settings.upgrade') }}"

@@ -89,9 +89,12 @@
     {{-- Thumbnail hồ sơ đã gửi (nếu có) --}}
     @if(!empty($latestVerification))
       @php
-        $isImg = str_starts_with($latestVerification->mime_type ?? '', 'image/');
-        $fileUrl = asset('storage/'.$latestVerification->file_path);
-      @endphp
+  $isImg = str_starts_with($latestVerification->mime_type ?? '', 'image/');
+  // Ưu tiên dùng URL Cloudinary đã lưu; nếu chưa có thì dựng từ public_id
+  $fileUrl = $latestVerification->file_url
+      ?? \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::getUrl($latestVerification->file_path);
+@endphp
+
 
       @if($isImg)
         <button type="button" class="p-0 border-0 bg-transparent"
@@ -171,7 +174,12 @@
               @endphp
               @if($previewable)
                 <div class="mt-2">
-                  <img src="{{ asset('storage/'.$latestVerification->file_path) }}" alt="preview" style="max-width:100%; border-radius:8px;">
+                  @php
+  $previewUrl = $latestVerification->file_url
+      ?? \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::getUrl($latestVerification->file_path);
+@endphp
+<img src="{{ $previewUrl }}" alt="preview" style="max-width:100%; border-radius:8px;">
+
                 </div>
               @endif
             </div>

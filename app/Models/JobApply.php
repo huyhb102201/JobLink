@@ -11,7 +11,7 @@ class JobApply extends Model
 
     protected $table = 'job_apply';
 
-    protected $fillable = ['job_id', 'user_id', 'status'];
+    protected $fillable = ['job_id', 'user_id','introduction', 'status'];
 
     public function job()
     {
