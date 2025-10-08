@@ -271,4 +271,4 @@ Route::post(
 )->name('company.verify.request');
 
 Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])->name('company.verification.submit');
-
+ Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
