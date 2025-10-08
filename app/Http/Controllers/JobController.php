@@ -7,14 +7,28 @@ use App\Models\Job;
 
 class JobController extends Controller
 {
-    public function index()
+    public function index(Request $r)
     {
-        $jobs = Job::with('account')
-            ->orderBy('created_at', 'desc')
-            ->paginate(6); // mỗi trang 6 job
+        $ownerId = $r->user()->account_id;
 
-        return view('jobs.index', compact('jobs'));
+        $jobs = Job::where('account_id', $ownerId)
+            ->withCount('applies') // đếm số ứng viên
+            ->with([
+                // danh sách apply mới nhất trước
+                'applies' => fn($q) => $q->latest(),
+
+                // account của ứng viên (chỉ cần vài cột)
+                'applies.user:account_id,name,email',
+
+                // profile của ứng viên
+                'applies.user.profile:profile_id,account_id,fullname,username,skill,description',
+            ])
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
+        return view('client.jobs.mine', compact('jobs'));
     }
+
 
     public function show(Job $job)
     {

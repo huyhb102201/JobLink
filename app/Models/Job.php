@@ -20,6 +20,7 @@ class Job extends Model
         'payment_type',
         'status',
         'deadline',
+        'apply_id',
     ];
 
     // Quan hệ với JobDetail
@@ -28,14 +29,43 @@ class Job extends Model
         return $this->hasMany(JobDetail::class, 'job_id', 'job_id');
     }
 
+    // Quan hệ với JobCategories
+    public function jobCategory()
+    {
+        return $this->belongsTo(JobCategory::class, 'category_id', 'category_id');
+    }
+
     // Quan hệ với user nhận chat
     public function account()
     {
-        return $this->belongsTo(Account::class, 'account_id');
+        return $this->belongsTo(Account::class, 'account_id', 'account_id');
     }
     public function categoryRef()
     {
         return $this->belongsTo(\App\Models\JobCategory::class, 'category_id', 'category_id');
     }
+
+    public function applicants()
+{
+    return $this->belongsToMany(
+            \App\Models\Account::class, // model liên quan
+            'job_apply',                // bảng pivot
+            'job_id',                   // FK của Job trong pivot
+            'user_id',                  // FK của Account trong pivot
+            'job_id',                   // khóa chính của Job
+            'account_id'                // khóa chính của Account
+        )
+        ->withPivot(['id','status','introduction','created_at','updated_at'])
+        ->withTimestamps()
+        ->with('profile'); // eager profile cho mỗi account
+}
+
+
+        // Quan hệ với Comment
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'job_id');
+    }
+
 
 }

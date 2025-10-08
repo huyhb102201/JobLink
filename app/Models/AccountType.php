@@ -10,7 +10,7 @@ class AccountType extends Model
     protected $primaryKey = 'account_type_id';
     public $timestamps = false; // nếu bảng bạn không dùng timestamps
 
-    protected $fillable = ['name','code','description','monthly_fee','status'];
+    protected $fillable = ['name','code','description','monthly_fee','auto_approve_job_posts','status'];
 
     public function accounts()
     {
