@@ -3,7 +3,13 @@
 @section('settings_content')
   <section class="card border-0 shadow-sm">
     <div class="card-body" style="min-height:500px;">
-      <h5 class="mb-4">My Info</h5>
+      <h5 class="mb-4 d-flex justify-content-between align-items-center">
+        <span>Thông tin cá nhân</span>
+        <a href="{{ route('portfolios.show', $profile->username) }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-person-circle me-1"></i> Xem trang cá nhân
+        </a>
+      </h5>
+
       <form action="{{ route('settings.myinfo.update') }}" method="POST" class="vstack gap-3">
         @csrf @method('PUT')
         <div class="row g-3">
@@ -14,8 +20,7 @@
           </div>
           <div class="col-md-6">
             <label class="form-label">Username</label>
-            <input class="form-control" name="username"
-              value="{{ old('username', $profile->username) }}" required>
+            <input class="form-control" name="username" value="{{ old('username', $profile->username) }}" required>
           </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
@@ -47,17 +52,12 @@
               @endif
             @endif
           </div>
-
-
-        </div>
-
-        <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Loại tài khoản</label>
             <input class="form-control" value="{{ $account->type->name ?? 'Guest' }}" disabled>
           </div>
-        </div>
 
+        </div>
         <div>
           <label class="form-label">Mô tả</label>
           <input class="form-control" name="description" maxlength="255"
