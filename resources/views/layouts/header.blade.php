@@ -89,7 +89,7 @@
 
                 {{-- Nút Chat --}}
                 <li class="nav-item me-lg-2 my-2 my-lg-0 position-relative">
-                    <a class="nav-link" href="{{ url('/chats') }}">
+                    <a class="nav-link" href="{{ url('/chat') }}">
                         <i class="bi bi-chat-dots fs-5"></i>
                         {{-- Badge số tin nhắn chưa đọc --}}
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
