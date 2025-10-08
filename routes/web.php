@@ -28,6 +28,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
+use App\Http\Controllers\SearchController;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -195,8 +196,9 @@ Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->g
     Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
     Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch('/jobs/{job_id}/applications/{user_id}',
-      [MyJobsController::class, 'update']
+    Route::patch(
+        '/jobs/{job_id}/applications/{user_id}',
+        [MyJobsController::class, 'update']
     )->name('jobs.applications.update');
 });
 Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->group(function () {
@@ -209,8 +211,9 @@ Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->gro
     Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
     Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
     Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-     Route::patch('/jobs/{job_id}/applications/{user_id}',
-      [MyJobsController::class, 'update']
+    Route::patch(
+        '/jobs/{job_id}/applications/{user_id}',
+        [MyJobsController::class, 'update']
     )->name('jobs.applications.update');
 });
 // routes/web.php (hoặc routes/api.php)
@@ -271,4 +274,6 @@ Route::post(
 )->name('company.verify.request');
 
 Route::post('/settings/company/verification', [CompanyController::class, 'submitVerification'])->name('company.verification.submit');
- Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
+Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
+
+Route::get('/search', [SearchController::class, 'search']);
