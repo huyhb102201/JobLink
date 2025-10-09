@@ -4,6 +4,24 @@
 <section class="card border-0 shadow-sm">
   <div class="card-body" style="min-height:500px;">
     <h5 class="mb-3">Password & Security</h5>
+    @if (session('ok'))
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ session('ok') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+@endif
+
+@if ($errors->any())
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <ul class="mb-0">
+      @foreach ($errors->all() as $error)
+        <li>{{ $error }}</li>
+      @endforeach
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+@endif
+
     <form action="{{ route('settings.security.update') }}" method="POST" class="row g-3">
       @csrf @method('PUT')
       <div class="col-md-6">

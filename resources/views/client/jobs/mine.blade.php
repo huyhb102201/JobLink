@@ -86,17 +86,24 @@
                 </div>
 
                 <div class="text-end">
-                  <a href="{{ route('jobs.show', $job->job_id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye me-1"></i>Xem
-                  </a>
+                  <a href="{{ route('jobs.show', $job->job_id) }}"
+   class="btn btn-sm btn-outline-primary @if($job->status !== 'open') disabled-link @endif">
+  <i class="bi bi-eye me-1"></i> Xem
+</a>
+
 
                   {{-- Nút toggle ứng viên: KHÔNG dùng data-bs-toggle để tránh double toggle --}}
-                  <button class="btn btn-sm btn-outline-secondary ms-1" type="button"
-                    data-bs-target="#applicants-{{ $job->job_id }}" data-collapse data-open-text="Ẩn ứng viên"
-                    data-close-text="Ứng viên">
-                    <i class="bi bi-people me-1 icon"></i>
-                    <span class="label">Ứng viên</span>
-                  </button>
+                  <button class="btn btn-sm btn-outline-secondary ms-1"
+        type="button"
+        data-bs-target="#applicants-{{ $job->job_id }}"
+        data-collapse
+        data-open-text="Ẩn ứng viên"
+        data-close-text="Ứng viên"
+        @if($job->status !== 'open') disabled @endif>
+    <i class="bi bi-people me-1 icon"></i>
+    <span class="label">Ứng viên</span>
+</button>
+
                 </div>
               </div>
 
@@ -216,6 +223,12 @@
     .job-card:hover {
       box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .08) !important;
     }
+    .disabled-link {
+  pointer-events: none; /* Không cho click */
+  opacity: 0.5;         /* Làm mờ nút */
+  cursor: not-allowed;  /* Đổi icon chuột */
+}
+
   </style>
 @endsection
 

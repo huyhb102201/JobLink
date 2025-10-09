@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Job;
 use App\Models\JobApply;
-
+use App\Models\Account;
 class SettingsController extends Controller
 {
     // helper: load user + relations dùng chung
@@ -100,20 +100,31 @@ class SettingsController extends Controller
     }
 
 
-    public function updateSecurity(Request $request)
-    {
-        $request->validate([
-            'password_current' => 'required',
-            'password' => 'required|min:6|confirmed',
-        ]);
-        $user = $request->user();
-        if (!Hash::check($request->password_current, $user->password)) {
-            return back()->withErrors(['password_current' => 'Mật khẩu hiện tại không đúng.']);
-        }
-        $user->password = Hash::make($request->password);
-        $user->save();
-        return back()->with('ok', 'Đã đổi mật khẩu.');
+public function updateSecurity(Request $request)
+{
+    $request->validate([
+        'password_current' => 'required',
+        'password' => 'required|min:6|confirmed',
+    ]);
+
+    // Lấy tài khoản hiện tại theo ID đăng nhập
+    $account = Account::find(Auth::id());
+
+    if (!$account) {
+        return back()->withErrors(['msg' => 'Không tìm thấy tài khoản.']);
     }
+
+    // Kiểm tra mật khẩu hiện tại
+    if (!Hash::check($request->password_current, $account->password)) {
+        return back()->withErrors(['password_current' => 'Mật khẩu hiện tại không đúng.']);
+    }
+
+    // Cập nhật mật khẩu mới
+    $account->password = Hash::make($request->password);
+    $account->save();
+
+    return back()->with('ok', 'Đã đổi mật khẩu thành công.');
+}
 
     public function updateNotifications(Request $request)
     {
