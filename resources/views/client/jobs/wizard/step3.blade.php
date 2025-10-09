@@ -21,7 +21,7 @@
         @error('payment_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
       </div>
       <div class="col-md-6">
-        <label class="form-label fw-semibold">Ngân sách (VND)</label>
+        <label class="form-label fw-semibold">Ngân sách(VND)</label>
         <input type="number" step="0.01" name="budget" class="form-control @error('budget') is-invalid @enderror"
                value="{{ old('budget', $d['budget'] ?? '') }}" placeholder="VD: 500">
         @error('budget') <div class="invalid-feedback">{{ $message }}</div> @enderror
