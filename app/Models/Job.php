@@ -19,6 +19,7 @@ class Job extends Model
         'budget',
         'payment_type',
         'status',
+        'escrow_status',
         'deadline',
         'apply_id',
     ];

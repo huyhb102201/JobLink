@@ -29,6 +29,7 @@ use App\Http\Controllers\PaymentController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\JobPaymentController;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -102,6 +103,16 @@ Route::middleware('auth')->group(function () {
     // tuỳ chọn: đổi gói
     Route::post('/settings/membership/change', [SettingsController::class, 'changeMembership'])
         ->name('settings.membership.change');
+
+        Route::post('/jobs/{job_id}/payment/create', [JobPaymentController::class, 'createPaymentLink'])
+        ->name('job-payments.create');
+
+    // PayOS redirect
+    Route::get('/payments/job/success', [JobPaymentController::class, 'paymentSuccess'])
+        ->name('job-payments.success');
+    Route::get('/payments/job/cancel', [JobPaymentController::class, 'paymentCancel'])
+        ->name('job-payments.cancel');
+
 });
 // Hiển thị danh sách công việc
 Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');

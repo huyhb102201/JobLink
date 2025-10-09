@@ -33,22 +33,34 @@
       <div id="applicants-group" class="vstack gap-3">
         @foreach($jobs as $job)
           @php
-            $statusMap = [
-              'open' => ['label' => 'ĐANG MỞ', 'class' => 'success'],
-              'pending' => ['label' => 'CHỜ DUYỆT', 'class' => 'warning'],
-              'in_progress' => ['label' => 'ĐANG LÀM', 'class' => 'info'],
-              'cancelled' => ['label' => 'ĐÃ HỦY', 'class' => 'secondary'],
-              'closed' => ['label' => 'ĐÃ ĐÓNG', 'class' => 'dark'],
-            ];
-            $cfg = $statusMap[$job->status] ?? ['label' => strtoupper($job->status), 'class' => 'secondary'];
-            $applyCount = $job->applicants_count
-              ?? ($job->relationLoaded('applicants') ? $job->applicants->count() : 0);
+  $statusMap = [
+    'open' => ['label' => 'ĐANG MỞ', 'class' => 'success'],
+    'pending' => ['label' => 'CHỜ DUYỆT', 'class' => 'warning'],
+    'in_progress' => ['label' => 'ĐANG LÀM', 'class' => 'info'],
+    'cancelled' => ['label' => 'ĐÃ HỦY', 'class' => 'secondary'],
+    'closed' => ['label' => 'ĐÃ ĐÓNG', 'class' => 'dark'],
+  ];
+  $cfg = $statusMap[$job->status] ?? ['label' => strtoupper($job->status), 'class' => 'secondary'];
 
-            // Có ứng viên: xanh; chưa có: xám
-            $countBadge = $applyCount > 0
-              ? 'bg-primary-subtle text-primary border border-primary-subtle'
-              : 'bg-secondary-subtle text-secondary border border-secondary-subtle';
-          @endphp
+  // Thêm map escrow
+  $escrowMap = [
+    'pending'  => ['label' => 'CHƯA THANH TOÁN',     'class' => 'warning'],
+    'funded'   => ['label' => 'ĐÃ THANH TOÁN',       'class' => 'primary'],
+    'released' => ['label' => 'ĐÃ GIẢI NGÂN', 'class' => 'success'],
+    'refunded' => ['label' => 'HOÀN TIỀN',    'class' => 'secondary'],
+  ];
+  $esc = $escrowMap[$job->escrow_status ?? 'pending'] ?? $escrowMap['pending'];
+
+  $applyCount = $job->applicants_count
+      ?? ($job->relationLoaded('applicants') ? $job->applicants->count() : 0);
+
+  $countBadge = $applyCount > 0
+      ? 'bg-primary-subtle text-primary border border-primary-subtle'
+      : 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+
+  // Quyền xử lý ứng viên chỉ khi đã cọc
+  $canManageApplicants = ($job->escrow_status === 'funded');
+@endphp
 
           <div class="card shadow-sm border-0 job-card">
             <div class="card-body">
@@ -59,6 +71,9 @@
                       href="{{ route('jobs.show', $job->job_id) }}">
                       {{ $job->title }}
                     </a>
+                    <span class="badge rounded-pill bg-{{ $esc['class'] }}-subtle text-{{ $esc['class'] }} border border-{{ $esc['class'] }}-subtle">
+                      {{ $esc['label'] }}
+                    </span>
                     <span
                       class="badge rounded-pill bg-{{ $cfg['class'] }}-subtle text-{{ $cfg['class'] }} border border-{{ $cfg['class'] }}-subtle">
                       {{ $cfg['label'] }}
@@ -84,8 +99,16 @@
                     {{ $job->description }}
                   </div>
                 </div>
-
                 <div class="text-end">
+                  @if(($job->escrow_status ?? 'pending') === 'pending')
+  <form action="{{ route('job-payments.create', $job->job_id) }}" method="POST" class="d-inline">
+    @csrf
+    <button class="btn btn-sm btn-warning">
+      <i class="bi bi-credit-card"></i> Thanh toán
+    </button>
+  </form>
+@endif
+
                   <a href="{{ route('jobs.show', $job->job_id) }}"
    class="btn btn-sm btn-outline-primary @if($job->status !== 'open') disabled-link @endif">
   <i class="bi bi-eye me-1"></i> Xem
@@ -155,10 +178,20 @@
                         @endif
 
                         @if(!empty($pro?->skill))
-                          <div class="small text-muted mt-1">
-                            <i class="bi bi-tools"></i> Kỹ năng: {{ $pro->skill }}
-                          </div>
-                        @endif
+  @php
+    $skillNames = collect(explode(',', (string)$pro->skill))
+      ->filter()
+      ->map(fn($id) => $skillMap[(int)$id] ?? null)
+      ->filter()
+      ->implode(', ');
+  @endphp
+  @if($skillNames !== '')
+    <div class="small text-muted mt-1">
+      <i class="bi bi-tools"></i> Kỹ năng: {{ $skillNames }}
+    </div>
+  @endif
+@endif
+
                       </div>
                     </div>
                   </div>
@@ -175,29 +208,45 @@
 
 <div class="text-end">
   {{-- Chỉ hiện nút khi chưa được nhận --}}
-  @if($st !== 2&&$st!=0)
-    <form class="d-inline" method="POST"
-          action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}">
-      @csrf @method('PATCH')
-      <input type="hidden" name="status" value="2">
-      <button class="btn btn-sm btn-success">
-        <i class="bi bi-check2"></i> Chấp nhận
-      </button>
-    </form>
-  @endif
+{{-- Chỉ hiện nút khi ĐÃ CỌC và ứng viên chưa được nhận --}}
+@if($canManageApplicants && $st !== 2 && $st != 0)
+  <form class="d-inline" method="POST"
+        action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}">
+    @csrf @method('PATCH')
+    <input type="hidden" name="status" value="2">
+    <button class="btn btn-sm btn-success">
+      <i class="bi bi-check2"></i> Chấp nhận
+    </button>
+  </form>
+@elseif(!$canManageApplicants && $st !== 2 && $st != 0)
+  {{-- Nếu chưa cọc: hiện nút mờ/tooltip (không submit) --}}
+  <button class="btn btn-sm btn-success" disabled
+          data-bs-toggle="tooltip" title="Cần thanh toán cọc trước khi xác nhận ứng viên">
+    <i class="bi bi-check2"></i> Chấp nhận
+  </button>
+@endif
 
-  {{-- Nút từ chối (đưa về 0) --}}
-  @if($st !== 0&&$st!=2)
-    <form class="d-inline ms-1" method="POST"
-          action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}"
-          onsubmit="return confirm('Từ chối ứng viên này?');">
-      @csrf @method('PATCH')
-      <input type="hidden" name="status" value="0">
-      <button class="btn btn-sm btn-outline-danger">
-        <i class="bi bi-x"></i> Từ chối
-      </button>
-    </form>
-  @endif
+{{-- Nút từ chối: tùy bạn có muốn cho phép khi chưa cọc không.
+    Nếu CHƯA CỌC mà vẫn cho từ chối thì giữ nguyên $st != 0 && $st != 2
+    Còn nếu cũng chặn, dùng $canManageApplicants giống như trên.
+--}}
+@if($canManageApplicants && $st !== 0 && $st != 2)
+  <form class="d-inline ms-1" method="POST"
+        action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}"
+        onsubmit="return confirm('Từ chối ứng viên này?');">
+    @csrf @method('PATCH')
+    <input type="hidden" name="status" value="0">
+    <button class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-x"></i> Từ chối
+    </button>
+  </form>
+@elseif(!$canManageApplicants && $st !== 0 && $st != 2)
+  <button class="btn btn-sm btn-outline-danger ms-1" disabled
+          data-bs-toggle="tooltip" title="Cần thanh toán cọc trước khi thao tác với ứng viên">
+    <i class="bi bi-x"></i> Từ chối
+  </button>
+@endif
+
 </div>
 
                 @empty
