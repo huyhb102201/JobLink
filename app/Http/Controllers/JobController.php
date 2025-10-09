@@ -178,5 +178,19 @@ class JobController extends Controller
         }
     }
 
+    public function destroy($id)
+{
+    $job = Job::findOrFail($id);
+
+    // Kiểm tra quyền sở hữu nếu cần
+    if (auth()->id() !== $job->account_id) {
+        abort(403, 'Bạn không có quyền xóa job này.');
+    }
+
+    $job->delete();
+
+    return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
+}
+
 
 }

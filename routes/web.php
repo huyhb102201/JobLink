@@ -113,6 +113,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/payments/job/cancel', [JobPaymentController::class, 'paymentCancel'])
         ->name('job-payments.cancel');
 
+    Route::delete('/client/jobs/{job}', [JobController::class, 'destroy'])
+    ->name('client.jobs.destroy');
+
+
 });
 // Hiển thị danh sách công việc
 Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');

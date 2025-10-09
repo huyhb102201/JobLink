@@ -100,11 +100,21 @@
                   </div>
                 </div>
                 <div class="text-end">
-                  @if(($job->escrow_status ?? 'pending') === 'pending')
+                  @if(($job->escrow_status ?? 'pending') === 'pending'&& $job->status !== 'cancelled')
   <form action="{{ route('job-payments.create', $job->job_id) }}" method="POST" class="d-inline">
     @csrf
     <button class="btn btn-sm btn-warning">
       <i class="bi bi-credit-card"></i> Thanh toán
+    </button>
+  </form>
+@endif
+@if($job->status === 'cancelled')
+  <form action="{{ route('client.jobs.destroy', $job->job_id) }}" method="POST" class="d-inline"
+        onsubmit="return confirm('Bạn có chắc muốn xóa công việc này?');">
+    @csrf
+    @method('DELETE')
+    <button class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-trash"></i> Xóa
     </button>
   </form>
 @endif
