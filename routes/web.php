@@ -185,37 +185,29 @@ Route::get('/email/verify-token/{token}', function ($token) {
 
     return redirect('/')->with('status', 'Xác minh email thành công!');
 })->name('verification.token');
+Route::middleware(['auth', 'role:CLIENT|BUSS'])   // cả CLIENT và BUSS
+    ->prefix('client')
+    ->name('client.')
+    ->group(function () {
 
-Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->group(function () {
-    Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
-    Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
-    Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
-    Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
-    Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose'); // trang chọn
-    Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
-    Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
-    Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
-    Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch(
-        '/jobs/{job_id}/applications/{user_id}',
-        [MyJobsController::class, 'update']
-    )->name('jobs.applications.update');
-});
-Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->group(function () {
-    Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
-    Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
-    Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
-    Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
-    Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose'); // trang chọn
-    Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
-    Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
-    Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
-    Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch(
-        '/jobs/{job_id}/applications/{user_id}',
-        [MyJobsController::class, 'update']
-    )->name('jobs.applications.update');
-});
+        Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
+        Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
+        Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
+        Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
+        Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose');
+        Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
+        Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
+        Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
+        Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
+
+        Route::patch('/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
+            ->name('jobs.applications.update');
+
+        // Rời doanh nghiệp
+        Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])
+            ->name('company.members.leave');
+    });
+
 // routes/web.php (hoặc routes/api.php)
 Route::get('/checkout', function () {
     return view('checkout');
