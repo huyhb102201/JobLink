@@ -120,7 +120,7 @@
 @endif
 
                   <a href="{{ route('jobs.show', $job->job_id) }}"
-   class="btn btn-sm btn-outline-primary @if($job->status !== 'open') disabled-link @endif">
+   class="btn btn-sm btn-outline-primary @if($job->status === 'pending'||$job->status==='cancelled') disabled-link @endif">
   <i class="bi bi-eye me-1"></i> Xem
 </a>
 
@@ -132,7 +132,7 @@
         data-collapse
         data-open-text="Ẩn ứng viên"
         data-close-text="Ứng viên"
-        @if($job->status !== 'open') disabled @endif>
+        @if($job->status === 'pending'||$job->status==='cancelled') disabled @endif>
     <i class="bi bi-people me-1 icon"></i>
     <span class="label">Ứng viên</span>
 </button>
