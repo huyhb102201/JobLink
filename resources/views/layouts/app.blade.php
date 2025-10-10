@@ -73,6 +73,85 @@
       }
     });
   </script>
+
+  <!-- Toast Container cho thông báo -->
+  <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+  <!-- Âm thanh thông báo -->
+  <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio>
+
+  <!-- CSS cho toast -->
+  @if(file_exists(public_path('assets/css/chat.css')))
+    <link href="{{ asset('assets/css/chat.css') }}" rel="stylesheet">
+  @endif
+
+
+  <!-- Đảm bảo Laravel Echo được load -->
+  @vite('resources/js/app.js') <!-- Sử dụng bootstrap.js thay vì app.js -->
+
+  <!-- Các biến cần thiết -->
+  <script>
+    window.authId = {{ auth()->id() ?? 'null' }};
+    window.chatConfig = {
+      defaultAvatar: "{{ asset('assets/img/defaultavatar.jpg') }}",
+      chatListUrl: "{{ route('messages.chat_list') }}"
+    };
+  </script>
+
+  <!-- Load JS tĩnh -->
+  <script src="{{ asset('assets/js/global-chat.js') }}"></script>
+
+  <!-- Fallback CSS cho toast nếu chat.css không load được -->
+  <style>
+    #chatToastContainer {
+      z-index: 9999;
+    }
+
+    .toast.show {
+      animation: slideInRight 0.3s ease-out;
+      background: white;
+      border: 1px solid #dee2e6;
+      max-width: 350px;
+    }
+
+    .toast:not(.show) {
+      animation: slideOutRight 0.3s ease-in;
+      opacity: 0;
+      transform: translateX(100%);
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slideOutRight {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
+
+    .cursor-pointer {
+      cursor: pointer !important;
+    }
+
+    .toast-body {
+      padding: 1rem;
+    }
+  </style>
 </body>
 
 </html>

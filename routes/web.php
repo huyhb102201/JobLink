@@ -29,6 +29,8 @@ use App\Http\Controllers\PaymentController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -70,6 +72,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
+    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.user');
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
@@ -79,6 +82,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
+    Route::get('/profile/username/{accountId}', [MessageController::class, 'getUsername'])->name('profile.username');
+
+    Route::get('/chat/unread-count', [MessageController::class, 'getUnreadCount'])->name('chat.unread_count');
 
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
     Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
