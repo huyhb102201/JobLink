@@ -244,7 +244,7 @@
 
           <p class="text-center small text-muted mb-0">
             Chưa có tài khoản?
-            <a href="" class="small-link">Đăng ký ngay</a>
+            <a href="{{ route('register.role.show') }}" class="small-link">Đăng ký ngay</a>
           </p>
         </div>
       </div>
