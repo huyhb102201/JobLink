@@ -13,14 +13,12 @@
 
     <link href="{{ asset('assets/css/chat.css') }}" rel="stylesheet">
 
-    <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
-
     <main class="main d-flex flex-column" style="height:92vh; background-color:#f0f2f5; color:#000;">
         <div class="container-fluid p-0 d-flex flex-column flex-xl-row position-relative h-100">
             <!-- Desktop Sidebar -->
             <div id="chatListDesktop" class="chat-panel col-xl-3 bg-white p-3 shadow-sm d-none d-xl-block h-100">
                 @foreach($conversations as $boxItem)
-                    @include('chat.partials.conversation-item')
+                    @include('chat.partials.conversation-item', ['boxItem' => $boxItem, 'box' => $box])
                 @endforeach
             </div>
 
@@ -62,7 +60,15 @@
                             $previousSenderId = null;
                         @endphp
                         @foreach($messages as $msg)
-                            @include('chat.partials.message-item')
+                            @include('chat.partials.message-item', [
+                                'msg' => $msg,
+                                'isMe' => $msg->sender_id == auth()->id(),
+                                'hideAvatar' => !$msg->sender_id == auth()->id() && $previousSenderId === $msg->sender_id,
+                                'previousSenderId' => $previousSenderId
+                            ])
+                            @php
+                                $previousSenderId = $msg->sender_id;
+                            @endphp
                         @endforeach
                     @elseif($box && $employer && $receiverId)
                         <div class="message text-muted">
@@ -104,14 +110,12 @@
             <div class="offcanvas-body p-3" style="overflow-y: auto;">
                 <div id="chatListMobile">
                     @foreach($conversations as $boxItem)
-                        @include('chat.partials.conversation-item')
+                        @include('chat.partials.conversation-item', ['boxItem' => $boxItem, 'box' => $box])
                     @endforeach
                 </div>
             </div>
         </div>
     </main>
 
-    <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio>
-    @vite('resources/js/app.js')
     @include('chat.scripts.chat-js')
 @endsection

@@ -1,8 +1,9 @@
 {{-- resources/views/chat/partials/message-item.blade.php --}}
+@props(['msg', 'isMe', 'hideAvatar', 'previousSenderId'])
+
 @php
     $isMe = $msg->sender_id == auth()->id();
     $hideAvatar = !$isMe && $previousSenderId === $msg->sender_id;
-    $previousSenderId = $msg->sender_id;
 @endphp
 
 <div class="message-container {{ $isMe ? 'me' : 'other' }} {{ $hideAvatar ? 'hide-avatar' : '' }}"

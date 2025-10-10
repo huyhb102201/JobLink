@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\MessageService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
 {
@@ -15,15 +16,10 @@ class MessageController extends Controller
         $this->messageService = $messageService;
     }
 
-    /**
-     * Hiển thị danh sách tất cả các cuộc trò chuyện.
-     *
-     * @return \Illuminate\View\View
-     */
     public function chatAll()
     {
         $userId = Auth::id();
-        $conversations = $this->messageService->getAllConversations($userId);
+        $conversations = $this->messageService->getConversations($userId);
 
         return view('chat.box', [
             'job' => null,
@@ -35,143 +31,170 @@ class MessageController extends Controller
         ]);
     }
 
-    /**
-     * Hiển thị cuộc trò chuyện liên quan đến một công việc.
-     *
-     * @param int $jobId
-     * @return \Illuminate\View\View
-     */
     public function chat($jobId)
     {
         $userId = Auth::id();
         $data = $this->messageService->getChatForJob($jobId, $userId);
+        $conversations = $this->messageService->getConversations($userId);
 
-        return view('chat.box', $data);
+        return view('chat.box', array_merge($data, [
+            'conversations' => $conversations,
+        ]));
     }
 
-    /**
-     * Hiển thị cuộc trò chuyện với một người dùng cụ thể.
-     *
-     * @param string $username
-     * @return \Illuminate\View\View
-     */
     public function chatWithUser($username)
     {
         $userId = Auth::id();
-        $data = $this->messageService->getChatWithUser($username, $userId);
+        try {
+            $data = $this->messageService->getChatWithUser($username, $userId);
+            $conversations = $this->messageService->getConversations($userId);
 
-        return view('chat.box', $data);
+            return view('chat.box', array_merge($data, [
+                'conversations' => $conversations,
+            ]));
+        } catch (\Exception $e) {
+            abort($e->getCode(), $e->getMessage());
+        }
     }
 
-    /**
-     * Hiển thị cuộc trò chuyện nhóm cho một công việc.
-     *
-     * @param int $jobId
-     * @return \Illuminate\View\View
-     */
     public function chatGroup($jobId)
     {
         $userId = Auth::id();
-        $data = $this->messageService->getChatGroup($jobId, $userId);
+        try {
+            $data = $this->messageService->getGroupChat($jobId, $userId);
+            $conversations = $this->messageService->getConversations($userId);
 
-        return view('chat.box', $data);
+            return view('chat.box', array_merge($data, [
+                'conversations' => $conversations,
+            ]));
+        } catch (\Exception $e) {
+            abort($e->getCode(), $e->getMessage());
+        }
     }
 
-    /**
-     * Hiển thị cuộc trò chuyện nhóm cho một tổ chức.
-     *
-     * @param int $orgId
-     * @return \Illuminate\View\View
-     */
     public function chatOrg($orgId)
     {
         $userId = Auth::id();
-        $data = $this->messageService->getChatOrg($orgId, $userId);
+        try {
+            $data = $this->messageService->getOrgChat($orgId, $userId);
+            $conversations = $this->messageService->getConversations($userId);
 
-        return view('chat.box', $data);
+            return view('chat.box', array_merge($data, [
+                'conversations' => $conversations,
+            ]));
+        } catch (\Exception $e) {
+            abort($e->getCode(), $e->getMessage());
+        }
     }
 
-    /**
-     * Hiển thị cuộc trò chuyện giữa chủ job và freelancer.
-     *
-     * @param int $jobId
-     * @param int $freelancerId
-     * @return \Illuminate\View\View
-     */
     public function chatWithFreelancer($jobId, $freelancerId)
     {
+        $job = \App\Models\Job::findOrFail($jobId);
         $userId = Auth::id();
-        $data = $this->messageService->getChatWithFreelancer($jobId, $freelancerId, $userId);
 
-        return view('chat.box', $data);
+        if ($userId != $job->account_id) {
+            abort(403, 'Bạn không phải chủ job');
+        }
+
+        $messages = $this->messageService->getMessagesForPartner($freelancerId, $jobId, $userId);
+
+        return view('chat.box', [
+            'job' => $job,
+            'messages' => $messages,
+            'receiverId' => $freelancerId,
+        ]);
     }
 
-    /**
-     * Gửi tin nhắn.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function send(Request $request)
     {
-        return $this->messageService->sendMessage($request);
+        try {
+            $senderId = Auth::id();
+            $message = $this->messageService->sendMessage($request, $senderId);
+
+            return response()->json([
+                'id' => $message->id,
+                'content' => $request->input('content'),
+                'img' => $message->img ? asset($message->img) : null,
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'name' => $message->sender->name,
+                    'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
+                ],
+                'job_id' => $message->job_id,
+                'org_id' => $message->org_id,
+                'conversation_id' => $message->conversation_id,
+                'created_at' => $message->created_at->toISOString(),
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in send message', [
+                'errors' => $e->errors(),
+                'request' => $request->all(),
+            ]);
+            return response()->json(['error' => 'Dữ liệu không hợp lệ', 'details' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Failed to send message', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            return response()->json(['error' => 'Lỗi khi gửi tin nhắn: ' . $e->getMessage()], $e->getCode() ?: 500);
+        }
     }
 
-    /**
-     * Lấy tin nhắn giữa hai người dùng.
-     *
-     * @param int $partnerId
-     * @param int|null $jobId
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getMessages($partnerId, $jobId = null)
     {
         $userId = Auth::id();
-        return $this->messageService->getMessages($partnerId, $jobId, $userId);
+        $messages = $this->messageService->getMessagesForPartner($partnerId, $jobId, $userId);
+
+        return response()->json($messages->map(function ($message) {
+            return [
+                'id' => $message->id,
+                'content' => $message->content,
+                'img' => $message->img ? asset($message->img) : null,
+                'sender_id' => $message->sender_id,
+                'sender' => [
+                    'name' => $message->sender->name,
+                    'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
+                ],
+                'job_id' => $message->job_id,
+                'conversation_id' => $message->conversation_id,
+                'created_at' => $message->created_at->toISOString(),
+            ];
+        }));
     }
 
-    /**
-     * Lấy tin nhắn trong một box chat.
-     *
-     * @param int $boxId
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getBoxMessages($boxId)
     {
-        $userId = Auth::id();
-        return $this->messageService->getBoxMessages($boxId, $userId);
+        try {
+            $userId = Auth::id();
+            $messages = $this->messageService->getMessagesForBox($boxId, $userId);
+
+            return response()->json($messages->map(function ($message) {
+                return [
+                    'id' => $message->id,
+                    'content' => $message->content,
+                    'img' => $message->img ? asset($message->img) : null,
+                    'sender_id' => $message->sender_id,
+                    'sender' => [
+                        'name' => $message->sender->name,
+                        'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
+                    ],
+                    'job_id' => $message->job_id,
+                    'org_id' => $message->org_id,
+                    'conversation_id' => $message->conversation_id,
+                    'created_at' => $message->created_at->toISOString(),
+                ];
+            }));
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 404);
+        }
     }
 
-    /**
-     * Lấy danh sách cuộc trò chuyện.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function getChatList()
     {
         $userId = Auth::id();
-        return $this->messageService->getChatList($userId);
-    }
+        $conversations = $this->messageService->getChatList($userId);
 
-    /**
-     * Lấy username từ account_id.
-     *
-     * @param int $accountId
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getUsername($accountId)
-    {
-        return $this->messageService->getUsername($accountId);
-    }
-
-    /**
-     * Lấy số lượng tin nhắn chưa đọc.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getUnreadCount()
-    {
-        $userId = Auth::id();
-        return $this->messageService->getUnreadCount($userId);
+        return response()->json($conversations);
     }
 }

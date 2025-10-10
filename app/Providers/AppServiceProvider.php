@@ -4,6 +4,7 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\ServiceProvider;
 // ❗️ THÊM import đúng cho URL facade:
 use Illuminate\Support\Facades\URL;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -11,7 +12,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(MessageService::class, function ($app) {
+        return new MessageService();
+    });
     }
 
     /**
