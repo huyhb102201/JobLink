@@ -30,6 +30,12 @@ use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\JobPaymentController;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+// Thêm controller mới của Admin
+use App\Http\Controllers\Admin\JobController as AdminJobController;
+// Thêm controller quản lý xét duyệt
+use App\Http\Controllers\Admin\AdminVerificationController;
+use App\Http\Controllers\PaymentController as PublicPaymentController;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -252,12 +258,76 @@ Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('setti
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
 Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
-    // ... các route khác
+    Route::get('/', fn() => view('admin.dashboard'))->name('dashboard');
+
+    // Routes quản lý tài khoản
     Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
-    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
     Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy');
+    Route::delete('/accounts', [AccountController::class, 'destroyMultiple'])->name('accounts.destroy-multiple');
+    Route::post('/accounts/update-status', [AccountController::class, 'updateStatusMultiple'])->name('accounts.update-status-multiple');
+
+    // Routes quản lý thanh toán
+    Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
+    Route::get('/payments/{id}', [AdminPaymentController::class, 'show'])->name('payments.show');
+    Route::delete('/payments/{id}', [AdminPaymentController::class, 'destroy'])->name('payments.destroy');
+    Route::post('/payments/delete-multiple', [AdminPaymentController::class, 'destroyMultiple'])->name('payments.destroy-multiple');
+
+    // ==========================================================
+    // CÁC ROUTE MỚI CHO CHỨC NĂNG DUYỆT BÀI ĐĂNG
+    // ==========================================================
+    Route::get('/jobs/pending', [AdminJobController::class, 'pendingJobs'])->name('jobs.pending');
+    Route::get('/jobs/{job}/details', [AdminJobController::class, 'getJobDetails'])->name('jobs.details');
+    Route::post('/jobs/{job}/approve', [AdminJobController::class, 'approve'])->name('jobs.approve');
+    Route::post('/jobs/{job}/reject', [AdminJobController::class, 'reject'])->name('jobs.reject');
+    // THÊM ROUTE DUYỆT/TỪ CHỐI HÀNG LOẠT
+    Route::post('/jobs/batch-approve', [AdminJobController::class, 'batchApprove'])->name('jobs.batch-approve');
+    Route::post('/jobs/batch-reject', [AdminJobController::class, 'batchReject'])->name('jobs.batch-reject');
+    // ==========================================================
+
+    // THÊM ROUTES QUẢN LÝ LOẠI TÀI KHOẢN
+    Route::post('/account-types', [AccountController::class, 'storeAccountType'])->name('account-types.store');
+    Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
+    Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
+    
+    // THÊM ROUTE EXPORT PAYMENTS
+    Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
+    
+    // TEST ROUTE
+    Route::get('/test-simple', function() {
+        return 'Server hoạt động bình thường!';
+    });
+    
+    
+    Route::get('/test-accounts', function() {
+        $start = microtime(true);
+        $accounts = App\Models\Account::limit(5)->get();
+        $end = microtime(true);
+        return response()->json([
+            'count' => $accounts->count(),
+            'time' => ($end - $start) * 1000 . 'ms',
+            'accounts' => $accounts
+        ]);
+    });
+
+    // THÊM ROUTES QUẢN LÝ MEMBERSHIP PLANS
+    Route::get('/membership-plans', [AdminPaymentController::class, 'getMembershipPlans'])->name('membership-plans.index');
+    Route::post('/membership-plans', [AdminPaymentController::class, 'storeMembershipPlan'])->name('membership-plans.store');
+    Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
+    Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
+    Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
+    
+    // ==========================================================
+    // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
+    // ==========================================================
+    Route::get('/verifications', [AdminVerificationController::class, 'index'])->name('verifications.index');
+    Route::get('/verifications/{verification}', [AdminVerificationController::class, 'show'])->name('verifications.show');
+    Route::get('/verifications/{verification}/details', [AdminVerificationController::class, 'getDetails'])->name('verifications.details');
+    Route::post('/verifications/{verification}/approve', [AdminVerificationController::class, 'approve'])->name('verifications.approve');
+    Route::post('/verifications/{verification}/reject', [AdminVerificationController::class, 'reject'])->name('verifications.reject');
+    // ==========================================================
 });
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');

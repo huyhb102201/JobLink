@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Job extends Model
 {
     use HasFactory;
@@ -22,6 +22,11 @@ class Job extends Model
         'escrow_status',
         'deadline',
         'apply_id',
+    ];
+     protected $casts = [
+        'deadline' => 'datetime',
+        'budget' => 'decimal:2',
+        'status' => 'string',
     ];
 
     // Quan hệ với JobDetail
@@ -66,8 +71,15 @@ class Job extends Model
     {
         return $this->hasMany(Comment::class, 'job_id');
     }
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'account_id', 'account_id');
+    }
 
-
-
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(JobCategory::class, 'category_id', 'category_id');
+    }
+    
 
 }

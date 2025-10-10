@@ -11,7 +11,7 @@ class Org extends Model
 
     // nhớ cho 'status' vào fillable
     protected $fillable = [
-        'owner_account_id', 'name', 'seats_limit', 'description', 'status',
+        'owner_account_id', 'name', 'tax_code', 'address', 'phone', 'email', 'website', 'seats_limit', 'description', 'status',
     ];
 
     protected $casts = [
@@ -54,4 +54,11 @@ class Org extends Model
     {
         return $this->hasMany(OrgMember::class, 'org_id', 'org_id');
     }
+
+    // THÊM MỐI QUAN HỆ OWNER
+    public function owner()
+    {
+        return $this->belongsTo(Account::class, 'owner_account_id', 'account_id');
+    }
+    
 }

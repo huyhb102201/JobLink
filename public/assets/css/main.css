@@ -224,8 +224,14 @@ h6 {
 .header {
   color: var(--default-color);
   background-color: var(--background-color);
-  padding: 20px 0;
-  transition: all 0.5s;
+  /* padding: 20px 0; */
+  /* transition: all 0.5s; */
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
   z-index: 997;
 }
 

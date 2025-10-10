@@ -20,8 +20,23 @@ class OrgVerification extends Model
         'reviewed_at',
     ];
 
+        protected $casts = [
+        'reviewed_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ]; 
+
     public function org()
     {
         return $this->belongsTo(Org::class, 'org_id', 'org_id');
+    }
+     public function submittedByAccount()
+    {
+        return $this->belongsTo(Account::class, 'submitted_by_account_id', 'account_id');
+    }
+
+    public function reviewedByAccount()
+    {
+        return $this->belongsTo(Account::class, 'reviewed_by_account_id', 'account_id');
     }
 }
