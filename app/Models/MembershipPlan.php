@@ -9,16 +9,25 @@ class MembershipPlan extends Model
     protected $table = 'membership_plans';
     protected $primaryKey = 'plan_id';
 
-    protected $fillable = [
-        'account_type_id', 'tagline', 'price', 'is_popular', 'features',  'discount_percent',
-
+      protected $fillable = [
+        'account_type_id', 
+        'name',
+        'description',
+        'duration_days',
+        'sort_order',
+        'discount_percent',
+        'tagline', 
+        'price', 
+        'is_popular', 
+        'is_active',
+        'features',
     ];
 
     protected $casts = [
         'features'   => 'array',
         'is_popular' => 'boolean',
+        'is_active' => 'boolean',
         'discount_percent'=> 'float',
-
     ];
 
     // Liên kết tới loại tài khoản

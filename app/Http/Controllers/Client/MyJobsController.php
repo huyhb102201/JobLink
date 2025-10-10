@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use App\Models\JobApply;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-
+use App\Models\Skill;
 class MyJobsController extends Controller
 {
 public function index(\Illuminate\Http\Request $r)
@@ -28,8 +28,12 @@ public function index(\Illuminate\Http\Request $r)
         ->latest('job_id')
         ->paginate(10);
 
-    return view('client.jobs.mine', compact('jobs'));
+    // Lấy map id => name một lần
+    $skillMap = Skill::pluck('name', 'skill_id');
+
+    return view('client.jobs.mine', compact('jobs', 'skillMap'));
 }
+
 
 public function update(Request $request, int $job_id, int $user_id)
 {

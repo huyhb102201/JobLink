@@ -29,8 +29,13 @@ use App\Http\Controllers\PaymentController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\JobPaymentController;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+// Thêm controller mới của Admin
+use App\Http\Controllers\Admin\JobController as AdminJobController;
+// Thêm controller quản lý xét duyệt
+use App\Http\Controllers\Admin\AdminVerificationController;
+use App\Http\Controllers\PaymentController as PublicPaymentController;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -72,7 +77,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
-    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.user');
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
@@ -82,9 +86,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
-    Route::get('/profile/username/{accountId}', [MessageController::class, 'getUsername'])->name('profile.username');
-
-    Route::get('/chat/unread-count', [MessageController::class, 'getUnreadCount'])->name('chat.unread_count');
 
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
     Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
@@ -108,6 +109,20 @@ Route::middleware('auth')->group(function () {
     // tuỳ chọn: đổi gói
     Route::post('/settings/membership/change', [SettingsController::class, 'changeMembership'])
         ->name('settings.membership.change');
+
+        Route::post('/jobs/{job_id}/payment/create', [JobPaymentController::class, 'createPaymentLink'])
+        ->name('job-payments.create');
+
+    // PayOS redirect
+    Route::get('/payments/job/success', [JobPaymentController::class, 'paymentSuccess'])
+        ->name('job-payments.success');
+    Route::get('/payments/job/cancel', [JobPaymentController::class, 'paymentCancel'])
+        ->name('job-payments.cancel');
+
+    Route::delete('/client/jobs/{job}', [JobController::class, 'destroy'])
+    ->name('client.jobs.destroy');
+
+
 });
 // Hiển thị danh sách công việc
 Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');
@@ -191,37 +206,29 @@ Route::get('/email/verify-token/{token}', function ($token) {
 
     return redirect('/')->with('status', 'Xác minh email thành công!');
 })->name('verification.token');
+Route::middleware(['auth', 'role:CLIENT|BUSS'])   // cả CLIENT và BUSS
+    ->prefix('client')
+    ->name('client.')
+    ->group(function () {
 
-Route::middleware(['auth', 'role:CLIENT'])->prefix('client')->name('client.')->group(function () {
-    Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
-    Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
-    Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
-    Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
-    Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose'); // trang chọn
-    Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
-    Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
-    Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
-    Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch(
-        '/jobs/{job_id}/applications/{user_id}',
-        [MyJobsController::class, 'update']
-    )->name('jobs.applications.update');
-});
-Route::middleware(['auth', 'role:BUSS'])->prefix('client')->name('client.')->group(function () {
-    Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
-    Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
-    Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
-    Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
-    Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose'); // trang chọn
-    Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
-    Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
-    Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
-    Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
-    Route::patch(
-        '/jobs/{job_id}/applications/{user_id}',
-        [MyJobsController::class, 'update']
-    )->name('jobs.applications.update');
-});
+        Route::get('/jobs/create', [JobPostController::class, 'create'])->name('jobs.create');
+        Route::get('/jobs/ai-form', [JobAIFormController::class, 'page'])->name('jobs.ai_form');
+        Route::post('/jobs/ai-form/build', [JobAIFormController::class, 'build'])->name('jobs.ai_build');
+        Route::post('/jobs', [JobPostController::class, 'store'])->name('jobs.store');
+        Route::get('/jobs/new', [JobPostController::class, 'choose'])->name('jobs.choose');
+        Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
+        Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
+        Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
+        Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
+
+        Route::patch('/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
+            ->name('jobs.applications.update');
+
+        // Rời doanh nghiệp
+        Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])
+            ->name('company.members.leave');
+    });
+
 // routes/web.php (hoặc routes/api.php)
 Route::get('/checkout', function () {
     return view('checkout');
@@ -251,12 +258,76 @@ Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('setti
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
 Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn() => 'Đây là trang Admin Dashboard')->name('dashboard');
-    // ... các route khác
+    Route::get('/', fn() => view('admin.dashboard'))->name('dashboard');
+
+    // Routes quản lý tài khoản
     Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
-    Route::get('/accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
     Route::put('/accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+    Route::delete('/accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy');
+    Route::delete('/accounts', [AccountController::class, 'destroyMultiple'])->name('accounts.destroy-multiple');
+    Route::post('/accounts/update-status', [AccountController::class, 'updateStatusMultiple'])->name('accounts.update-status-multiple');
+
+    // Routes quản lý thanh toán
+    Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
+    Route::get('/payments/{id}', [AdminPaymentController::class, 'show'])->name('payments.show');
+    Route::delete('/payments/{id}', [AdminPaymentController::class, 'destroy'])->name('payments.destroy');
+    Route::post('/payments/delete-multiple', [AdminPaymentController::class, 'destroyMultiple'])->name('payments.destroy-multiple');
+
+    // ==========================================================
+    // CÁC ROUTE MỚI CHO CHỨC NĂNG DUYỆT BÀI ĐĂNG
+    // ==========================================================
+    Route::get('/jobs/pending', [AdminJobController::class, 'pendingJobs'])->name('jobs.pending');
+    Route::get('/jobs/{job}/details', [AdminJobController::class, 'getJobDetails'])->name('jobs.details');
+    Route::post('/jobs/{job}/approve', [AdminJobController::class, 'approve'])->name('jobs.approve');
+    Route::post('/jobs/{job}/reject', [AdminJobController::class, 'reject'])->name('jobs.reject');
+    // THÊM ROUTE DUYỆT/TỪ CHỐI HÀNG LOẠT
+    Route::post('/jobs/batch-approve', [AdminJobController::class, 'batchApprove'])->name('jobs.batch-approve');
+    Route::post('/jobs/batch-reject', [AdminJobController::class, 'batchReject'])->name('jobs.batch-reject');
+    // ==========================================================
+
+    // THÊM ROUTES QUẢN LÝ LOẠI TÀI KHOẢN
+    Route::post('/account-types', [AccountController::class, 'storeAccountType'])->name('account-types.store');
+    Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
+    Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
+
+    // THÊM ROUTE EXPORT PAYMENTS
+    Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
+
+    // TEST ROUTE
+    Route::get('/test-simple', function() {
+        return 'Server hoạt động bình thường!';
+    });
+
+
+    Route::get('/test-accounts', function() {
+        $start = microtime(true);
+        $accounts = App\Models\Account::limit(5)->get();
+        $end = microtime(true);
+        return response()->json([
+            'count' => $accounts->count(),
+            'time' => ($end - $start) * 1000 . 'ms',
+            'accounts' => $accounts
+        ]);
+    });
+
+    // THÊM ROUTES QUẢN LÝ MEMBERSHIP PLANS
+    Route::get('/membership-plans', [AdminPaymentController::class, 'getMembershipPlans'])->name('membership-plans.index');
+    Route::post('/membership-plans', [AdminPaymentController::class, 'storeMembershipPlan'])->name('membership-plans.store');
+    Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
+    Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
+    Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
+
+    // ==========================================================
+    // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
+    // ==========================================================
+    Route::get('/verifications', [AdminVerificationController::class, 'index'])->name('verifications.index');
+    Route::get('/verifications/{verification}', [AdminVerificationController::class, 'show'])->name('verifications.show');
+    Route::get('/verifications/{verification}/details', [AdminVerificationController::class, 'getDetails'])->name('verifications.details');
+    Route::post('/verifications/{verification}/approve', [AdminVerificationController::class, 'approve'])->name('verifications.approve');
+    Route::post('/verifications/{verification}/reject', [AdminVerificationController::class, 'reject'])->name('verifications.reject');
+    // ==========================================================
 });
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
