@@ -30,6 +30,7 @@ use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\JobPaymentController;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 // Thêm controller mới của Admin
 use App\Http\Controllers\Admin\JobController as AdminJobController;
