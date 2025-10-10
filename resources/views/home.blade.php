@@ -598,109 +598,49 @@
 
       <!-- Section Title -->
       <div class="container section-title" data-aos="fade-up">
-        <h2>Nhóm freelancer</h2>
-        <p>Khám phá các loại freelancer theo kỹ năng để tìm việc hoặc hợp tác phù hợp với dự án của bạn.</p>
+        <h2>Doanh nghiệp</h2>
+        <p>Khám phá các loại hình doanh nghiệp theo lĩnh vực để tìm đối tác hoặc hợp tác phù hợp với dự án của bạn.</p>
+
       </div><!-- End Section Title -->
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
         <div class="row gy-5">
-
-          <!-- Freelancer Designer -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="200">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-1.jpg" class="img-fluid" alt="Designer">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-paint-bucket"></i>
+          @foreach ($orgs as $org)
+            <!-- Freelancer Designer -->
+            <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="200">
+              <div class="service-item">
+                <div class="img">
+                  <img src="assets/img/services-2.jpg" class="img-fluid" alt="Designer">
                 </div>
-                <h3>Designer</h3>
-                <p>Thiết kế đồ họa, UI/UX, và các sản phẩm sáng tạo cho website, app và thương hiệu.</p>
+                <div class="details position-relative text-center">
+                  <div class="icon mb-2">
+                    <img src="{{ optional($org->account)->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
+                      alt="{{ optional($org->account)->name ?? 'Người đăng' }}" class="rounded-circle mx-auto d-block"
+                      width="80" height="80">
+                  </div>
+                  <h3 class="text-truncate d-block" style="max-width: 100%; cursor: pointer;" data-bs-toggle="tooltip"
+                    data-bs-placement="top" title="{{ $org->name }}">
+                    {{ $org->name }}
+                  </h3>
+
+                  <p class="text-truncate d-block" style="max-width: 100%;">
+                    {{ $org->description }}
+                  </p>
+
+                </div>
+
               </div>
             </div>
-          </div>
+          @endforeach
+          <script>
+            document.addEventListener("DOMContentLoaded", function () {
+              var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+              var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+              })
+            });
 
-          <!-- Freelancer Developer -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="300">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-2.jpg" class="img-fluid" alt="Developer">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-code-slash"></i>
-                </div>
-                <h3>Developer</h3>
-                <p>Lập trình web, mobile app, backend, frontend và các dự án công nghệ khác.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Freelancer Content Writer -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="400">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-3.jpg" class="img-fluid" alt="Content Writer">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-journal-text"></i>
-                </div>
-                <h3>Content Writer</h3>
-                <p>Viết bài, SEO content, blog, quảng cáo và các nội dung truyền thông cho doanh nghiệp.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Freelancer Marketing -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="500">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-4.jpg" class="img-fluid" alt="Marketing">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-megaphone"></i>
-                </div>
-                <h3>Marketing</h3>
-                <p>Quản lý chiến dịch quảng cáo, social media, branding và digital marketing cho dự án.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Freelancer Video & Animation -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="600">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-5.jpg" class="img-fluid" alt="Video & Animation">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-camera-reels"></i>
-                </div>
-                <h3>Video & Animation</h3>
-                <p>Sản xuất video, hoạt hình, motion graphics và các nội dung đa phương tiện.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Freelancer Consultant -->
-          <div class="col-xl-4 col-md-6" data-aos="zoom-in" data-aos-delay="700">
-            <div class="service-item">
-              <div class="img">
-                <img src="assets/img/services-6.jpg" class="img-fluid" alt="Consultant">
-              </div>
-              <div class="details position-relative">
-                <div class="icon">
-                  <i class="bi bi-people"></i>
-                </div>
-                <h3>Consultant</h3>
-                <p>Tư vấn chiến lược, dự án và giải pháp cho doanh nghiệp hoặc cá nhân.</p>
-              </div>
-            </div>
-          </div>
-
+          </script>
         </div>
       </div>
 
@@ -721,20 +661,20 @@
 
         <div class="swiper init-swiper">
           <script type="application/json" class="swiper-config">
-                                    {
-                                      "loop": true,
-                                      "speed": 600,
-                                      "autoplay": {
-                                        "delay": 5000
-                                      },
-                                      "slidesPerView": "auto",
-                                      "pagination": {
-                                        "el": ".swiper-pagination",
-                                        "type": "bullets",
-                                        "clickable": true
-                                      }
-                                    }
-                                  </script>
+                                              {
+                                                "loop": true,
+                                                "speed": 600,
+                                                "autoplay": {
+                                                  "delay": 5000
+                                                },
+                                                "slidesPerView": "auto",
+                                                "pagination": {
+                                                  "el": ".swiper-pagination",
+                                                  "type": "bullets",
+                                                  "clickable": true
+                                                }
+                                              }
+                                            </script>
 
           <div class="swiper-wrapper">
 
@@ -840,93 +780,93 @@
     </section><!-- /Testimonials Section -->
 
     <!-- Pricing Section
-      <section id="pricing" class="pricing section">
+                <section id="pricing" class="pricing section">
 
-        <div class="container section-title" data-aos="fade-up">
-          <h2>Gói Dịch Vụ</h2>
-          <p>Chọn gói phù hợp để tìm việc hoặc đăng dự án trên JobLink.</p>
-        </div>
+                  <div class="container section-title" data-aos="fade-up">
+                    <h2>Gói Dịch Vụ</h2>
+                    <p>Chọn gói phù hợp để tìm việc hoặc đăng dự án trên JobLink.</p>
+                  </div>
 
-        <div class="container" data-aos="fade-up" data-aos-delay="100">
+                  <div class="container" data-aos="fade-up" data-aos-delay="100">
 
-          <div class="row gy-4">
+                    <div class="row gy-4">
 
-            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="200">
-              <div class="pricing-item">
+                      <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="200">
+                        <div class="pricing-item">
 
-                <div class="pricing-header">
-                  <h3>Gói Miễn Phí</h3>
-                  <h4><sup>₫</sup>0<span> / tháng</span></h4>
-                </div>
+                          <div class="pricing-header">
+                            <h3>Gói Miễn Phí</h3>
+                            <h4><sup>₫</sup>0<span> / tháng</span></h4>
+                          </div>
 
-                <ul>
-                  <li><i class="bi bi-dot"></i> <span>Đăng ký hồ sơ cá nhân</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Tìm kiếm việc làm cơ bản</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Ứng tuyển tối đa 5 dự án/tháng</span></li>
-                  <li class="na"><i class="bi bi-x"></i> <span>Truy cập công cụ quản lý khách hàng</span></li>
-                  <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-                </ul>
+                          <ul>
+                            <li><i class="bi bi-dot"></i> <span>Đăng ký hồ sơ cá nhân</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Tìm kiếm việc làm cơ bản</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Ứng tuyển tối đa 5 dự án/tháng</span></li>
+                            <li class="na"><i class="bi bi-x"></i> <span>Truy cập công cụ quản lý khách hàng</span></li>
+                            <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                          </ul>
 
-                <div class="text-center mt-auto">
-                  <a href="#" class="buy-btn">Đăng ký</a>
-                </div>
+                          <div class="text-center mt-auto">
+                            <a href="#" class="buy-btn">Đăng ký</a>
+                          </div>
 
-              </div>
-            </div>
+                        </div>
+                      </div>
 
-            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="400">
-              <div class="pricing-item featured">
+                      <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="400">
+                        <div class="pricing-item featured">
 
-                <div class="pricing-header">
-                  <h3>Gói Freelancer</h3>
-                  <h4><sup>₫</sup>199,000<span> / tháng</span></h4>
-                </div>
+                          <div class="pricing-header">
+                            <h3>Gói Freelancer</h3>
+                            <h4><sup>₫</sup>199,000<span> / tháng</span></h4>
+                          </div>
 
-                <ul>
-                  <li><i class="bi bi-dot"></i>
-                    <span>Đăng hồ sơ chuyên nghiệp với portfolio</span>
-                  </li>
-                  <li><i class="bi bi-dot"></i> <span>Tìm kiếm và ứng tuyển không giới hạn</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Nhận thông báo dự án mới hàng ngày</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Tham gia cộng đồng freelancer</span></li>
-                  <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-                </ul>
+                          <ul>
+                            <li><i class="bi bi-dot"></i>
+                              <span>Đăng hồ sơ chuyên nghiệp với portfolio</span>
+                            </li>
+                            <li><i class="bi bi-dot"></i> <span>Tìm kiếm và ứng tuyển không giới hạn</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Nhận thông báo dự án mới hàng ngày</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Tham gia cộng đồng freelancer</span></li>
+                            <li class="na"><i class="bi bi-x"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                          </ul>
 
-                <div class="text-center mt-auto">
-                  <a href="#" class="buy-btn">Đăng ký</a>
-                </div>
+                          <div class="text-center mt-auto">
+                            <a href="#" class="buy-btn">Đăng ký</a>
+                          </div>
 
-              </div>
-            </div>
+                        </div>
+                      </div>
 
-            <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="600">
-              <div class="pricing-item">
+                      <div class="col-lg-4" data-aos="zoom-in" data-aos-delay="600">
+                        <div class="pricing-item">
 
-                <div class="pricing-header">
-                  <h3>Gói Doanh Nghiệp</h3>
-                  <h4><sup>₫</sup>499,000<span> / tháng</span></h4>
-                </div>
+                          <div class="pricing-header">
+                            <h3>Gói Doanh Nghiệp</h3>
+                            <h4><sup>₫</sup>499,000<span> / tháng</span></h4>
+                          </div>
 
-                <ul>
-                  <li><i class="bi bi-dot"></i> <span>Đăng dự án không giới hạn</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Truy cập hồ sơ freelancer chi tiết</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Quản lý ứng tuyển và dự án dễ dàng</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
-                  <li><i class="bi bi-dot"></i> <span>Báo cáo phân tích hiệu quả dự án</span></li>
-                </ul>
+                          <ul>
+                            <li><i class="bi bi-dot"></i> <span>Đăng dự án không giới hạn</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Truy cập hồ sơ freelancer chi tiết</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Quản lý ứng tuyển và dự án dễ dàng</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Hỗ trợ ưu tiên từ JobLink</span></li>
+                            <li><i class="bi bi-dot"></i> <span>Báo cáo phân tích hiệu quả dự án</span></li>
+                          </ul>
 
-                <div class="text-center mt-auto">
-                  <a href="#" class="buy-btn">Đăng ký</a>
-                </div>
+                          <div class="text-center mt-auto">
+                            <a href="#" class="buy-btn">Đăng ký</a>
+                          </div>
 
-              </div>
-            </div>
+                        </div>
+                      </div>
 
-          </div>
+                    </div>
 
-        </div>
+                  </div>
 
-      </section> Pricing Section -->
+                </section> Pricing Section -->
 
     <!-- Faq Section -->
     <section id="faq" class="faq section">

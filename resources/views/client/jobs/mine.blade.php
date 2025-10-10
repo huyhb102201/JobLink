@@ -2,6 +2,19 @@
 @section('title', 'Công việc đã đăng')
 
 @section('content')
+ <main class="main">
+        <!-- Page Title -->
+        <div class="page-title">
+            <div class="container d-lg-flex justify-content-between align-items-center">
+                <h1 class="mb-2 mb-lg-0">Danh sách công việc của tôi</h1>
+                <nav class="breadcrumbs">
+                    <ol>
+                        <li><a href="{{ route('home') }}">Trang chủ</a></li>
+                        <li class="current">Danh sách công việc</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
   <div class="container" style="max-width: 1100px; margin-top: 60px; margin-bottom: 200px;">
     <div class="d-flex align-items-center justify-content-between mb-4">
       <div>
@@ -273,7 +286,7 @@
       </div>
     @endif
   </div>
-
+</main>
   <style>
     .job-card {
       transition: box-shadow .2s, transform .05s;

@@ -6,6 +6,19 @@
 @endpush
 
 @section('content')
+ <main class="main">
+        <!-- Page Title -->
+        <div class="page-title">
+            <div class="container d-lg-flex justify-content-between align-items-center">
+                <h1 class="mb-2 mb-lg-0">Đăng công việc bằng AI</h1>
+                <nav class="breadcrumbs">
+                    <ol>
+                        <li><a href="{{ route('home') }}">Trang chủ</a></li>
+                        <li class="current">Đăng công việc AI</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
 <div class="container" style="max-width: 980px; margin-top: 70px;">
   <div class="row g-4">
     {{-- Khung “mô tả thô” --}}
@@ -84,6 +97,7 @@
     </div>
   </div>
 </div>
+</main>
 @endsection
 
 @push('scripts')

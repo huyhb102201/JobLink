@@ -59,7 +59,7 @@
 
         </div>
         <div>
-          <label class="form-label">Mô tả</label>
+          <label class="form-label">Giới thiệu</label>
           <input class="form-control" name="description" maxlength="255"
             value="{{ old('description', $profile->description) }}" placeholder="Giới thiệu ngắn...">
         </div>

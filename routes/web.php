@@ -26,10 +26,12 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\OrgsController;
 use App\Models\Account;
 use App\Http\Controllers\UpgradeController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\JobPaymentController;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
 // Thêm controller mới của Admin
 use App\Http\Controllers\Admin\JobController as AdminJobController;
@@ -131,6 +133,7 @@ Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
 
 // Hiển thị danh sách freelancer
 Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
+Route::get('/orgs', [OrgsController::class, 'index'])->name('orgs.index');
 
 // Hiển thị danh sách portfolio
 Route::get('/portfolios', [PortfolioController::class, 'index'])->name('portfolios.index');
@@ -167,7 +170,7 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
 
-    Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC,F_PLUS');
+    Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC|F_PLUS');
 
 });
 // Routes Xác minh Email
@@ -291,16 +294,16 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::post('/account-types', [AccountController::class, 'storeAccountType'])->name('account-types.store');
     Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
     Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
-    
+
     // THÊM ROUTE EXPORT PAYMENTS
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
-    
+
     // TEST ROUTE
     Route::get('/test-simple', function() {
         return 'Server hoạt động bình thường!';
     });
-    
-    
+
+
     Route::get('/test-accounts', function() {
         $start = microtime(true);
         $accounts = App\Models\Account::limit(5)->get();
@@ -318,7 +321,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
     Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
     Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
-    
+
     // ==========================================================
     // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
     // ==========================================================
