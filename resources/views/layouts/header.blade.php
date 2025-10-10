@@ -258,9 +258,6 @@
                     <li class="nav-item me-3">
                         <a class="nav-link" href="{{ route('login') }}">Đăng nhập</a>
                     </li>
-                    <li class="nav-item me-3">
-                        <a class="btn btn-primary btn-sm" href="{{ route('register.role.show') }}">Đăng ký</a>
-                    </li>
                 @endif
       </ul>
     </nav>
