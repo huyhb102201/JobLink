@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.2",
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.10.1",
+        "maatwebsite/excel": "^3.1",
         "payos/payos": "^1.0",
         "pusher/pusher-php-server": "^7.2",
         "sendgrid/sendgrid": "8.0",
