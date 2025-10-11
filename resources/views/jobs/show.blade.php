@@ -41,7 +41,6 @@
                                         }
                                     }
 
-
                                     // Kiểm tra deadline
                                     $isExpired = $job->deadline && \Carbon\Carbon::parse($job->deadline)->lt(\Carbon\Carbon::now());
 
@@ -114,7 +113,7 @@
 
                                     <i class="bi bi-tags"></i>
                                     <ul class="tags">
-                                        <li><a href="#">{{ $job->category }}</a></li>
+                                        <li><a href="#">{{ $job->category->name }}</a></li>
                                         <li><a href="#">Tips</a></li>
                                         <li><a href="#">Creative</a></li>
                                     </ul>
@@ -176,41 +175,41 @@
                     </section><!-- /Blog Comments Section -->
                     <br>
                     <!-- Comment Form Section 
-                                    <section id="comment-form" class="comment-form section">
-                                        <div class="container">
+                                                    <section id="comment-form" class="comment-form section">
+                                                        <div class="container">
 
-                                            <form action="">
+                                                            <form action="">
 
-                                                <h4>Post Comment</h4>
-                                                <p>Your email address will not be published. Required fields are marked * </p>
-                                                <div class="row">
-                                                    <div class="col-md-6 form-group">
-                                                        <input name="name" type="text" class="form-control" placeholder="Your Name*">
-                                                    </div>
-                                                    <div class="col-md-6 form-group">
-                                                        <input name="email" type="text" class="form-control" placeholder="Your Email*">
-                                                    </div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col form-group">
-                                                        <input name="website" type="text" class="form-control" placeholder="Your Website">
-                                                    </div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col form-group">
-                                                        <textarea name="comment" class="form-control"
-                                                            placeholder="Your Comment*"></textarea>
-                                                    </div>
-                                                </div>
+                                                                <h4>Post Comment</h4>
+                                                                <p>Your email address will not be published. Required fields are marked * </p>
+                                                                <div class="row">
+                                                                    <div class="col-md-6 form-group">
+                                                                        <input name="name" type="text" class="form-control" placeholder="Your Name*">
+                                                                    </div>
+                                                                    <div class="col-md-6 form-group">
+                                                                        <input name="email" type="text" class="form-control" placeholder="Your Email*">
+                                                                    </div>
+                                                                </div>
+                                                                <div class="row">
+                                                                    <div class="col form-group">
+                                                                        <input name="website" type="text" class="form-control" placeholder="Your Website">
+                                                                    </div>
+                                                                </div>
+                                                                <div class="row">
+                                                                    <div class="col form-group">
+                                                                        <textarea name="comment" class="form-control"
+                                                                            placeholder="Your Comment*"></textarea>
+                                                                    </div>
+                                                                </div>
 
-                                                <div class="text-center">
-                                                    <button type="submit" class="btn btn-primary">Post Comment</button>
-                                                </div>
+                                                                <div class="text-center">
+                                                                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                                                                </div>
 
-                                            </form>
+                                                            </form>
 
-                                        </div>
-                                    </section> /Comment Form Section -->
+                                                        </div>
+                                                    </section> /Comment Form Section -->
 
                 </div>
 
@@ -348,13 +347,23 @@
 
                 </div>
 
-                @if($isOpen && !$hasApplied && !$isExpired && in_array($accountTypeId, [1, 2]))
-                    <a href="javascript:void(0);" class="btn btn-success rounded-circle apply-floating apply-btn"
+                @if($isOpen && !$isExpired)
+                    @if(!$hasApplied && in_array($accountTypeId, [1, 2]))
+                        <a href="javascript:void(0);" class="btn btn-success rounded-circle apply-floating apply-btn"
+                            data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
+                            title="Ứng Tuyển Ngay">
+                            <i class="bi bi-briefcase-fill"></i>
+                        </a>
+                    @endif
+
+                    <!-- Nút Báo cáo -->
+                    <a href="javascript:void(0);" class="btn btn-danger rounded-circle report-floating"
                         data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
-                        title="Ứng Tuyển Ngay">
-                        <i class="bi bi-briefcase-fill"></i>
+                        title="Báo cáo công việc này">
+                        <i class="bi bi-flag-fill"></i>
                     </a>
                 @endif
+
 
                 <!-- Modal Thông Báo -->
                 <div class="modal fade" id="applyModal" tabindex="-1" aria-labelledby="applyModalLabel" aria-hidden="true">
@@ -475,6 +484,284 @@
                     });
                 </script>
 
+                <!-- Modal Báo cáo -->
+                <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content border-0 shadow-lg">
+
+                            <!-- Header -->
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title d-flex align-items-center gap-2 text-white" id="reportModalLabel">
+                                    <i class="bi bi-flag-fill"></i>
+                                    Báo cáo công việc
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Đóng"></button>
+                            </div>
+
+                            <!-- Body -->
+                            <div class="modal-body">
+                                <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    Hãy báo cáo công việc nếu bạn thấy có dấu hiệu <strong>lừa đảo hoặc sai phạm</strong>.
+                                </div>
+
+                                <form id="reportForm" enctype="multipart/form-data">
+                                    @csrf
+                                    <input type="hidden" name="job_id" id="reportJobId">
+
+                                    <!-- Lý do -->
+                                    <div class="mb-3">
+                                        <label for="reportReason" class="form-label fw-semibold">
+                                            Lý do báo cáo <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="reportReason" name="reason" required>
+                                            <option value="" selected disabled>-- Chọn lý do --</option>
+                                            <option value="Lừa đảo / Gian lận">Lừa đảo / Gian lận</option>
+                                            <option value="Thông tin sai sự thật">Thông tin sai sự thật</option>
+                                            <option value="Nội dung không phù hợp">Nội dung không phù hợp</option>
+                                            <option value="Spam hoặc quảng cáo">Spam hoặc quảng cáo</option>
+                                            <option value="Khác">Khác</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Mô tả -->
+                                    <div class="mb-3">
+                                        <label for="reportMessage" class="form-label fw-semibold">
+                                            Mô tả chi tiết <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea class="form-control" id="reportMessage" name="message" rows="4" required
+                                            placeholder="Hãy mô tả chi tiết vấn đề bạn gặp phải..."></textarea>
+                                    </div>
+
+                                    <!-- Khu vực tải ảnh -->
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Đính kèm hình ảnh (tối đa 5)</label>
+
+                                        <div id="dropZone"
+                                            class="border border-2 border-danger border-dashed rounded-4 p-4 text-center bg-light-subtle position-relative"
+                                            role="button" tabindex="0">
+                                            <i class="bi bi-cloud-arrow-up fs-1 text-danger"></i>
+                                            <p class="mb-0 mt-2 text-muted">Kéo thả hình ảnh vào đây hoặc nhấn để chọn</p>
+
+                                            <!-- Input file ẩn an toàn -->
+                                            <input type="file" id="reportImages" name="images[]" accept="image/*" multiple
+                                                style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+                                        </div>
+
+                                        <div class="form-text text-muted mt-1">Chọn tối đa 5 ảnh (jpg, png, webp...)</div>
+
+                                        <!-- Preview -->
+                                        <div id="imagePreview" class="mt-3 d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </form>
+
+                                <div id="reportAlert"></div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-1"></i> Đóng
+                                </button>
+                                <button type="button" class="btn btn-danger" id="submitReport">
+                                    <i class="bi bi-send-fill me-1"></i> Gửi báo cáo
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    /* Hiệu ứng viền đứt */
+                    .border-dashed {
+                        border-style: dashed !important;
+                        transition: all 0.25s ease;
+                    }
+
+                    #dropZone {
+                        cursor: pointer;
+                    }
+
+                    #dropZone.dragover {
+                        background-color: #fff5f5;
+                        border-color: #dc3545;
+                        box-shadow: 0 0 0.5rem rgba(220, 53, 69, 0.3);
+                    }
+
+                    /* Preview ảnh */
+                    #imagePreview .thumb {
+                        position: relative;
+                        width: 90px;
+                        height: 90px;
+                        border-radius: 0.5rem;
+                        overflow: hidden;
+                        border: 2px dashed #dc3545;
+                        transition: transform 0.2s;
+                    }
+
+                    #imagePreview .thumb img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+
+                    #imagePreview .thumb:hover {
+                        transform: scale(1.05);
+                    }
+
+                    /* Nút xóa ảnh */
+                    #imagePreview .remove-btn {
+                        position: absolute;
+                        top: 4px;
+                        right: 4px;
+                        background: rgba(0, 0, 0, 0.6);
+                        color: #fff;
+                        border: none;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 50%;
+                        font-size: 16px;
+                        line-height: 1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        opacity: 0;
+                        transition: all 0.2s ease;
+                        cursor: pointer;
+                    }
+
+                    #imagePreview .thumb:hover .remove-btn {
+                        opacity: 1;
+                    }
+                </style>
+
+                <script>
+                    $(function () {
+                        const dropZone = $('#dropZone');
+                        const fileInput = $('#reportImages');
+                        const preview = $('#imagePreview');
+                        const alertBox = $('#reportAlert');
+                        const MAX_FILES = 5;
+                        let selectedFiles = [];
+
+                        function renderPreview() {
+                            preview.empty();
+                            selectedFiles.forEach((file, i) => {
+                                const url = URL.createObjectURL(file);
+                                const thumb = $(`
+              <div class="thumb" data-index="${i}">
+                <img src="${url}" alt="">
+                <button type="button" class="remove-btn">&times;</button>
+              </div>
+            `);
+
+                                thumb.find('.remove-btn').on('click', (e) => {
+                                    e.stopPropagation();
+                                    selectedFiles.splice(i, 1);
+                                    renderPreview();
+                                });
+
+                                preview.append(thumb);
+                            });
+
+                            const dt = new DataTransfer();
+                            selectedFiles.forEach(f => dt.items.add(f));
+                            fileInput[0].files = dt.files;
+                        }
+
+                        function addFiles(files) {
+                            const incoming = Array.from(files).filter(f => f.type.startsWith('image/'));
+                            if (selectedFiles.length + incoming.length > MAX_FILES) {
+                                showAlert(`Chỉ được chọn tối đa ${MAX_FILES} ảnh.`, 'danger');
+                                return;
+                            }
+                            selectedFiles = selectedFiles.concat(incoming);
+                            renderPreview();
+                        }
+
+                        function showAlert(msg, type = 'danger') {
+                            alertBox.html(`<div class="alert alert-${type} mt-3">${msg}</div>`);
+                        }
+
+                        // Kéo thả ảnh
+                        dropZone.on('dragover', (e) => {
+                            e.preventDefault();
+                            dropZone.addClass('dragover');
+                        });
+
+                        dropZone.on('dragleave drop', (e) => {
+                            e.preventDefault();
+                            dropZone.removeClass('dragover');
+                        });
+
+                        dropZone.on('drop', (e) => {
+                            const files = e.originalEvent.dataTransfer.files;
+                            addFiles(files);
+                        });
+
+                        // Chọn ảnh qua input
+                        fileInput.on('change', function () {
+                            addFiles(this.files);
+                            $(this).val('');
+                        });
+
+                        // Mở modal
+                        $('.report-floating').on('click', function () {
+                            const jobId = $(this).data('job-id');
+                            $('#reportJobId').val(jobId);
+                            $('#reportForm')[0].reset();
+                            selectedFiles = [];
+                            preview.html('');
+                            alertBox.html('');
+                            new bootstrap.Modal(document.getElementById('reportModal')).show();
+                        });
+
+                        // Gửi form
+                        $('#submitReport').on('click', function () {
+                            const jobId = $('#reportJobId').val();
+                            const reason = $('#reportReason').val();
+                            const message = $('#reportMessage').val().trim();
+
+                            if (!reason) return showAlert('Vui lòng chọn lý do báo cáo.');
+                            if (!message) return showAlert('Vui lòng nhập mô tả chi tiết.');
+
+                            const formData = new FormData();
+                            formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+                            formData.append('job_id', jobId);
+                            formData.append('reason', reason);
+                            formData.append('message', message);
+                            selectedFiles.forEach(f => formData.append('images[]', f));
+
+                            alertBox.html(`
+            <div class="d-flex align-items-center justify-content-center my-3 text-muted">
+              <div class="spinner-border spinner-border-sm text-danger me-2"></div> Đang gửi báo cáo...
+            </div>
+          `);
+
+                            $.ajax({
+                                url: '/jobs/report/' + jobId,
+                                type: 'POST',
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                success: res => {
+                                    if (res.success) {
+                                        showAlert('Báo cáo của bạn đã được gửi. Cảm ơn bạn!', 'success');
+                                        setTimeout(() => $('#reportModal').modal('hide'), 1500);
+                                    } else showAlert(res.message || 'Không thể gửi báo cáo.');
+                                },
+                                error: () => showAlert('Đã xảy ra lỗi. Vui lòng thử lại sau.')
+                            });
+                        });
+                    });
+                </script>
+
+
+
+
 
                 <style>
                     .apply-floating {
@@ -483,7 +770,6 @@
                         right: 8px;
                         width: 55px;
                         height: 55px;
-                        padding: 0;
                         z-index: 9999;
                         display: flex;
                         align-items: center;
@@ -497,7 +783,31 @@
                         transform: translateY(-3px);
                         background-color: #198754;
                     }
+
+                    .report-floating {
+                        position: fixed;
+                        bottom: 140px;
+                        /* nằm phía trên nút apply */
+                        right: 8px;
+                        width: 55px;
+                        height: 55px;
+                        z-index: 9999;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 22px;
+                        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+                        background-color: #dc3545;
+                        color: #fff;
+                        transition: transform 0.2s, background-color 0.2s;
+                    }
+
+                    .report-floating:hover {
+                        transform: translateY(-3px);
+                        background-color: #bb2d3b;
+                    }
                 </style>
+
 
             </div>
         </div>
