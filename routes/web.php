@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
     Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
+    Route::post('/jobs/report/{job}', [JobController::class, 'report'])->name('jobs.report');
+
 
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
