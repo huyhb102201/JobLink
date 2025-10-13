@@ -173,17 +173,16 @@
                                                                         class="text-secondary">{{ $latestVerification->review_note }}</span>
                                                                 </div>
                                                             @endif
-                                                            @php $previewable = str_starts_with(($latestVerification->mime_type ?? ''), 'image/'); @endphp
-                                                            @if($previewable)
-                                                                <div class="mt-2">
-                                                                    @php
-                                                                        $previewUrl = $latestVerification->file_url
-                                                                            ?? \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::getUrl($latestVerification->file_path);
-                                                                    @endphp
-                                                                    <img src="{{ $previewUrl }}" alt="preview"
-                                                                        style="max-width:100%; border-radius:8px;">
-                                                                </div>
-                                                            @endif
+                                                          @php
+  $previewUrl = $latestVerification->file_url
+      ?: \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary
+            ::image($latestVerification->file_path)->secure()->toUrl();
+@endphp
+
+@if($previewUrl)
+  <img src="{{ $previewUrl }}" alt="preview" style="max-width:100%;border-radius:8px;">
+@endif
+
                                                         </div>
                                                     @endif
                                                 </div>

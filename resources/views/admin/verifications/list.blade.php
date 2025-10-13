@@ -83,6 +83,17 @@
         padding: 0.375rem 0.75rem;
         margin-left: 0.5rem;
     }
+    
+    /* Styling cho disabled checkbox và buttons */
+    input[type="checkbox"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    
+    .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
 </style>
 @endpush
 
@@ -182,7 +193,11 @@
             @foreach($verifications as $verification)
             <tr>
               <td>
-                <input type="checkbox" class="form-check-input row-checkbox" data-verification-id="{{ $verification->id }}">
+                @if($verification->status == 'PENDING')
+                  <input type="checkbox" class="form-check-input row-checkbox" data-verification-id="{{ $verification->id }}">
+                @else
+                  <input type="checkbox" class="form-check-input" disabled>
+                @endif
               </td>
               <td>
                 <div class="fw-bold">{{ $verification->org->name ?? 'N/A' }}</div>
@@ -228,6 +243,13 @@
                     <button class="btn btn-danger btn-sm reject-verification-btn" 
                             data-verification-id="{{ $verification->id }}" 
                             title="Từ chối">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  @else
+                    <button class="btn btn-success btn-sm" disabled title="Đã xử lý">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-danger btn-sm" disabled title="Đã xử lý">
                       <i class="fas fa-times"></i>
                     </button>
                   @endif
@@ -493,10 +515,10 @@ $(document).ready(function() {
         });
     }
 
-    // Check all functionality
+    // Check all functionality - chỉ chọn các checkbox không bị disabled (PENDING)
     $('#checkAll').on('change', function() {
         const isChecked = this.checked;
-        $('.row-checkbox').each(function() {
+        $('.row-checkbox:not(:disabled)').each(function() {
             this.checked = isChecked;
             const verificationId = $(this).data('verification-id');
             if (isChecked) {
