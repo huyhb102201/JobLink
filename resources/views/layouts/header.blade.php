@@ -82,166 +82,80 @@
         </li>
 
         <!-- Notifications -->
-<li class="dropdown dropdown-hover extended-dropdown-2" id="header-notifications">
-  <a class="nav-link position-relative" href="{{ url('/notifications') }}">
-    <i class="bi bi-bell fs-5"></i>
-    <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-  </a>
-  <ul id="notif-list" class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
-    <li class="text-center text-muted py-2">Đang tải...</li>
-  </ul>
-</li>
-
-<!-- Chat Dropdown -->
-<li class="dropdown dropdown-hover" id="chat-header-box">
-  <a class="nav-link position-relative" href="{{ url('/chat') }}">
-    <i class="bi bi-chat-dots fs-5"></i>
-    <!-- Badge tổng -->
-    <span id="chat-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-  </a>
-
-  <ul id="chat-dropdown" 
-      class="dropdown-menu shadow-sm border-0 p-0"
-      style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
-    <li class="text-center text-muted py-2">Đang tải...</li>
-  </ul>
-</li>
-
-<style>
-  /* 💬 Hiệu ứng hover + unread box */
-  #chat-dropdown li a {
-    transition: background-color 0.2s;
-  }
-
-  #chat-dropdown li a:hover {
-    background-color: #f1f1f1;
-  }
-
-  /* Box có tin chưa đọc */
-  #chat-dropdown li.unread a {
-    background-color: #e7f3ff !important; /* xanh nhạt giống FB */
-    font-weight: 600;
-  }
-
-  /* Badge tin nhắn chưa đọc */
-  .chat-unread-badge {
-    background-color: #1877f2; /* xanh FB */
-    font-size: 0.7rem;
-    min-width: 18px;
-  }
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  loadChatHeader();
-  setInterval(loadChatHeader, 10000); // 🔁 tự động reload 10s/lần
-
-  function loadChatHeader() {
-    fetch("{{ route('chat.header') }}")
-      .then(res => res.json())
-      .then(data => {
-        const badge = document.getElementById('chat-badge');
-        const dropdown = document.getElementById('chat-dropdown');
-        dropdown.innerHTML = '';
-
-        // --- Hiển thị badge tổng ---
-        if (data.unread_total > 0) {
-          badge.textContent = data.unread_total;
-          badge.classList.remove('d-none');
-        } else {
-          badge.classList.add('d-none');
-        }
-
-        // --- Nếu không có box ---
-        if (!data.boxes || data.boxes.length === 0) {
-          dropdown.innerHTML = `<li class="text-center text-muted py-2">Không có cuộc trò chuyện</li>`;
-          return;
-        }
-
-        // --- Render từng box ---
-        data.boxes.forEach(box => {
-          const isUnread = box.unread > 0;
-
-          dropdown.innerHTML += `
-            <li class="${isUnread ? 'unread' : ''}">
-              <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
-                <img src="${box.avatar}" width="42" height="42" class="rounded-circle border">
-                <div class="flex-grow-1">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold text-dark">${box.name}</span>
-                    <small class="text-muted">${box.last_time}</small>
-                  </div>
-                  <small class="text-muted text-truncate d-block" style="max-width:190px;">
-                    ${box.last_message || '<i>Không có tin nhắn</i>'}
-                  </small>
-                </div>
-                ${isUnread ? `<span class="badge rounded-pill chat-unread-badge">${box.unread}</span>` : ''}
-              </a>
-            </li>
-          `;
-        });
-      })
-      .catch(err => {
-        console.error('Error loading chat header:', err);
-        document.getElementById('chat-dropdown').innerHTML =
-          `<li class="text-center text-danger py-2">Lỗi tải dữ liệu</li>`;
-      });
-  }
-});
-</script>
-
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  fetch("{{ route('notifications.headerData') }}")
-    .then(res => res.json())
-    .then(data => {
-      // --- Gán số lượng ---
-      const notifBadge = document.getElementById('notif-badge');
-      const chatBadge = document.getElementById('chat-badge');
-
-      if (data.unread_notifications > 0) {
-        notifBadge.textContent = data.unread_notifications;
-        notifBadge.classList.remove('d-none');
-      }
-
-      if (data.unread_messages > 0) {
-        chatBadge.textContent = data.unread_messages;
-        chatBadge.classList.remove('d-none');
-      }
-
-      // --- Gán danh sách ---
-      const notifList = document.getElementById('notif-list');
-      notifList.innerHTML = ''; // clear
-
-      if (data.notifications.length === 0) {
-        notifList.innerHTML = `<li class="text-center text-muted py-2">Không có thông báo</li>`;
-      } else {
-        data.notifications.forEach(n => {
-          notifList.innerHTML += `
+        <li class="dropdown dropdown-hover extended-dropdown-2">
+          <a class="nav-link position-relative" href="{{ url('/notifications') }}">
+            <i class="bi bi-bell fs-5"></i>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+          </a>
+          <ul class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
             <li>
               <a class="dropdown-item py-2" href="#">
                 <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-bell fs-5"></i>
+                  <i class="bi bi-speedometer2 fs-5"></i>
                   <div>
-                    <div class="fw-semibold">${n.title || '(Không tiêu đề)'}</div>
-                    <small class="text-muted">${n.body || ''}</small>
+                    <div class="fw-semibold">Analytics Dashboard</div>
+                    <small class="text-muted">Track your performance metrics</small>
                   </div>
-                  ${!n.is_read ? '<span class="badge bg-primary ms-auto">Mới</span>' : ''}
+                  <span class="badge bg-primary ms-auto">New</span>
                 </div>
               </a>
             </li>
-          `;
-        });
-      }
-    })
-    .catch(err => {
-      console.error('Error loading notifications:', err);
-    });
-});
-</script>
+            <li>
+              <a class="dropdown-item py-2" href="#">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-people fs-5"></i>
+                  <div>
+                    <div class="fw-semibold">Team Management</div>
+                    <small class="text-muted">Manage your team members</small>
+                  </div>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2" href="#">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-graph-up fs-5"></i>
+                  <div>
+                    <div class="fw-semibold">Sales Reports</div>
+                    <small class="text-muted">Review financial statistics</small>
+                  </div>
+                  <span class="badge bg-danger ms-auto">Hot</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2" href="#">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-shield-lock fs-5"></i>
+                  <div>
+                    <div class="fw-semibold">Security Center</div>
+                    <small class="text-muted">Manage privacy settings</small>
+                  </div>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item py-2" href="#">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-chat-dots fs-5"></i>
+                  <div>
+                    <div class="fw-semibold">Message Center</div>
+                    <small class="text-muted">Check your notifications</small>
+                  </div>
+                  <span class="badge bg-info ms-auto">5</span>
+                </div>
+              </a>
+            </li>
+          </ul>
+        </li>
 
+        <!-- Chat -->
+        <li class="nav-item position-relative">
+          <a class="nav-link" href="{{ url('/chat') }}">
+            <i class="bi bi-chat-dots fs-5"></i>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">5</span>
+          </a>
+        </li>
 
         <!-- Search -->
         <li class="nav-item position-relative">
@@ -564,7 +478,10 @@ document.addEventListener('DOMContentLoaded', function() {
       background-color: #fff !important;
     }
 
-    
+    .btn-primary {
+      border-radius: 0 50rem 50rem 0 !important;
+    }
+
     .search-suggestions {
       position: absolute;
       top: 40px;
