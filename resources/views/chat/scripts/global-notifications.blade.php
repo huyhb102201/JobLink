@@ -5,7 +5,8 @@
     window.currentOrgId = null;
     window.presenceInitialized = false;
 
-    // Hàm lưu danh sách trò chuyện vào sessionStorage với thời gian hết hạn
+    // ====== HÀM LƯU & LẤY DỮ LIỆU TỪ SESSION STORAGE ======
+
     function saveChatListToStorage(chatList) {
         const data = {
             timestamp: Date.now(),
@@ -14,34 +15,31 @@
         sessionStorage.setItem('chatList', JSON.stringify(data));
     }
 
-    // Hàm lấy danh sách trò chuyện từ sessionStorage
     function getChatListFromStorage() {
         const data = sessionStorage.getItem('chatList');
         if (!data) return null;
 
         const parsed = JSON.parse(data);
-        const ttl = 5 * 60 * 1000; // 5 phút (thời gian hết hạn)
+        const ttl = 5 * 60 * 1000; // 5 phút hết hạn
         if (Date.now() - parsed.timestamp > ttl) {
-            sessionStorage.removeItem('chatList'); // Xóa nếu hết hạn
+            sessionStorage.removeItem('chatList');
             return null;
         }
         return parsed.chatList;
     }
 
-    // Hàm lưu danh sách kênh đã đăng ký
     function saveSubscribedChannels(channels) {
         sessionStorage.setItem('subscribedChannels', JSON.stringify(channels));
     }
 
-    // Hàm lấy danh sách kênh đã đăng ký
     function getSubscribedChannels() {
         const channels = sessionStorage.getItem('subscribedChannels');
         return channels ? JSON.parse(channels) : [];
     }
 
-    // Hàm cập nhật trạng thái online/offline của người dùng
+    // ====== HIỂN THỊ TRẠNG THÁI ONLINE ======
+
     function setUserOnline(userId, online) {
-        const fragment = document.createDocumentFragment();
         const elements = document.querySelectorAll(`#status-${userId}, #chatHeaderStatus`);
         elements.forEach(el => {
             if (el) {
@@ -51,10 +49,10 @@
                 if (statusText) statusText.textContent = online ? 'Đang hoạt động' : 'Ngoại tuyến';
             }
         });
-        document.body.appendChild(fragment);
     }
 
-    // Hàm hiển thị thông báo toast cho tin nhắn mới
+    // ====== HIỂN THỊ TOAST ======
+
     function showChatToast(sender, content, avatarUrl, timeText = "Vừa xong", onClick = null) {
         const container = document.getElementById('chatToastContainer');
         if (!container) return;
@@ -65,8 +63,7 @@
 
         toastEl.innerHTML = `
             <div class="toast-body p-2 d-flex align-items-start gap-2">
-                <img src="${avatarUrl}" alt="avatar" 
-                     class="rounded-circle flex-shrink-0" width="42" height="42">
+                <img src="${avatarUrl}" alt="avatar" class="rounded-circle flex-shrink-0" width="42" height="42">
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="fw-semibold">${sender}</span>
@@ -90,7 +87,8 @@
         }, 5000);
     }
 
-    // Hàm xử lý sự kiện tin nhắn mới
+    // ====== XỬ LÝ TIN NHẮN MỚI ======
+
     function handleMessageEvent(e) {
         const incomingMsg = e.message;
         if (incomingMsg.sender_id === window.authId) return;
@@ -121,30 +119,29 @@
                 body: incomingMsg.content || '[Hình ảnh]',
                 icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/defaultavatar.jpg') }}"
             });
-        } else if (Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    new Notification("Tin nhắn mới từ " + incomingMsg.sender.name, {
-                        body: incomingMsg.content || '[Hình ảnh]',
-                        icon: incomingMsg.sender.avatar_url ?? "{{ asset('assets/img/defaultavatar.jpg') }}"
-                    });
-                }
-            });
         }
     }
 
-    // Hàm đăng ký các kênh trò chuyện
-    function subscribeToChannels() {
-        if (!window.Echo || !window.authId) return;
+    // ====== ĐĂNG KÝ KÊNH TRÒ CHUYỆN ======
 
-        const subscribedChannels = getSubscribedChannels();
+    function subscribeToChannels() {
+        if (!window.Echo || !window.authId) {
+            console.warn('❌ Echo chưa sẵn sàng hoặc người dùng chưa đăng nhập');
+            return;
+        }
+
+        // 🔥 Mỗi lần load lại trang => reset danh sách kênh (để đảm bảo đăng ký lại)
+        const subscribedChannels = [];
+        sessionStorage.removeItem('subscribedChannels');
+
         const cachedChatList = getChatListFromStorage();
 
         if (cachedChatList) {
-            // Sử dụng danh sách trò chuyện từ sessionStorage
-            console.log('Sử dụng danh sách trò chuyện từ sessionStorage');
+            console.log('📦 Dùng danh sách trò chuyện từ sessionStorage');
+
             cachedChatList.forEach(box => {
                 let channel;
+
                 if (box.partner_id) {
                     const userIds = [window.authId, box.partner_id].sort((a, b) => a - b);
                     channel = 'chat.' + userIds.join('.');
@@ -155,94 +152,80 @@
                 }
 
                 if (channel && !subscribedChannels.includes(channel)) {
-                    if (box.partner_id) {
-                        window.Echo.private(channel).listen('MessageSent', handleMessageEvent);
-                    } else {
-                        window.Echo.join(channel).listen('MessageSent', handleMessageEvent);
+                    try {
+                        if (box.partner_id) {
+                            window.Echo.private(channel).listen('MessageSent', handleMessageEvent);
+                        } else {
+                            window.Echo.join(channel).listen('MessageSent', handleMessageEvent);
+                        }
+                        subscribedChannels.push(channel);
+                        console.log('✅ Đã đăng ký kênh:', channel);
+                    } catch (error) {
+                        console.error('⚠️ Lỗi khi đăng ký kênh:', channel, error);
                     }
-                    subscribedChannels.push(channel);
-                    console.log('Đã đăng ký kênh:', channel);
                 }
             });
+
             saveSubscribedChannels(subscribedChannels);
         } else {
-            // Gọi API nếu không có dữ liệu trong sessionStorage
+            console.log('🌐 Không có cache, gọi API lấy danh sách trò chuyện...');
             fetch('/chat/list')
-                .then(res => {
-                    if (!res.ok) throw new Error('Không thể lấy danh sách trò chuyện');
-                    return res.json();
-                })
+                .then(res => res.json())
                 .then(data => {
-                    saveChatListToStorage(data); // Lưu vào sessionStorage
-                    data.forEach(box => {
-                        let channel;
-                        if (box.partner_id) {
-                            const userIds = [window.authId, box.partner_id].sort((a, b) => a - b);
-                            channel = 'chat.' + userIds.join('.');
-                        } else if (box.job_id) {
-                            channel = 'chat-group.' + box.job_id;
-                        } else if (box.org_id) {
-                            channel = 'chat-org.' + box.org_id;
-                        }
-
-                        if (channel && !subscribedChannels.includes(channel)) {
-                            if (box.partner_id) {
-                                window.Echo.private(channel).listen('MessageSent', handleMessageEvent);
-                            } else {
-                                window.Echo.join(channel).listen('MessageSent', handleMessageEvent);
-                            }
-                            subscribedChannels.push(channel);
-                            console.log('Đã đăng ký kênh:', channel);
-                        }
-                    });
-                    saveSubscribedChannels(subscribedChannels);
+                    saveChatListToStorage(data);
+                    subscribeToChannels(); // Gọi lại sau khi có dữ liệu
                 })
-                .catch(err => {
-                    console.error('Lỗi khi lấy danh sách trò chuyện:', err);
-                });
+                .catch(err => console.error('Lỗi khi lấy danh sách trò chuyện:', err));
         }
     }
 
-    // Hàm khởi tạo presence channel
+    // ====== PRESENCE CHANNEL ======
+
     function initPresenceChannel() {
         if (window.presenceInitialized || !window.Echo) return;
         window.presenceInitialized = true;
 
         window.Echo.join('online-users')
             .here(users => {
-                console.log('Danh sách người dùng online ban đầu:', users);
+                console.log('👥 Người dùng online ban đầu:', users);
                 users.forEach(u => setUserOnline(u.id, true));
             })
             .joining(user => {
-                console.log('Người dùng vừa online:', user);
+                console.log('🟢 Người dùng vừa online:', user);
                 setUserOnline(user.id, true);
             })
             .leaving(user => {
-                console.log('Người dùng vừa offline:', user);
+                console.log('🔴 Người dùng vừa offline:', user);
                 setUserOnline(user.id, false);
             })
-            .error(error => {
-                console.error('Lỗi presence channel:', error);
-            });
+            .error(error => console.error('Lỗi presence channel:', error));
     }
 
-    // Sự kiện tải trang
+    // ====== CHỜ ECHO KẾT NỐI RỒI MỚI LẮNG NGHE ======
+
     window.addEventListener('DOMContentLoaded', () => {
-        if (window.Echo) {
-            const checkEchoReady = () => {
-                const pusher = window.Echo.connector.pusher;
+        const waitForEcho = () => {
+            if (!window.Echo || !window.Echo.connector || !window.Echo.connector.pusher) {
+                console.warn('⏳ Đang chờ Echo khởi tạo...');
+                return setTimeout(waitForEcho, 500);
+            }
+
+            const pusher = window.Echo.connector.pusher;
+
+            const checkConnection = () => {
                 if (pusher.connection.state === 'connected') {
-                    console.log('🟢 Echo đã kết nối, khởi tạo presence và các kênh...');
+                    console.log('🟢 Echo đã kết nối, khởi tạo presence và đăng ký kênh...');
                     initPresenceChannel();
                     subscribeToChannels();
-                } else if (pusher.connection.state === 'disconnected') {
-                    console.warn('🔴 Pusher ngắt kết nối, thử lại sau 3 giây...');
-                    setTimeout(checkEchoReady, 3000);
                 } else {
-                    setTimeout(checkEchoReady, 1000);
+                    console.warn('⏳ Echo chưa sẵn sàng, thử lại sau 1 giây...');
+                    setTimeout(checkConnection, 1000);
                 }
             };
-            checkEchoReady();
-        }
+
+            checkConnection();
+        };
+
+        waitForEcho();
     });
 </script>

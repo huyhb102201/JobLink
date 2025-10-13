@@ -6,15 +6,20 @@ use Illuminate\Http\Request;
 use App\Services\MessageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class MessageController extends Controller
 {
     protected $messageService;
+    protected $notificationService;
 
-    public function __construct(MessageService $messageService)
+    public function __construct(MessageService $messageService, NotificationService $notificationService)
     {
         $this->messageService = $messageService;
+        $this->notificationService = $notificationService;
     }
+
 
     public function chatAll()
     {
@@ -110,7 +115,23 @@ class MessageController extends Controller
         try {
             $senderId = Auth::id();
             $message = $this->messageService->sendMessage($request, $senderId);
+            $receiverId = $message->receiver_id ?? $request->input('receiver_id');
 
+            if ($receiverId && $receiverId != $senderId) {
+                $this->notificationService->create(
+                    userId: $receiverId,
+                    type: Notification::TYPE_MESSAGE,
+                    title: 'Bạn có tin nhắn mới',
+                    body: $message->sender->name . ' vừa gửi cho bạn một tin nhắn.',
+                    meta: [
+                        'message_id' => $message->id,
+                        'conversation_id' => $message->conversation_id,
+                        'job_id' => $message->job_id,
+                    ],
+                    actorId: $senderId,
+                    severity: 'low'
+                );
+            }
             return response()->json([
                 'id' => $message->id,
                 'content' => $request->input('content'),
