@@ -7,8 +7,8 @@ use App\Models\Job;
 use App\Models\JobView;
 use App\Models\JobApply;
 use App\Models\Comment;
+use App\Models\JobReport;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class JobController extends Controller
 {
@@ -179,18 +179,47 @@ class JobController extends Controller
     }
 
     public function destroy($id)
-{
-    $job = Job::findOrFail($id);
+    {
+        $job = Job::findOrFail($id);
 
-    // Kiểm tra quyền sở hữu nếu cần
-    if (auth()->id() !== $job->account_id) {
-        abort(403, 'Bạn không có quyền xóa job này.');
+        // Kiểm tra quyền sở hữu nếu cần
+        if (auth()->id() !== $job->account_id) {
+            abort(403, 'Bạn không có quyền xóa job này.');
+        }
+
+        $job->delete();
+
+        return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
     }
 
-    $job->delete();
 
-    return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
-}
+    public function report(Request $request, $jobId)
+    {
+        if (!auth()->check()) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập để báo cáo.']);
+        }
 
+        $request->validate([
+            'reason' => 'required|string|max:255',
+            'message' => 'nullable|string',
+            'images.*' => 'nullable|image|max:2048',
+        ]);
 
+        $paths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $paths[] = $file->store('reports', 'public');
+            }
+        }
+
+        JobReport::create([
+            'job_id' => $jobId,
+            'user_id' => auth()->id(),
+            'reason' => $request->reason,
+            'message' => $request->message,
+            'img' => $paths ? implode(',', $paths) : null,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
 }

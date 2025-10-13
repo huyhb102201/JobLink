@@ -22,137 +22,226 @@
           <a class="nav-link {{ request()->is('/') ? 'active fw-semibold' : '' }}" href="{{ url('/') }}">Trang chủ</a>
         </li>
 
-       @auth
-        @php
+        @auth
+          @php
             $acc = Auth::user()->loadMissing('type');
             $code = strtoupper($acc->type->code ?? '');
             $isClient = $code === 'CLIENT' || $code === 'BUSS';
 
             // active khi user đang ở route liên quan tới client jobs
-            $activePost = request()->routeIs('client.jobs.choose','client.jobs.wizard.*','client.jobs.create','client.jobs.ai_form');
+            $activePost = request()->routeIs('client.jobs.choose', 'client.jobs.wizard.*', 'client.jobs.create', 'client.jobs.ai_form');
             $activeMine = request()->routeIs('client.jobs.mine');
-        @endphp
+          @endphp
 
-        @if($isClient)
+          @if($isClient)
             <li class="nav-item dropdown dropdown-hover">
-            <a class="nav-link {{ request()->is('client/jobs*') ? 'active fw-semibold' : '' }}" 
-                href="#" data-bs-toggle="dropdown" aria-expanded="false">
+              <a class="nav-link {{ request()->is('client/jobs*') ? 'active fw-semibold' : '' }}" href="#"
+                data-bs-toggle="dropdown" aria-expanded="false">
                 <span>Công việc</span>
                 <i class="bi bi-chevron-down toggle-dropdown"></i>
-            </a>
-            <ul class="dropdown-menu shadow-sm" style="min-width:240px">
+              </a>
+              <ul class="dropdown-menu shadow-sm" style="min-width:240px">
                 <li>
-                <a class="dropdown-item {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}" 
+                  <a class="dropdown-item {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
                     href="{{ url('/jobs') }}">
                     Danh sách công việc
-                </a>
+                  </a>
                 </li>
                 <li>
-                <a class="dropdown-item {{ $activePost ? 'active fw-semibold' : '' }}" 
+                  <a class="dropdown-item {{ $activePost ? 'active fw-semibold' : '' }}"
                     href="{{ route('client.jobs.choose') }}">
                     Đăng công việc
-                </a>
+                  </a>
                 </li>
                 <li>
-                <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}" 
+                  <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}"
                     href="{{ route('client.jobs.mine') }}">
                     Công việc của tôi
-                </a>
+                  </a>
                 </li>
-            </ul>
+              </ul>
             </li>
-        @else
+          @else
             <li class="nav-item">
-            <a class="nav-link {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}" 
+              <a class="nav-link {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
                 href="{{ url('/jobs') }}">
                 Công việc
-            </a>
+              </a>
             </li>
-        @endif
+          @endif
         @endauth
 
         <li class="nav-item">
-          <a class="nav-link {{ request()->is('freelancers*') ? 'active fw-semibold' : '' }}" href="{{ url('/freelancers') }}">Freelancer</a>
+          <a class="nav-link {{ request()->is('orgs*') ? 'active fw-semibold' : '' }}" href="{{ url('/orgs') }}">
+            Doanh nghiệp
+          </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ request()->is('contact') ? 'active fw-semibold' : '' }}" href="{{ url('/contact') }}">Liên hệ</a>
+          <a class="nav-link {{ request()->is('contact') ? 'active fw-semibold' : '' }}"
+            href="{{ url('/contact') }}">Liên hệ</a>
         </li>
 
         <!-- Notifications -->
-        <li class="dropdown dropdown-hover extended-dropdown-2">
-          <a class="nav-link position-relative" href="{{ url('/notifications') }}">
-            <i class="bi bi-bell fs-5"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
-          </a>
-          <ul class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-speedometer2 fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Analytics Dashboard</div>
-                    <small class="text-muted">Track your performance metrics</small>
-                  </div>
-                  <span class="badge bg-primary ms-auto">New</span>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-people fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Team Management</div>
-                    <small class="text-muted">Manage your team members</small>
-                  </div>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-graph-up fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Sales Reports</div>
-                    <small class="text-muted">Review financial statistics</small>
-                  </div>
-                  <span class="badge bg-danger ms-auto">Hot</span>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-shield-lock fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Security Center</div>
-                    <small class="text-muted">Manage privacy settings</small>
-                  </div>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-chat-dots fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Message Center</div>
-                    <small class="text-muted">Check your notifications</small>
-                  </div>
-                  <span class="badge bg-info ms-auto">5</span>
-                </div>
-              </a>
-            </li>
-          </ul>
-        </li>
+<li class="dropdown dropdown-hover extended-dropdown-2" id="header-notifications">
+  <a class="nav-link position-relative" href="{{ url('/notifications') }}">
+    <i class="bi bi-bell fs-5"></i>
+    <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+  </a>
+  <ul id="notif-list" class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
+    <li class="text-center text-muted py-2">Đang tải...</li>
+  </ul>
+</li>
 
-        <!-- Chat -->
-        <li class="nav-item position-relative">
-          <a class="nav-link" href="{{ url('/chat') }}">
-            <i class="bi bi-chat-dots fs-5"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">5</span>
-          </a>
-        </li>
+<!-- Chat Dropdown -->
+<li class="dropdown dropdown-hover" id="chat-header-box">
+  <a class="nav-link position-relative" href="{{ url('/chat') }}">
+    <i class="bi bi-chat-dots fs-5"></i>
+    <!-- Badge tổng -->
+    <span id="chat-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+  </a>
+
+  <ul id="chat-dropdown" 
+      class="dropdown-menu shadow-sm border-0 p-0"
+      style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+    <li class="text-center text-muted py-2">Đang tải...</li>
+  </ul>
+</li>
+
+<style>
+  /* 💬 Hiệu ứng hover + unread box */
+  #chat-dropdown li a {
+    transition: background-color 0.2s;
+  }
+
+  #chat-dropdown li a:hover {
+    background-color: #f1f1f1;
+  }
+
+  /* Box có tin chưa đọc */
+  #chat-dropdown li.unread a {
+    background-color: #e7f3ff !important; /* xanh nhạt giống FB */
+    font-weight: 600;
+  }
+
+  /* Badge tin nhắn chưa đọc */
+  .chat-unread-badge {
+    background-color: #1877f2; /* xanh FB */
+    font-size: 0.7rem;
+    min-width: 18px;
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  loadChatHeader();
+  setInterval(loadChatHeader, 10000); // 🔁 tự động reload 10s/lần
+
+  function loadChatHeader() {
+    fetch("{{ route('chat.header') }}")
+      .then(res => res.json())
+      .then(data => {
+        const badge = document.getElementById('chat-badge');
+        const dropdown = document.getElementById('chat-dropdown');
+        dropdown.innerHTML = '';
+
+        // --- Hiển thị badge tổng ---
+        if (data.unread_total > 0) {
+          badge.textContent = data.unread_total;
+          badge.classList.remove('d-none');
+        } else {
+          badge.classList.add('d-none');
+        }
+
+        // --- Nếu không có box ---
+        if (!data.boxes || data.boxes.length === 0) {
+          dropdown.innerHTML = `<li class="text-center text-muted py-2">Không có cuộc trò chuyện</li>`;
+          return;
+        }
+
+        // --- Render từng box ---
+        data.boxes.forEach(box => {
+          const isUnread = box.unread > 0;
+
+          dropdown.innerHTML += `
+            <li class="${isUnread ? 'unread' : ''}">
+              <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
+                <img src="${box.avatar}" width="42" height="42" class="rounded-circle border">
+                <div class="flex-grow-1">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold text-dark">${box.name}</span>
+                    <small class="text-muted">${box.last_time}</small>
+                  </div>
+                  <small class="text-muted text-truncate d-block" style="max-width:190px;">
+                    ${box.last_message || '<i>Không có tin nhắn</i>'}
+                  </small>
+                </div>
+                ${isUnread ? `<span class="badge rounded-pill chat-unread-badge">${box.unread}</span>` : ''}
+              </a>
+            </li>
+          `;
+        });
+      })
+      .catch(err => {
+        console.error('Error loading chat header:', err);
+        document.getElementById('chat-dropdown').innerHTML =
+          `<li class="text-center text-danger py-2">Lỗi tải dữ liệu</li>`;
+      });
+  }
+});
+</script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  fetch("{{ route('notifications.headerData') }}")
+    .then(res => res.json())
+    .then(data => {
+      // --- Gán số lượng ---
+      const notifBadge = document.getElementById('notif-badge');
+      const chatBadge = document.getElementById('chat-badge');
+
+      if (data.unread_notifications > 0) {
+        notifBadge.textContent = data.unread_notifications;
+        notifBadge.classList.remove('d-none');
+      }
+
+      if (data.unread_messages > 0) {
+        chatBadge.textContent = data.unread_messages;
+        chatBadge.classList.remove('d-none');
+      }
+
+      // --- Gán danh sách ---
+      const notifList = document.getElementById('notif-list');
+      notifList.innerHTML = ''; // clear
+
+      if (data.notifications.length === 0) {
+        notifList.innerHTML = `<li class="text-center text-muted py-2">Không có thông báo</li>`;
+      } else {
+        data.notifications.forEach(n => {
+          notifList.innerHTML += `
+            <li>
+              <a class="dropdown-item py-2" href="#">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-bell fs-5"></i>
+                  <div>
+                    <div class="fw-semibold">${n.title || '(Không tiêu đề)'}</div>
+                    <small class="text-muted">${n.body || ''}</small>
+                  </div>
+                  ${!n.is_read ? '<span class="badge bg-primary ms-auto">Mới</span>' : ''}
+                </div>
+              </a>
+            </li>
+          `;
+        });
+      }
+    })
+    .catch(err => {
+      console.error('Error loading notifications:', err);
+    });
+});
+</script>
+
 
         <!-- Search -->
         <li class="nav-item position-relative">
@@ -162,9 +251,10 @@
                 <option value="job" {{ request('category') == 'job' ? 'selected' : '' }}>Công việc</option>
                 <option value="account" {{ request('category') == 'account' ? 'selected' : '' }}>Tài khoản</option>
               </select>
-              <input id="searchInput" name="q" value="{{ request('q') }}" class="form-control border-0 bg-light px-2" type="search"
-                     placeholder="{{ request('category') == 'account' ? 'Nhập username...' : 'Nhập công việc...' }}"
-                     aria-label="Search" autocomplete="off">
+              <input id="searchInput" name="q" value="{{ request('q') }}" class="form-control border-0 bg-light px-2"
+                type="search"
+                placeholder="{{ request('category') == 'account' ? 'Nhập username...' : 'Nhập công việc...' }}"
+                aria-label="Search" autocomplete="off">
               <button class="btn btn-primary px-3" type="submit"><i class="bi bi-search"></i></button>
             </div>
             <div id="searchSuggestions" class="search-suggestions shadow-sm d-none">
@@ -174,91 +264,92 @@
         </li>
 
         <!-- User -->
-         @auth
-                    <li class="nav-item dropdown dropdown-hover me-3">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown"
-                           data-bs-toggle="dropdown" aria-expanded="false">
-                            @php
-                                $acc = Auth::user()->loadMissing('type');
-                                $name = $acc->profile?->fullname ?: $acc->name ?: 'Tài khoản';
-                                $username = $acc->profile?->username;
-                                $handle = $username ? '@' . $username : null;
-                                $initials = collect(explode(' ', $name))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
-                                $avatar = $acc->avatar_url;
-                                $src = $avatar ? (preg_match('/^https?:\/\//', $avatar) ? $avatar : asset($avatar)) : null;
-                            @endphp
-                            @if($src)
-                                <img src="{{ $src }}" referrerpolicy="no-referrer" class="rounded-circle"
-                                     style="width:32px;height:32px;object-fit:cover;">
-                            @else
-                                <span class="avatar-circle">{{ $initials }}</span>
-                            @endif
-                            <span class="d-none d-lg-flex flex-column lh-sm text-start">
-                                <span class="fw-semibold">{{ Str::limit($name, 12) }}</span>
-                                @if($handle)
-                                    <span class="text-muted small">{{ Str::limit($handle, 12) }}</span>
-                                @endif
-                            </span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" style="min-width: 240px; font-size: 0.9rem;"
-                            aria-labelledby="userDropdown">
-                            @php
-                                $typeName = $acc->type->name ?? 'Guest';
-                                $typeCode = $acc->type->code ?? 'GUEST';
-                            @endphp
-                            <li class="px-2 py-1 text-muted small d-flex align-items-center gap-2">
-                                <i class="bi bi-patch-check fs-5"></i>
-                                Loại tài khoản:
-                                <span class="badge bg-light text-dark">{{ $typeName }}</span>
-                            </li>
-                            @if ($typeCode === 'F_BASIC' || $typeCode === 'CLIENT')
-                                <li class="px-2 py-1">
-                                    <a href="{{ route('settings.upgrade') }}"
-                                       class="d-flex align-items-center gap-2 text-decoration-none">
-                                        <div>
-                                            <div class="d-flex align-items-center gap-1 fw-semibold text-dark">
-                                                <i class="bi bi-gem text-warning fs-5"></i>
-                                                Nâng cấp gói Plus
-                                            </div>
-                                            <small class="text-muted">Mở khóa tính năng & ưu đãi</small>
-                                        </div>
-                                    </a>
-                                </li>
-                            @endif
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li>
-                                <button type="button" 
-                                        class="dropdown-item d-flex align-items-center gap-1 py-1"
-                                        onclick="window.location='{{ route('settings.myinfo') }}'">
-                                    <i class="bi bi-person-circle fs-5 me-1"></i>Cài đặt tài khoản
-                                </button>
-
-                            </li>
-                            @if ($typeCode === 'ADMIN')
-                                <li>
-                                    <button type="button" 
-                                            class="dropdown-item d-flex align-items-center gap-1 py-1"
-                                            onclick="window.location='{{ route('settings.myinfo') }}'">
-                                        <i class="bi bi-speedometer2 fs-5 me-1"></i>Cài đặt tài khoản
-                                    </button>
-                                </li>
-                            @endif
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li>
-                                <form action="{{ route('logout') }}" method="POST" class="m-0">
-                                    @csrf
-                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-1">
-                                        <i class="bi bi-box-arrow-right fs-5"></i> Đăng xuất
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
-                    </li>
-                @else
-                    <li class="nav-item me-3">
-                        <a class="nav-link" href="{{ route('login') }}">Đăng nhập</a>
-                    </li>
+        @auth
+          <li class="nav-item dropdown dropdown-hover me-3">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="userDropdown"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              @php
+                $acc = Auth::user()->loadMissing('type');
+                $name = $acc->profile?->fullname ?: $acc->name ?: 'Tài khoản';
+                $username = $acc->profile?->username;
+                $handle = $username ? '@' . $username : null;
+                $initials = collect(explode(' ', $name))->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+                $avatar = $acc->avatar_url;
+                $src = $avatar ? (preg_match('/^https?:\/\//', $avatar) ? $avatar : asset($avatar)) : null;
+              @endphp
+              @if($src)
+                <img src="{{ $src }}" referrerpolicy="no-referrer" class="rounded-circle"
+                  style="width:32px;height:32px;object-fit:cover;">
+              @else
+                <span class="avatar-circle">{{ $initials }}</span>
+              @endif
+              <span class="d-none d-lg-flex flex-column lh-sm text-start">
+                <span class="fw-semibold">{{ Str::limit($name, 12) }}</span>
+                @if($handle)
+                  <span class="text-muted small">{{ Str::limit($handle, 12) }}</span>
                 @endif
+              </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm p-2" style="min-width: 240px; font-size: 0.9rem;"
+              aria-labelledby="userDropdown">
+              @php
+                $typeName = $acc->type->name ?? 'Guest';
+                $typeCode = $acc->type->code ?? 'GUEST';
+              @endphp
+              <li class="px-2 py-1 text-muted small d-flex align-items-center gap-2">
+                <i class="bi bi-patch-check fs-5"></i>
+                Loại tài khoản:
+                <span class="badge bg-light text-dark">{{ $typeName }}</span>
+              </li>
+              @if ($typeCode === 'F_BASIC' || $typeCode === 'CLIENT')
+                <li class="px-2 py-1">
+                  <a href="{{ route('settings.upgrade') }}" class="d-flex align-items-center gap-2 text-decoration-none">
+                    <div>
+                      <div class="d-flex align-items-center gap-1 fw-semibold text-dark">
+                        <i class="bi bi-gem text-warning fs-5"></i>
+                        Nâng cấp gói Plus
+                      </div>
+                      <small class="text-muted">Mở khóa tính năng & ưu đãi</small>
+                    </div>
+                  </a>
+                </li>
+              @endif
+              <li>
+                <hr class="dropdown-divider my-1">
+              </li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-1 py-1"
+                  onclick="window.location='{{ route('settings.myinfo') }}'">
+                  <i class="bi bi-person-circle fs-5 me-1"></i>Cài đặt tài khoản
+                </button>
+
+              </li>
+              @if ($typeCode === 'ADMIN')
+                <li>
+                  <button type="button" class="dropdown-item d-flex align-items-center gap-1 py-1"
+                    onclick="window.location='{{ route('admin.accounts.index') }}'">
+                    <i class="bi bi-speedometer2 fs-5 me-1"></i>Bảng điều khiển
+                  </button>
+                </li>
+              @endif
+              <li>
+                <hr class="dropdown-divider my-1">
+              </li>
+              <li>
+                <form action="{{ route('logout') }}" method="POST" class="m-0">
+                  @csrf
+                  <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-1">
+                    <i class="bi bi-box-arrow-right fs-5"></i> Đăng xuất
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        @else
+        <li class="nav-item me-3">
+          <a class="nav-link" href="{{ route('login') }}">Đăng nhập</a>
+        </li>
+        @endif
       </ul>
     </nav>
   </div>
@@ -277,17 +368,17 @@
       const menu = dropdown.querySelector('.dropdown-menu');
       const isMobile = window.matchMedia("(max-width: 1199px)").matches;
       if (!isMobile) {
-        link.addEventListener('mouseenter', () => { menu.classList.add('show'); menu.setAttribute('data-bs-popper','static'); });
+        link.addEventListener('mouseenter', () => { menu.classList.add('show'); menu.setAttribute('data-bs-popper', 'static'); });
         dropdown.addEventListener('mouseleave', () => { menu.classList.remove('show'); menu.removeAttribute('data-bs-popper'); });
       }
     });
 
     // Mobile: click để toggle submenu
-    function wireMobileDropdowns(){
+    function wireMobileDropdowns() {
       const isMobile = window.matchMedia("(max-width: 1199px)").matches;
-      document.querySelectorAll('.dropdown-hover > a.nav-link').forEach(a=>{
-        a.onclick = (e)=>{
-          if(isMobile){
+      document.querySelectorAll('.dropdown-hover > a.nav-link').forEach(a => {
+        a.onclick = (e) => {
+          if (isMobile) {
             e.preventDefault();
             const menu = a.parentElement.querySelector('.dropdown-menu');
             menu?.classList.toggle('show');
@@ -312,24 +403,24 @@
       let saved = localStorage.getItem("lastSearch");
       if (saved) {
         let { type, query } = JSON.parse(saved);
-        if(category) category.value = type;
-        if(input) input.value = query;
+        if (category) category.value = type;
+        if (input) input.value = query;
       }
     });
 
     category?.addEventListener('change', function () {
-      if(input){
+      if (input) {
         input.placeholder = this.value === 'account' ? "Nhập username..." : "Nhập công việc...";
       }
       suggestions?.parentElement.classList.add('d-none');
-      if(suggestions) suggestions.innerHTML = '';
+      if (suggestions) suggestions.innerHTML = '';
     });
 
     input?.addEventListener('input', function () {
       if (this.value.trim().length === 0) {
         localStorage.removeItem("lastSearch");
         suggestions?.parentElement.classList.add('d-none');
-        if(suggestions) suggestions.innerHTML = '';
+        if (suggestions) suggestions.innerHTML = '';
       } else {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => fetchData(this.value.trim()), 300);
@@ -369,13 +460,13 @@
       }
       showMessage(`<div class="d-flex justify-content-center align-items-center">
         <div class="spinner-border spinner-border-sm me-2 text-primary"></div><span>Đang tìm...</span></div>`);
-      let type = category.value; let cacheKey = type+"_"+query;
+      let type = category.value; let cacheKey = type + "_" + query;
       if (cache[cacheKey]) { renderSuggestions(cache[cacheKey], type); return; }
       try {
         let response = await fetch(`/search?q=${encodeURIComponent(query)}&type=${type}`);
         let data = await response.json();
-        cache[cacheKey]=data;
-        localStorage.setItem("lastSearch", JSON.stringify({type,query,data}));
+        cache[cacheKey] = data;
+        localStorage.setItem("lastSearch", JSON.stringify({ type, query, data }));
         renderSuggestions(data, type);
       } catch (e) { console.error("Lỗi fetch:", e); showMessage("Có lỗi xảy ra, vui lòng thử lại"); }
     }
@@ -391,18 +482,18 @@
           if (type === 'account') {
             let avatar = document.createElement('img');
             avatar.src = item.avatar_url ? item.avatar_url : defaultAvatar;
-            avatar.className = "rounded-circle me-2"; avatar.style.width="32px"; avatar.style.height="32px"; avatar.style.objectFit="cover";
-            let textDiv = document.createElement('div'); textDiv.className="d-flex flex-column";
-            let username = document.createElement('span'); username.textContent = (item.username||'').slice(0,20)+((item.username||'').length>20?'...':''); username.className="fw-semibold";
-            let fullname = document.createElement('small'); fullname.textContent = item.fullname ? item.fullname.slice(0,20)+ (item.fullname.length>20?'...':'') : ''; fullname.className="text-muted";
+            avatar.className = "rounded-circle me-2"; avatar.style.width = "32px"; avatar.style.height = "32px"; avatar.style.objectFit = "cover";
+            let textDiv = document.createElement('div'); textDiv.className = "d-flex flex-column";
+            let username = document.createElement('span'); username.textContent = (item.username || '').slice(0, 20) + ((item.username || '').length > 20 ? '...' : ''); username.className = "fw-semibold";
+            let fullname = document.createElement('small'); fullname.textContent = item.fullname ? item.fullname.slice(0, 20) + (item.fullname.length > 20 ? '...' : '') : ''; fullname.className = "text-muted";
             textDiv.appendChild(username); textDiv.appendChild(fullname);
             li.appendChild(avatar); li.appendChild(textDiv);
             li.onclick = () => window.location.href = `/portfolios/${item.username}`;
           } else {
-            let icon = document.createElement('i'); icon.className="bi bi-briefcase-fill me-2 text-primary"; icon.style.fontSize="1rem";
-            let textDiv = document.createElement('div'); textDiv.className="d-flex flex-column";
-            let title = document.createElement('span'); title.textContent = (item.title||'').slice(0,25)+((item.title||'').length>25?'...':''); title.className="fw-semibold";
-            let description = document.createElement('small'); description.textContent = item.description ? item.description.slice(0,30)+ (item.description.length>30?'...':'') : ''; description.className="text-muted";
+            let icon = document.createElement('i'); icon.className = "bi bi-briefcase-fill me-2 text-primary"; icon.style.fontSize = "1rem";
+            let textDiv = document.createElement('div'); textDiv.className = "d-flex flex-column";
+            let title = document.createElement('span'); title.textContent = (item.title || '').slice(0, 25) + ((item.title || '').length > 25 ? '...' : ''); title.className = "fw-semibold";
+            let description = document.createElement('small'); description.textContent = item.description ? item.description.slice(0, 30) + (item.description.length > 30 ? '...' : '') : ''; description.className = "text-muted";
             textDiv.appendChild(title); textDiv.appendChild(description);
             li.appendChild(icon); li.appendChild(textDiv);
             li.onclick = () => window.location.href = `/jobs/${item.id}`;
@@ -423,57 +514,196 @@
   </script>
 
   <style>
-    :root { --jl-nav-height: 64px; }
-    body { padding-top: var(--jl-nav-height); }
+    :root {
+      --jl-nav-height: 64px;
+    }
+
+    body {
+      padding-top: var(--jl-nav-height);
+    }
 
     /* Tight desktop spacing */
-    @media (min-width:1200px){
-      .jl-search-h36 { height: 34px; }
-      .jl-search-h36 .form-select{ max-width:110px; font-size:13px; }
-      .jl-search-h36 .form-control{ font-size:13px; }
-      .jl-search-h36 .btn{ padding-inline:.65rem; }
+    @media (min-width:1200px) {
+      .jl-search-h36 {
+        height: 34px;
+      }
+
+      .jl-search-h36 .form-select {
+        max-width: 110px;
+        font-size: 13px;
+      }
+
+      .jl-search-h36 .form-control {
+        font-size: 13px;
+      }
+
+      .jl-search-h36 .btn {
+        padding-inline: .65rem;
+      }
     }
 
     /* Search chung */
-    .input-group { border-radius: 50rem !important; transition: box-shadow .2s ease; }
-    .input-group:focus-within { box-shadow: 0 0 0 .2rem rgba(13,110,253,.25); }
-    .form-select, .form-control { background-color:#f8f9fa !important; border:none !important; }
-    .form-select:focus, .form-control:focus { box-shadow:none !important; background-color:#fff !important; }
-    .btn-primary { border-radius: 0 50rem 50rem 0 !important; }
-    .search-suggestions { position:absolute; top:40px; left:0; right:0; z-index:1000; background:#fff; border-radius:.5rem; box-shadow:0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06); padding:.5rem 0; }
-    .search-suggestions .list-group-item { border:none; padding:.5rem 1rem; transition: background-color .2s ease; }
-    .search-suggestions .list-group-item:hover { background:#f1f3f5; }
-    .avatar-circle { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:#e9ecef; font-weight:700; }
+    .input-group {
+      border-radius: 50rem !important;
+      transition: box-shadow .2s ease;
+    }
+
+    .input-group:focus-within {
+      box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .25);
+    }
+
+    .form-select,
+    .form-control {
+      background-color: #f8f9fa !important;
+      border: none !important;
+    }
+
+    .form-select:focus,
+    .form-control:focus {
+      box-shadow: none !important;
+      background-color: #fff !important;
+    }
+
+    
+    .search-suggestions {
+      position: absolute;
+      top: 40px;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: #fff;
+      border-radius: .5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -1px rgba(0, 0, 0, .06);
+      padding: .5rem 0;
+    }
+
+    .search-suggestions .list-group-item {
+      border: none;
+      padding: .5rem 1rem;
+      transition: background-color .2s ease;
+    }
+
+    .search-suggestions .list-group-item:hover {
+      background: #f1f3f5;
+    }
+
+    .avatar-circle {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #e9ecef;
+      font-weight: 700;
+    }
 
     /* ===== Mobile (<1200px): Off-canvas giữ nguyên ===== */
-    @media (max-width:1199.98px){
-      .mobile-nav-toggle { margin-left:.5rem; }
+    @media (max-width:1199.98px) {
+      .mobile-nav-toggle {
+        margin-left: .5rem;
+      }
+
       #navmenu {
-        position: fixed; inset: 0 0 0 auto; width: 86vw; max-width: 380px; height: 100vh;
-        background: #fff; transform: translateX(100%); transition: transform .28s ease;
-        box-shadow: -16px 0 24px -16px rgba(0,0,0,.15); z-index: 2000; padding: .75rem 1rem; display: block !important;
+        position: fixed;
+        inset: 0 0 0 auto;
+        width: 86vw;
+        max-width: 380px;
+        height: 100vh;
+        background: #fff;
+        transform: translateX(100%);
+        transition: transform .28s ease;
+        box-shadow: -16px 0 24px -16px rgba(0, 0, 0, .15);
+        z-index: 2000;
+        padding: .75rem 1rem;
+        display: block !important;
       }
-      #navmenu.navmenu-active { transform: translateX(0); }
-      #navmenu .btn-close-nav { display:block; margin-left:auto; margin-bottom:.5rem; }
-      #navmenu > ul { flex-direction: column !important; align-items: stretch !important; gap: .25rem; }
-      #navmenu .nav-item { width: 100%; }
-      #navmenu .nav-link { width:100%; padding:.675rem .5rem; border-radius:.5rem; }
-      #navmenu .nav-link.active { background:#f1f3f5; }
+
+      #navmenu.navmenu-active {
+        transform: translateX(0);
+      }
+
+      #navmenu .btn-close-nav {
+        display: block;
+        margin-left: auto;
+        margin-bottom: .5rem;
+      }
+
+      #navmenu>ul {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: .25rem;
+      }
+
+      #navmenu .nav-item {
+        width: 100%;
+      }
+
+      #navmenu .nav-link {
+        width: 100%;
+        padding: .675rem .5rem;
+        border-radius: .5rem;
+      }
+
+      #navmenu .nav-link.active {
+        background: #f1f3f5;
+      }
+
       #navmenu .dropdown-menu {
-        position: static !important; transform: none !important; display: none; float: none;
-        box-shadow: none !important; border: 1px solid #e9ecef; border-radius:.5rem; margin:.25rem 0 .5rem 0; padding:.25rem !important;
-        width: 100% !important; min-width: unset !important;
+        position: static !important;
+        transform: none !important;
+        display: none;
+        float: none;
+        box-shadow: none !important;
+        border: 1px solid #e9ecef;
+        border-radius: .5rem;
+        margin: .25rem 0 .5rem 0;
+        padding: .25rem !important;
+        width: 100% !important;
+        min-width: unset !important;
       }
-      #navmenu .dropdown-menu.show { display:block; }
-      #navmenu .dropdown-item { padding:.5rem .625rem !important; border-radius:.375rem; }
-      #navmenu .dropdown-item + .dropdown-item { margin-top: .125rem; }
-      .user-dd { padding:.25rem !important; }
-      .user-dd .dropdown-item { padding:.5rem .6rem !important; gap:.5rem !important; }
-      .user-dd .px-2.py-1 { padding:.4rem .5rem !important; }
-      .user-dd .dropdown-divider { margin:.25rem 0 !important; }
-      .nav-item .badge { transform: translate(-30%, -30%) !important; }
-      #searchForm { position: relative; }
-      .search-suggestions { top: 44px; }
+
+      #navmenu .dropdown-menu.show {
+        display: block;
+      }
+
+      #navmenu .dropdown-item {
+        padding: .5rem .625rem !important;
+        border-radius: .375rem;
+      }
+
+      #navmenu .dropdown-item+.dropdown-item {
+        margin-top: .125rem;
+      }
+
+      .user-dd {
+        padding: .25rem !important;
+      }
+
+      .user-dd .dropdown-item {
+        padding: .5rem .6rem !important;
+        gap: .5rem !important;
+      }
+
+      .user-dd .px-2.py-1 {
+        padding: .4rem .5rem !important;
+      }
+
+      .user-dd .dropdown-divider {
+        margin: .25rem 0 !important;
+      }
+
+      .nav-item .badge {
+        transform: translate(-30%, -30%) !important;
+      }
+
+      #searchForm {
+        position: relative;
+      }
+
+      .search-suggestions {
+        top: 44px;
+      }
     }
   </style>
 </header>

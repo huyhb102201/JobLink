@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class BoxChat extends Model
 {
     protected $table = 'box_chat';
-    protected $fillable = ['sender_id', 'receiver_id','job_id','org_id', 'name', 'type'];
+    protected $fillable = ['sender_id', 'receiver_id', 'job_id', 'org_id', 'name', 'type'];
 
     public function messages()
     {
@@ -33,4 +33,10 @@ class BoxChat extends Model
     {
         return $this->belongsTo(Org::class, 'org_id', 'org_id');
     }
+
+    public function latestMessage()
+    {
+        return $this->hasOne(Message::class, 'box_id')->latestOfMany();
+    }
+
 }

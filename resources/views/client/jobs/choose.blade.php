@@ -121,69 +121,81 @@
 @endpush
 
 @section('content')
-    <div class="choose-hero py-4" style="margin-bottom:200px;">
-        <div class="container" style="max-width: 1080px;">
-            <div class="d-flex align-items-center gap-2 text-muted small mb-2">
-                <i class="bi bi-house"></i><a href="{{ url('/') }}" class="text-muted text-decoration-none">Trang chủ</a>
-                <span>›</span><span>Đăng job</span>
+    <main class="main">
+        <!-- Page Title -->
+        <div class="page-title">
+            <div class="container d-lg-flex justify-content-between align-items-center">
+                <h1 class="mb-2 mb-lg-0">Đăng công việc</h1>
+                <nav class="breadcrumbs">
+                    <ol>
+                        <li><a href="{{ route('home') }}">Trang chủ</a></li>
+                        <li class="current">Đăng công việc</li>
+                    </ol>
+                </nav>
             </div>
-
-            <h1 class="section-title h3 fw-semibold mb-1">Bạn muốn tạo job như thế nào?</h1>
-            <p class="text-secondary mb-4">Chọn cách phù hợp: tự điền biểu mẫu chi tiết hoặc để AI tạo bản nháp & điền sẵn
-                giúp bạn.</p>
-
-            <div class="row g-4">
-                {{-- Tự điền biểu mẫu --}}
-                <div class="col-md-6">
-                    <div class="option-card h-100">
-                        <div class="p-4 p-lg-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <span class="option-icon"><i class="bi bi-pencil-square"></i></span>
-                                <div class="ms-3">
-                                    <h5 class="mb-1">Tự điền biểu mẫu</h5>
-                                    <div class="text-muted small">Bạn tự nhập tiêu đề, mô tả, ngân sách, deadline…</div>
-                                </div>
-                            </div>
-
-                            <ul class="feature-list mb-4">
-                                <li><i class="bi bi-check2-circle"></i> Kiểm soát từng trường thông tin</li>
-                                <li><i class="bi bi-check2-circle"></i> Phù hợp khi đã có yêu cầu rõ ràng</li>
-                            </ul>
-
-                            <a class="btn btn-outline-primary w-100" href="{{ route('client.jobs.wizard.step', 1) }}">
-                                <i class="bi bi-pencil"></i> Bắt đầu 
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Nhờ AI viết hộ --}}
-                <div class="col-md-6">
-                    <div class="option-card h-100">
-                        <div class="p-4 p-lg-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <span class="option-icon success"><i class="bi bi-stars"></i></span>
-                                <div class="ms-3">
-                                    <h5 class="mb-1">Nhờ AI viết hộ</h5>
-                                    <div class="text-muted small">Dán mô tả thô, AI tự tạo bản nháp & điền sẵn form.</div>
-                                </div>
-                            </div>
-
-                            <ul class="feature-list mb-4">
-                                <li><i class="bi bi-check2-circle"></i> Nhanh, gợi ý cấu trúc chuẩn</li>
-                                <li><i class="bi bi-check2-circle"></i> Vẫn chỉnh sửa thoải mái trước khi đăng</li>
-                            </ul>
-
-                            <a class="btn btn-success w-100 py-2" href="{{ route('client.jobs.ai_form') }}">
-                                <i class="bi bi-magic me-1"></i> Dùng AI tạo form
-                            </a>
-                            <div class="small text-muted mt-2">Mẹo: nhập vài ràng buộc (tech stack, deadline, ngân sách) để
-                                AI điền chính xác hơn.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
-    </div>
+        <div class="choose-hero py-4" style="margin-bottom:200px;">
+            <div class="container" style="max-width: 1080px;">
+                <h1 class="section-title h3 fw-semibold mb-1">Bạn muốn tạo job như thế nào?</h1>
+                <p class="text-secondary mb-4">Chọn cách phù hợp: tự điền biểu mẫu chi tiết hoặc để AI tạo bản nháp & điền
+                    sẵn
+                    giúp bạn.</p>
+
+                <div class="row g-4">
+                    {{-- Tự điền biểu mẫu --}}
+                    <div class="col-md-6">
+                        <div class="option-card h-100">
+                            <div class="p-4 p-lg-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="option-icon"><i class="bi bi-pencil-square"></i></span>
+                                    <div class="ms-3">
+                                        <h5 class="mb-1">Tự điền biểu mẫu</h5>
+                                        <div class="text-muted small">Bạn tự nhập tiêu đề, mô tả, ngân sách, deadline…</div>
+                                    </div>
+                                </div>
+
+                                <ul class="feature-list mb-4">
+                                    <li><i class="bi bi-check2-circle"></i> Kiểm soát từng trường thông tin</li>
+                                    <li><i class="bi bi-check2-circle"></i> Phù hợp khi đã có yêu cầu rõ ràng</li>
+                                </ul>
+
+                                <a class="btn btn-outline-primary w-100" href="{{ route('client.jobs.wizard.step', 1) }}">
+                                    <i class="bi bi-pencil"></i> Bắt đầu
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Nhờ AI viết hộ --}}
+                    <div class="col-md-6">
+                        <div class="option-card h-100">
+                            <div class="p-4 p-lg-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="option-icon success"><i class="bi bi-stars"></i></span>
+                                    <div class="ms-3">
+                                        <h5 class="mb-1">Nhờ AI viết hộ</h5>
+                                        <div class="text-muted small">Dán mô tả thô, AI tự tạo bản nháp & điền sẵn form.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <ul class="feature-list mb-4">
+                                    <li><i class="bi bi-check2-circle"></i> Nhanh, gợi ý cấu trúc chuẩn</li>
+                                    <li><i class="bi bi-check2-circle"></i> Vẫn chỉnh sửa thoải mái trước khi đăng</li>
+                                </ul>
+
+                                <a class="btn btn-success w-100 py-2" href="{{ route('client.jobs.ai_form') }}">
+                                    <i class="bi bi-magic me-1"></i> Dùng AI tạo form
+                                </a>
+                                <div class="small text-muted mt-2">Mẹo: nhập vài ràng buộc (tech stack, deadline, ngân sách)
+                                    để
+                                    AI điền chính xác hơn.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
 @endsection
