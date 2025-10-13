@@ -69,7 +69,7 @@
                   <div class="d-flex align-items-center gap-2 flex-wrap">
                     <a class="fw-semibold text-decoration-none link-dark h5 mb-0"
                       href="{{ route('jobs.show', $job->job_id) }}">
-                      {{ $job->title }}
+                     {{ \Illuminate\Support\Str::limit(strip_tags($job->title ), 30) }}
                     </a>
                     <span class="badge rounded-pill bg-{{ $esc['class'] }}-subtle text-{{ $esc['class'] }} border border-{{ $esc['class'] }}-subtle">
                       {{ $esc['label'] }}
@@ -95,9 +95,10 @@
                     @endif
                   </div>
 
-                  <div class="text-truncate mt-2 text-secondary" style="max-width: 820px;">
-                    {{ $job->description }}
-                  </div>
+                  <div class="mt-2 text-secondary" style="max-width: 820px;">
+  {{ \Illuminate\Support\Str::limit(strip_tags($job->description), 50) }}
+</div>
+
                 </div>
                 <div class="text-end">
                   @if(($job->escrow_status ?? 'pending') === 'pending'&& $job->status !== 'cancelled')
