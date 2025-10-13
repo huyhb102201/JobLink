@@ -38,6 +38,7 @@ use App\Http\Controllers\Admin\JobController as AdminJobController;
 // Thêm controller quản lý xét duyệt
 use App\Http\Controllers\Admin\AdminVerificationController;
 use App\Http\Controllers\PaymentController as PublicPaymentController;
+
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -88,6 +89,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
+
+    Route::get('/notifications/header-data', [\App\Http\Controllers\NotificationController::class, 'headerData'])
+    ->name('notifications.headerData');
+    Route::get('/chat/header', [\App\Http\Controllers\NotificationController::class, 'headerList'])
+    ->name('chat.header');
+
+
 
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
     Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
