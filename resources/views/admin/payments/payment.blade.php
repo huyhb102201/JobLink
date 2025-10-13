@@ -29,29 +29,26 @@
     
     /* Định width cho từng cột */
     #payments-table th:nth-child(1),
-    #payments-table td:nth-child(1) { width: 50px; } /* Checkbox */
-    
-    #payments-table th:nth-child(2),
-    #payments-table td:nth-child(2) { 
+    #payments-table td:nth-child(1) { 
         width: 200px; 
         white-space: normal;
     } /* Người dùng */
     
+    #payments-table th:nth-child(2),
+    #payments-table td:nth-child(2) { width: 150px; } /* Mã đơn hàng */
+    
     #payments-table th:nth-child(3),
-    #payments-table td:nth-child(3) { width: 150px; } /* Mã đơn hàng */
+    #payments-table td:nth-child(3) { width: 120px; } /* Số tiền */
     
     #payments-table th:nth-child(4),
-    #payments-table td:nth-child(4) { width: 120px; } /* Số tiền */
+    #payments-table td:nth-child(4) { width: 100px; } /* Trạng thái */
     
     #payments-table th:nth-child(5),
-    #payments-table td:nth-child(5) { width: 100px; } /* Trạng thái */
+    #payments-table td:nth-child(5) { width: 130px; } /* Ngày tạo */
     
     #payments-table th:nth-child(6),
-    #payments-table td:nth-child(6) { width: 130px; } /* Ngày tạo */
-    
-    #payments-table th:nth-child(7),
-    #payments-table td:nth-child(7) { 
-        width: 120px; 
+    #payments-table td:nth-child(6) { 
+        width: 80px; 
         text-align: center;
         white-space: nowrap;
     } /* Thao tác */
@@ -202,11 +199,8 @@
         <a href="{{ route('admin.payments.export') }}" class="btn btn-success btn-sm me-2" id="export-excel-btn">
           <i class="fas fa-file-excel me-1"></i> Xuất Excel
         </a>
-        <button type="button" class="btn btn-info btn-sm me-2" data-bs-toggle="modal" data-bs-target="#membershipPlansModal">
+        <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#membershipPlansModal">
           <i class="fa-solid fa-crown me-1"></i> Quản lý gói Membership
-        </button>
-        <button id="bulk-delete-btn" type="button" class="btn btn-danger btn-sm" disabled>
-          <i class="fa-solid fa-trash me-1"></i> Xóa đã chọn
         </button>
       </div>
     </div>
@@ -215,7 +209,6 @@
         <table class="table table-bordered table-hover" id="payments-table">
           <thead class="table-light">
             <tr>
-              <th><input type="checkbox" class="form-check-input" id="checkAll"></th>
               <th>Người dùng</th>
               <th>Mã đơn hàng</th>
               <th>Số tiền</th>
@@ -227,9 +220,6 @@
           <tbody>
             @foreach($payments as $payment)
             <tr>
-              <td>
-                <input type="checkbox" class="form-check-input row-checkbox" data-payment-id="{{ $payment->payment_id }}">
-              </td>
               <td>
                 <div class="user-info">
                   <img src="{{ $payment->account->avatar_url ?: asset('images/man.jpg') }}" 
@@ -258,18 +248,11 @@
               </td>
               <td>{{ $payment->created_at->format('d/m/Y H:i') }}</td>
               <td>
-                <div class="btn-group" role="group">
-                  <button class="btn btn-info btn-sm view-payment-btn" 
-                          data-payment-id="{{ $payment->payment_id }}" 
-                          title="Xem chi tiết">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button class="btn btn-danger btn-sm delete-payment-btn" 
-                          data-payment-id="{{ $payment->payment_id }}" 
-                          title="Xóa">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
+                <button class="btn btn-info btn-sm view-payment-btn" 
+                        data-payment-id="{{ $payment->payment_id }}" 
+                        title="Xem chi tiết">
+                  <i class="fas fa-eye"></i>
+                </button>
               </td>
             </tr>
             @endforeach
@@ -477,13 +460,6 @@
 const paymentDetailsData = @json($paymentDetails);
 
 $(document).ready(function() {
-    let selectedPayments = new Set();
-
-    function updateButtonStates() {
-        const selectedCount = selectedPayments.size;
-        const isDisabled = selectedCount === 0;
-        $('#bulk-delete-btn').prop('disabled', isDisabled);
-    }
 
     // Khởi tạo DataTables tối ưu - vừa đẹp vừa nhanh
     const table = $('#payments-table').DataTable({
@@ -499,8 +475,8 @@ $(document).ready(function() {
         deferRender: true,
         autoWidth: false,
         columnDefs: [
-            { orderable: false, targets: [0, 6] }, // Tắt sort cho checkbox và action
-            { className: "text-center", targets: [0, 6] }
+            { orderable: false, targets: [5] }, // Tắt sort cho action
+            { className: "text-center", targets: [5] }
         ],
         language: {
             lengthMenu: "Hiển thị _MENU_ mục",
@@ -517,46 +493,6 @@ $(document).ready(function() {
     });
 
     function bindEvents() {
-        // Checkbox events
-        $('.row-checkbox').off('change').on('change', function() {
-            const paymentId = $(this).data('payment-id');
-            if (this.checked) {
-                selectedPayments.add(paymentId);
-            } else {
-                selectedPayments.delete(paymentId);
-            }
-            updateButtonStates();
-        });
-
-        // Delete button events
-        $('.delete-payment-btn').off('click').on('click', function(e) {
-            e.preventDefault();
-            const paymentId = $(this).data('payment-id');
-            
-            Swal.fire({
-                title: 'Bạn có chắc chắn?',
-                text: "Bạn sẽ xóa giao dịch này. Hành động này không thể hoàn tác!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Đồng ý, xóa!',
-                cancelButtonText: 'Hủy'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const form = $('<form>', {
-                        method: 'POST',
-                        action: `/admin/payments/${paymentId}`
-                    }).append(
-                        '@csrf',
-                        '@method("DELETE")'
-                    );
-                    $('body').append(form);
-                    form.submit();
-                }
-            });
-        });
-
         // View button events – sử dụng dữ liệu đã preload
         $('.view-payment-btn').off('click').on('click', function(e) {
             e.preventDefault();
@@ -663,52 +599,6 @@ $(document).ready(function() {
         });
     }
 
-    // Check all functionality
-    $('#checkAll').on('change', function() {
-        const isChecked = this.checked;
-        $('.row-checkbox').each(function() {
-            this.checked = isChecked;
-            const paymentId = $(this).data('payment-id');
-            if (isChecked) {
-                selectedPayments.add(paymentId);
-            } else {
-                selectedPayments.delete(paymentId);
-            }
-        });
-        updateButtonStates();
-    });
-
-    // Bulk delete
-    $('#bulk-delete-btn').on('click', function() {
-        if (selectedPayments.size === 0) {
-            Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một giao dịch', 'warning');
-            return;
-        }
-
-        const paymentIds = Array.from(selectedPayments);
-
-        Swal.fire({
-            title: `Bạn có chắc chắn muốn xóa ${paymentIds.length} giao dịch đã chọn?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Đồng ý xóa!',
-            cancelButtonText: 'Hủy'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const form = $('<form>', {
-                    method: 'POST',
-                    action: '/admin/payments/delete-multiple'
-                }).append(
-                    '@csrf',
-                    $('<input>', { type: 'hidden', name: 'ids', value: paymentIds.join(',') })
-                );
-                $('body').append(form);
-                form.submit();
-            }
-        });
-    });
 
     // Membership Plan Management
     $('#addMembershipPlanForm').on('submit', function(e) {
@@ -832,7 +722,7 @@ $(document).ready(function() {
         
         Swal.fire({
             title: 'Bạn có chắc chắn?',
-            text: "Xóa gói membership này có thể ảnh hưởng đến các giao dịch đang sử dụng!",
+            text: "Hệ thống sẽ kiểm tra xem có người dùng nào đang sử dụng gói này không trước khi xóa.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -866,8 +756,9 @@ $(document).ready(function() {
                     error: function(xhr) {
                         Swal.fire({
                             icon: 'error',
-                            title: 'Lỗi!',
-                            text: xhr.responseJSON?.message || 'Không thể xóa gói membership này'
+                            title: 'Xóa không thành công!',
+                            text: xhr.responseJSON?.message || 'Không thể xóa gói membership này',
+                            confirmButtonText: 'Đã hiểu'
                         });
                     }
                 });

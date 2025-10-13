@@ -538,9 +538,10 @@ public function inviteByUsername(Request $r)
         return back()->with('ok', 'Đã xoá thành viên khỏi tổ chức.');
     }
 
+
 public function submitVerification(Request $r)
 {
-    $user = $r->user()->loadMissing(['type','profile']);
+    $user = $r->user()->loadMissing(['type', 'profile']);
     if (($user->type?->code) !== 'BUSS') {
         return back()->withErrors(['msg' => 'Chỉ tài khoản Business mới được xác minh doanh nghiệp.']);
     }
@@ -557,39 +558,49 @@ public function submitVerification(Request $r)
 
     $file = $r->file('file');
 
-    // Upload lên Cloudinary (ảnh + pdf)
-    $up = Cloudinary::upload(
-        $file->getRealPath(),
-        [
-            'folder'        => "org_verifications/{$org->org_id}",
-            'resource_type' => 'auto', // để nhận cả pdf
-        ]
-    );
+    try {
+        // Upload Cloudinary (cho ảnh & pdf)
+        $upload = Cloudinary::uploadApi()->upload(
+            $file->getRealPath(),
+            [
+                'folder'        => "org_verifications/{$org->org_id}",
+                'resource_type' => 'auto',
+            ]
+        );
 
-    $secureUrl = $up->getSecurePath();   // https://...
-    $publicId  = $up->getPublicId();     // lưu để xóa/transform sau
-    $bytes     = $up->getBytes();
-    $mime      = $up->getMimeType();
-    $ext       = $up->getExtension();
+        // Lấy dữ liệu cần lưu
+        $secureUrl = $upload['secure_url'] ?? null;
+        $publicId  = $upload['public_id'] ?? null;
+        $bytes     = $upload['bytes'] ?? null;
 
-    \DB::transaction(function () use ($org, $user, $secureUrl, $publicId, $mime, $bytes, $ext) {
-        OrgVerification::create([
-            'org_id'                  => $org->org_id,
-            'submitted_by_account_id' => $user->account_id,
-            'status'                  => 'PENDING',
-            'file_path'               => $publicId,    // lưu public_id
-            'file_url'                => $secureUrl,   // nếu có cột này
-            'mime_type'               => $mime,
-            'file_size'               => $bytes,
-            'file_ext'                => $ext,
-            'storage_driver'          => 'cloudinary',
-        ]);
+        // ✅ mime chính xác để Blade nhận diện preview: "image/jpeg", "image/png", ...
+        $mime      = $file->getMimeType();
+        $ext       = strtolower($file->getClientOriginalExtension());
 
-        \DB::table('orgs')->where('org_id', $org->org_id)
-            ->update(['status' => 'PENDING', 'updated_at' => now()]);
-    });
+        DB::transaction(function () use ($org, $user, $secureUrl, $publicId, $mime, $bytes, $ext) {
+            OrgVerification::create([
+                'org_id'                  => $org->org_id,
+                'submitted_by_account_id' => $user->account_id,
+                'status'                  => 'PENDING',
+                'file_path'               => $publicId,   // lưu public_id
+                'file_url'                => $secureUrl,  // link trực tiếp (nếu có)
+                'mime_type'               => $mime,       // ví dụ: image/jpeg
+                'file_size'               => $bytes,
+                'file_ext'                => $ext,
+                'storage_driver'          => 'cloudinary',
+            ]);
 
-    return back()->with('ok', 'Đã gửi hồ sơ xác minh doanh nghiệp (Cloudinary).');
+            DB::table('orgs')
+                ->where('org_id', $org->org_id)
+                ->update(['status' => 'PENDING', 'updated_at' => now()]);
+        });
+
+        return back()->with('ok', '✅ Đã gửi hồ sơ xác minh doanh nghiệp (Cloudinary).');
+
+    } catch (\Throwable $e) {
+        \Log::error('Cloudinary upload error', ['msg' => $e->getMessage()]);
+        return back()->withErrors(['msg' => 'Upload thất bại: ' . $e->getMessage()]);
+    }
 }
 
 // app/Http/Controllers/CompanyController.php

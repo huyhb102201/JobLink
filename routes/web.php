@@ -354,3 +354,8 @@ Route::post('/settings/company/verification', [CompanyController::class, 'submit
 Route::delete('/settings/company/{org}/leave', [CompanyController::class, 'leaveOrg'])->name('company.members.leave');
 
 Route::get('/search', [SearchController::class, 'search']);
+
+use App\Http\Controllers\CloudinaryTestController;
+
+Route::get('/upload', [CloudinaryTestController::class, 'index']);
+Route::post('/upload', [CloudinaryTestController::class, 'upload'])->name('cloudinary.upload');
