@@ -29,12 +29,14 @@
 </head>
 
 <body>
+  {{-- jQuery --}}
+  <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
   {{-- Header --}}
   @include('layouts.header')
 
-  {{-- jQuery --}}
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
+  {{-- Main Content --}}
   @yield('content')
 
   <!-- Toast Container for Notifications -->
@@ -66,7 +68,9 @@
   <script src="{{ asset('assets/js/main.js') }}" async></script>
   @vite('resources/js/app.js')
   @include('chat.scripts.global-notifications')
+  @include('chat.scripts.messages-notifications')
   @stack('scripts')
+
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const el = document.getElementById('userDropdown');

@@ -45,3 +45,7 @@ Broadcast::channel('online-users', function ($user) {
         'avatar' => $user->avatar_url,
     ];
 });
+
+Broadcast::channel('user-notification.{userId}', function ($user, $userId) {
+    return (int)$user->account_id === (int)$userId;
+});

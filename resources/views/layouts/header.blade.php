@@ -81,167 +81,246 @@
             href="{{ url('/contact') }}">Liên hệ</a>
         </li>
 
-        <!-- Notifications -->
-<li class="dropdown dropdown-hover extended-dropdown-2" id="header-notifications">
-  <a class="nav-link position-relative" href="{{ url('/notifications') }}">
-    <i class="bi bi-bell fs-5"></i>
-    <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-  </a>
-  <ul id="notif-list" class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
-    <li class="text-center text-muted py-2">Đang tải...</li>
-  </ul>
-</li>
+        <!-- === Notifications === -->
+        <li class="dropdown" id="header-notifications">
+          <a class="nav-link position-relative" href="{{ url('/notifications') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <i class="bi bi-bell fs-5"></i>
+            <span id="notif-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </a>
+          <ul id="notif-list" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:260px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
+          </ul>
+        </li>
 
-<!-- Chat Dropdown -->
-<li class="dropdown dropdown-hover" id="chat-header-box">
-  <a class="nav-link position-relative" href="{{ url('/chat') }}">
-    <i class="bi bi-chat-dots fs-5"></i>
-    <!-- Badge tổng -->
-    <span id="chat-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-  </a>
+        <!-- === Chat Dropdown === -->
+        <li class="dropdown" id="chat-header-box">
+          <a class="nav-link position-relative" href="{{ url('/chat') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <i class="bi bi-chat-dots fs-5"></i>
+            <span id="chat-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </a>
+          <ul id="chat-dropdown" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
+          </ul>
+        </li>
 
-  <ul id="chat-dropdown" 
-      class="dropdown-menu shadow-sm border-0 p-0"
-      style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
-    <li class="text-center text-muted py-2">Đang tải...</li>
-  </ul>
-</li>
+        <!-- === STYLE (Bootstrap 5 friendly) === -->
+        <style>
+          /* --- THÔNG BÁO --- */
+          #notif-list li a {
+            transition: background-color 0.2s;
+          }
 
-<style>
-  /* 💬 Hiệu ứng hover + unread box */
-  #chat-dropdown li a {
-    transition: background-color 0.2s;
-  }
+          #notif-list li a:hover {
+            background-color: #f1f1f1;
+          }
 
-  #chat-dropdown li a:hover {
-    background-color: #f1f1f1;
-  }
+          #notif-list li.unread a {
+            background-color: #e7f3ff !important;
+            font-weight: 600;
+          }
 
-  /* Box có tin chưa đọc */
-  #chat-dropdown li.unread a {
-    background-color: #e7f3ff !important; /* xanh nhạt giống FB */
-    font-weight: 600;
-  }
+          /* --- CHAT --- */
+          #chat-dropdown li a {
+            transition: background-color 0.2s;
+          }
 
-  /* Badge tin nhắn chưa đọc */
-  .chat-unread-badge {
-    background-color: #1877f2; /* xanh FB */
-    font-size: 0.7rem;
-    min-width: 18px;
-  }
-</style>
+          #chat-dropdown li a:hover {
+            background-color: #f1f1f1;
+          }
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  loadChatHeader();
-  setInterval(loadChatHeader, 10000); // 🔁 tự động reload 10s/lần
+          #chat-dropdown li.unread a {
+            background-color: #e7f3ff !important;
+            font-weight: 600;
+          }
 
-  function loadChatHeader() {
-    fetch("{{ route('chat.header') }}")
-      .then(res => res.json())
-      .then(data => {
-        const badge = document.getElementById('chat-badge');
-        const dropdown = document.getElementById('chat-dropdown');
-        dropdown.innerHTML = '';
+          .chat-unread-badge {
+            background-color: #1877f2;
+            font-size: 0.7rem;
+            min-width: 18px;
+          }
 
-        // --- Hiển thị badge tổng ---
-        if (data.unread_total > 0) {
-          badge.textContent = data.unread_total;
-          badge.classList.remove('d-none');
-        } else {
-          badge.classList.add('d-none');
-        }
+          /* ✅ Giới hạn tên & nội dung bằng Bootstrap text-truncate */
+          #notif-list .notif-title,
+          #chat-dropdown .chat-name {
+            display: inline-block;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+          }
 
-        // --- Nếu không có box ---
-        if (!data.boxes || data.boxes.length === 0) {
-          dropdown.innerHTML = `<li class="text-center text-muted py-2">Không có cuộc trò chuyện</li>`;
-          return;
-        }
+          #notif-list .notif-body,
+          #chat-dropdown .chat-preview {
+            display: inline-block;
+            max-width: 210px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+          }
+        </style>
 
-        // --- Render từng box ---
-        data.boxes.forEach(box => {
-          const isUnread = box.unread > 0;
+        <!-- === SCRIPT === -->
+        <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            const notifBadge = document.getElementById('notif-badge');
+            const chatBadge = document.getElementById('chat-badge');
+            const notifList = document.getElementById('notif-list');
+            const chatDropdown = document.getElementById('chat-dropdown');
 
-          dropdown.innerHTML += `
-            <li class="${isUnread ? 'unread' : ''}">
-              <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
-                <img src="${box.avatar}" width="42" height="42" class="rounded-circle border">
-                <div class="flex-grow-1">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold text-dark">${box.name}</span>
-                    <small class="text-muted">${box.last_time}</small>
-                  </div>
-                  <small class="text-muted text-truncate d-block" style="max-width:190px;">
-                    ${box.last_message || '<i>Không có tin nhắn</i>'}
-                  </small>
+            // === Load chung ===
+            function loadHeaderData() {
+              fetch("{{ route('notifications.headerData') }}")
+                .then(res => res.json())
+                .then(data => {
+                  updateNotificationHeader(data);
+                  updateChatHeader(data.unread_messages);
+                })
+                .catch(err => console.error('Error loading header data:', err));
+            }
+
+            // === Cập nhật thông báo ===
+            function updateNotificationHeader(data) {
+              if (data.unread_notifications > 0) {
+                notifBadge.textContent = data.unread_notifications;
+                notifBadge.classList.remove('d-none');
+              } else {
+                notifBadge.classList.add('d-none');
+              }
+
+              notifList.innerHTML = '';
+              if (!data.notifications || data.notifications.length === 0) {
+                notifList.innerHTML = `<li class="text-center text-muted py-2">Không có thông báo</li>`;
+                return;
+              }
+
+              data.notifications.forEach(n => {
+                notifList.innerHTML += `
+          <li class="${!n.is_read ? 'unread' : ''}">
+            <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="/notifications/${n.id}">
+              <i class="bi bi-bell-fill text-primary fs-5 mt-1"></i>
+              <div class="flex-grow-1">
+                <div class="notif-title fw-semibold text-truncate" title="${n.title || ''}">
+                  ${n.title || '(Không tiêu đề)'}
                 </div>
-                ${isUnread ? `<span class="badge rounded-pill chat-unread-badge">${box.unread}</span>` : ''}
-              </a>
-            </li>
-          `;
-        });
-      })
-      .catch(err => {
-        console.error('Error loading chat header:', err);
-        document.getElementById('chat-dropdown').innerHTML =
-          `<li class="text-center text-danger py-2">Lỗi tải dữ liệu</li>`;
-      });
-  }
-});
-</script>
+                <small class="notif-body text-muted text-truncate d-block" title="${n.body || ''}">
+                  ${n.body || ''}
+                </small>
+              </div>
+              ${!n.is_read ? '<span class="badge bg-primary ms-auto">Mới</span>' : ''}
+            </a>
+          </li>
+        `;
+              });
 
+              // Kích hoạt tooltip Bootstrap
+              const tooltipTriggerList = [].slice.call(document.querySelectorAll('#notif-list [title]'));
+              tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+            }
 
+            // === Load chat box ===
+            function updateChatHeader(unreadFromNotifAPI = 0) {
+              fetch("{{ route('chat.header') }}")
+                .then(res => res.json())
+                .then(data => {
+                  const totalUnread = unreadFromNotifAPI || data.unread_total;
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  fetch("{{ route('notifications.headerData') }}")
-    .then(res => res.json())
-    .then(data => {
-      // --- Gán số lượng ---
-      const notifBadge = document.getElementById('notif-badge');
-      const chatBadge = document.getElementById('chat-badge');
+                  if (totalUnread > 0) {
+                    chatBadge.textContent = totalUnread;
+                    chatBadge.classList.remove('d-none');
+                  } else {
+                    chatBadge.classList.add('d-none');
+                  }
 
-      if (data.unread_notifications > 0) {
-        notifBadge.textContent = data.unread_notifications;
-        notifBadge.classList.remove('d-none');
-      }
+                  chatDropdown.innerHTML = '';
+                  if (!data.boxes || data.boxes.length === 0) {
+                    chatDropdown.innerHTML = `<li class="text-center text-muted py-2">Không có cuộc trò chuyện</li>`;
+                    return;
+                  }
 
-      if (data.unread_messages > 0) {
-        chatBadge.textContent = data.unread_messages;
-        chatBadge.classList.remove('d-none');
-      }
-
-      // --- Gán danh sách ---
-      const notifList = document.getElementById('notif-list');
-      notifList.innerHTML = ''; // clear
-
-      if (data.notifications.length === 0) {
-        notifList.innerHTML = `<li class="text-center text-muted py-2">Không có thông báo</li>`;
-      } else {
-        data.notifications.forEach(n => {
-          notifList.innerHTML += `
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-bell fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">${n.title || '(Không tiêu đề)'}</div>
-                    <small class="text-muted">${n.body || ''}</small>
+                  data.boxes.forEach(box => {
+                    const isUnread = box.unread > 0;
+                    chatDropdown.innerHTML += `
+              <li class="${isUnread ? 'unread' : ''}">
+                <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
+                  <img src="${box.avatar}" width="42" height="42" class="rounded-circle border">
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <span class="chat-name fw-semibold text-dark text-truncate" title="${box.name}">
+                        ${box.name}
+                      </span>
+                      <small class="text-muted">${box.last_time}</small>
+                    </div>
+                    <small class="chat-preview text-muted d-block text-truncate" title="${box.last_message || ''}">
+                      ${box.last_message || '<i>Không có tin nhắn</i>'}
+                    </small>
                   </div>
-                  ${!n.is_read ? '<span class="badge bg-primary ms-auto">Mới</span>' : ''}
-                </div>
-              </a>
-            </li>
-          `;
-        });
-      }
-    })
-    .catch(err => {
-      console.error('Error loading notifications:', err);
-    });
-});
-</script>
+                  ${isUnread ? `<span class="badge rounded-pill chat-unread-badge">${box.unread}</span>` : ''}
+                </a>
+              </li>
+            `;
+                  });
 
+                  // Tooltip cho tên và nội dung
+                  const tooltipTriggerList = [].slice.call(document.querySelectorAll('#chat-dropdown [title]'));
+                  tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
+                })
+                .catch(err => console.error('Error loading chat header:', err));
+            }
+
+            // === Chạy lần đầu & auto reload ===
+            loadHeaderData();
+            setInterval(loadHeaderData, 15000);
+
+            // === Đánh dấu đã đọc thông báo ===
+            $(document).on('click', '#header-notifications > a', function (e) {
+              e.preventDefault();
+              $.post("{{ route('notifications.markRead') }}", { _token: '{{ csrf_token() }}' })
+                .done(() => {
+                  $('#notif-badge').addClass('d-none');
+                  loadHeaderData();
+                })
+                .fail(xhr => console.error('❌ Error marking notifications as read:', xhr));
+              window.location = $(this).attr('href');
+            });
+
+            // === Đánh dấu đã đọc chat box ===
+            $(document).on('click', '#chat-dropdown li a', function (e) {
+              const boxId = $(this).attr('href').split('box=')[1];
+              if (!boxId) return;
+
+              $.post("{{ route('chat.markBoxRead') }}", {
+                _token: '{{ csrf_token() }}',
+                box_id: boxId
+              }).done(() => {
+                const $li = $(this).closest('li');
+                $li.removeClass('unread');
+                $li.find('.chat-unread-badge').remove();
+
+                const $chatBadge = $('#chat-badge');
+                let currentCount = parseInt($chatBadge.text()) || 0;
+                const unreadCount = parseInt($li.find('.chat-unread-badge').text()) || 1;
+                const newCount = Math.max(currentCount - unreadCount, 0);
+                if (newCount <= 0) $chatBadge.addClass('d-none');
+                $chatBadge.text(newCount);
+              });
+            });
+
+            // === Realtime (Echo) ===
+            const USER_ID = {{ Auth::user()->account_id ?? 'null' }};
+            if (USER_ID && window.Echo) {
+              window.Echo.channel('user-notification.' + USER_ID)
+                .listen('.new-message-notification', () => loadHeaderData());
+            }
+          });
+        </script>
 
         <!-- Search -->
         <li class="nav-item position-relative">
@@ -564,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
       background-color: #fff !important;
     }
 
-    
+
     .search-suggestions {
       position: absolute;
       top: 40px;

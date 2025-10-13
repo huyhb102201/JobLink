@@ -38,6 +38,7 @@ use App\Http\Controllers\Admin\JobController as AdminJobController;
 // Thêm controller quản lý xét duyệt
 use App\Http\Controllers\Admin\AdminVerificationController;
 use App\Http\Controllers\PaymentController as PublicPaymentController;
+use App\Http\Controllers\NotificationController;
 
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
@@ -90,10 +91,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
 
-    Route::get('/notifications/header-data', [\App\Http\Controllers\NotificationController::class, 'headerData'])
-    ->name('notifications.headerData');
-    Route::get('/chat/header', [\App\Http\Controllers\NotificationController::class, 'headerList'])
-    ->name('chat.header');
+    Route::get('/notifications/header-data', [NotificationController::class, 'headerData'])
+        ->name('notifications.headerData');
+    Route::get('/chat/header', [NotificationController::class, 'headerList'])
+        ->name('chat.header');
+
+    Route::post('/notifications/mark-read', [NotificationController::class, 'markNotificationsRead'])
+        ->name('notifications.markRead');
+
+    Route::post('/chat/mark-box-read', [NotificationController::class, 'markBoxMessagesRead'])
+    ->name('chat.markBoxRead');
 
 
 
@@ -122,7 +129,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/membership/change', [SettingsController::class, 'changeMembership'])
         ->name('settings.membership.change');
 
-        Route::post('/jobs/{job_id}/payment/create', [JobPaymentController::class, 'createPaymentLink'])
+    Route::post('/jobs/{job_id}/payment/create', [JobPaymentController::class, 'createPaymentLink'])
         ->name('job-payments.create');
 
     // PayOS redirect
@@ -132,7 +139,7 @@ Route::middleware('auth')->group(function () {
         ->name('job-payments.cancel');
 
     Route::delete('/client/jobs/{job}', [JobController::class, 'destroy'])
-    ->name('client.jobs.destroy');
+        ->name('client.jobs.destroy');
 
 
 });
@@ -309,12 +316,12 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
 
     // TEST ROUTE
-    Route::get('/test-simple', function() {
+    Route::get('/test-simple', function () {
         return 'Server hoạt động bình thường!';
     });
 
 
-    Route::get('/test-accounts', function() {
+    Route::get('/test-accounts', function () {
         $start = microtime(true);
         $accounts = App\Models\Account::limit(5)->get();
         $end = microtime(true);

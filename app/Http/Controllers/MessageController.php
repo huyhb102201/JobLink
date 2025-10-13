@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use App\Models\Notification;
+use App\Events\MessageNotificationBroadcasted;
 
 class MessageController extends Controller
 {
@@ -118,7 +119,7 @@ class MessageController extends Controller
             $receiverId = $message->receiver_id ?? $request->input('receiver_id');
 
             if ($receiverId && $receiverId != $senderId) {
-                $this->notificationService->create(
+                $notification = $this->notificationService->create(
                     userId: $receiverId,
                     type: Notification::TYPE_MESSAGE,
                     title: 'Bạn có tin nhắn mới',
@@ -131,7 +132,21 @@ class MessageController extends Controller
                     actorId: $senderId,
                     severity: 'low'
                 );
+
+                // ✅ broadcast realtime cho người nhận
+                try {
+                    broadcast(new MessageNotificationBroadcasted($notification))->toOthers();
+                    Log::info('📡 Broadcast message notification thành công', [
+                        'notification_id' => $notification->id,
+                        'receiver_id' => $receiverId
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('❌ Broadcast message notification thất bại', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
+
             return response()->json([
                 'id' => $message->id,
                 'content' => $request->input('content'),

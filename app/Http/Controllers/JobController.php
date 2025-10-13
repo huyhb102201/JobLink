@@ -9,6 +9,10 @@ use App\Models\JobApply;
 use App\Models\Comment;
 use App\Models\JobReport;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use App\Models\Notification;
+use App\Services\NotificationService;
+use App\Events\CommentNotificationBroadcasted;
 
 class JobController extends Controller
 {
@@ -147,14 +151,54 @@ class JobController extends Controller
                 'parent_id' => ['nullable', 'exists:comments,id'],
             ]);
 
+            // Tạo comment
             $comment = Comment::create([
                 'account_id' => Auth::id(),
-                'job_id' => $job->job_id, // CHỈNH: dùng $job->id
+                'job_id' => $job->job_id,
                 'content' => $validated['content'],
                 'parent_id' => $validated['parent_id'] ?? null,
             ]);
 
-            $comment->load('account'); // load quan hệ để lấy avatar và name
+            $comment->load('account'); // để lấy avatar, name
+
+            // Xác định người nhận notification
+            if ($validated['parent_id']) {
+                $parentComment = Comment::find($validated['parent_id']);
+                $receiverId = $parentComment ? $parentComment->account_id : null;
+            } else {
+                $receiverId = $job->account_id;
+            }
+
+            $user = Auth::user();
+
+            if ($receiverId && $receiverId !== Auth::id()) {
+                // Tạo notification
+                $notification = app(NotificationService::class)->create(
+                    userId: $receiverId,
+                    type: Notification::TYPE_COMMENT,
+                    title: $validated['parent_id'] ? 'Trả lời bình luận của bạn' : 'Bình luận mới trên bài đăng của bạn',
+                    body: "{$user->name} vừa bình luận: \"{$validated['content']}\"",
+                    meta: [
+                        'job_id' => $job->job_id,
+                        'comment_id' => $comment->id,
+                    ],
+                    actorId: $user->account_id,
+                    severity: 'low'
+                );
+
+                // Broadcast realtime
+                try {
+                    broadcast(new CommentNotificationBroadcasted($notification, $receiverId))->toOthers();
+                    Log::info('📡 Broadcast bình luận mới thành công', [
+                        'notification_id' => $notification->id,
+                        'receiver_id' => $receiverId
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('❌ Broadcast bình luận thất bại', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'id' => $comment->id,
