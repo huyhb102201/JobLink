@@ -116,6 +116,5 @@
             </div>
         </div>
     </main>
-
     @include('chat.scripts.chat-js')
 @endsection

@@ -81,81 +81,237 @@
             href="{{ url('/contact') }}">Liên hệ</a>
         </li>
 
-        <!-- Notifications -->
-        <li class="dropdown dropdown-hover extended-dropdown-2">
-          <a class="nav-link position-relative" href="{{ url('/notifications') }}">
+        <!-- === Notifications === -->
+        <li class="dropdown" id="header-notifications">
+          <a class="nav-link position-relative" href="{{ url('/notifications') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
             <i class="bi bi-bell fs-5"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+            <span id="notif-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
           </a>
-          <ul class="dropdown-menu shadow-sm" style="min-width:220px;font-size:.9rem">
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-speedometer2 fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Analytics Dashboard</div>
-                    <small class="text-muted">Track your performance metrics</small>
-                  </div>
-                  <span class="badge bg-primary ms-auto">New</span>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-people fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Team Management</div>
-                    <small class="text-muted">Manage your team members</small>
-                  </div>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-graph-up fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Sales Reports</div>
-                    <small class="text-muted">Review financial statistics</small>
-                  </div>
-                  <span class="badge bg-danger ms-auto">Hot</span>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-shield-lock fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Security Center</div>
-                    <small class="text-muted">Manage privacy settings</small>
-                  </div>
-                </div>
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item py-2" href="#">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-chat-dots fs-5"></i>
-                  <div>
-                    <div class="fw-semibold">Message Center</div>
-                    <small class="text-muted">Check your notifications</small>
-                  </div>
-                  <span class="badge bg-info ms-auto">5</span>
-                </div>
-              </a>
-            </li>
+          <ul id="notif-list" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:260px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
           </ul>
         </li>
 
-        <!-- Chat -->
-        <li class="nav-item position-relative">
-          <a class="nav-link" href="{{ url('/chat') }}">
+        <!-- === Chat Dropdown === -->
+        <li class="dropdown" id="chat-header-box">
+          <a class="nav-link position-relative" href="{{ url('/chat') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
             <i class="bi bi-chat-dots fs-5"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">5</span>
+            <span id="chat-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </a>
+          <ul id="chat-dropdown" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
+          </ul>
+        </li>
+
+        <!-- === STYLE (Bootstrap 5 friendly) === -->
+        <style>
+          /* --- THÔNG BÁO --- */
+          #notif-list li a {
+            transition: background-color 0.2s;
+          }
+
+          #notif-list li a:hover {
+            background-color: #f1f1f1;
+          }
+
+          #notif-list li.unread a {
+            background-color: #e7f3ff !important;
+            font-weight: 600;
+          }
+
+          /* --- CHAT --- */
+          #chat-dropdown li a {
+            transition: background-color 0.2s;
+          }
+
+          #chat-dropdown li a:hover {
+            background-color: #f1f1f1;
+          }
+
+          #chat-dropdown li.unread a {
+            background-color: #e7f3ff !important;
+            font-weight: 600;
+          }
+
+          .chat-unread-badge {
+            background-color: #1877f2;
+            font-size: 0.7rem;
+            min-width: 18px;
+          }
+
+          /* ✅ Giới hạn tên & nội dung bằng Bootstrap text-truncate */
+          #notif-list .notif-title,
+          #chat-dropdown .chat-name {
+            display: inline-block;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+          }
+
+          #notif-list .notif-body,
+          #chat-dropdown .chat-preview {
+            display: inline-block;
+            max-width: 210px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+          }
+        </style>
+        @php
+          $service = app(\App\Services\NotificationService::class);
+          $userId = Auth::id();
+        @endphp
+
+        @if($userId)
+                <script>
+                  window.__HDR = {!! Cache::remember("header_json_{$userId}", 1800, function () use ($service, $userId) {
+            return json_encode(
+              $service->getHeaderData($userId) + [
+                'chat' => $service->getHeaderChatList($userId),
+              ]
+            );
+          }) !!};
+                </script>
+        @else
+          <script>
+            window.__HDR = { notifications: [], chat: { boxes: [] } };
+          </script>
+        @endif
+
+        <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            const notifBadge = document.getElementById('notif-badge');
+            const chatBadge = document.getElementById('chat-badge');
+            const notifList = document.getElementById('notif-list');
+            const chatDropdown = document.getElementById('chat-dropdown');
+            const USER_ID = {{ Auth::user()->id ?? Auth::user()->account_id ?? 'null' }};
+
+            function updateNotificationHeader(data) {
+              const unread = data.unread_notifications || 0;
+              if (unread > 0) { notifBadge.textContent = unread; notifBadge.classList.remove('d-none'); }
+              else { notifBadge.classList.add('d-none'); }
+
+              const arr = data.notifications || [];
+              if (!arr.length) {
+                notifList.innerHTML = `<li class="text-center text-muted py-2">Không có thông báo</li>`;
+                return;
+              }
+              notifList.innerHTML = arr.map(n => `
+        <li class="${!n.is_read ? 'unread' : ''}">
+          <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="/notifications/${n.id}">
+            <i class="bi bi-bell-fill text-primary fs-5 mt-1"></i>
+            <div class="flex-grow-1">
+              <div class="notif-title fw-semibold text-truncate" title="${n.title || ''}">
+                ${n.title || '(Không tiêu đề)'}
+              </div>
+              <small class="notif-body text-muted text-truncate d-block" title="${n.body || ''}">
+                ${n.body || ''}
+              </small>
+            </div>
+            ${!n.is_read ? '<span class="badge bg-primary ms-auto">Mới</span>' : ''}
           </a>
         </li>
+      `).join('');
+            }
+
+            function updateChatHeader(totalUnread = 0, data = null) {
+              if (totalUnread > 0) { chatBadge.textContent = totalUnread; chatBadge.classList.remove('d-none'); }
+              else { chatBadge.classList.add('d-none'); }
+
+              const boxes = data?.boxes || [];
+              if (!boxes.length) {
+                chatDropdown.innerHTML = `<li class="text-center text-muted py-2">Không có cuộc trò chuyện</li>`;
+                return;
+              }
+              chatDropdown.innerHTML = boxes.map(box => {
+                const isUnread = (box.unread || 0) > 0;
+                return `
+          <li class="${isUnread ? 'unread' : ''}">
+            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
+              <img src="${box.avatar}" width="42" height="42" class="rounded-circle border" alt="avatar">
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="chat-name fw-semibold text-dark text-truncate" title="${box.name}">
+                    ${box.name}
+                  </span>
+                  <small class="text-muted">${box.last_time || ''}</small>
+                </div>
+                <small class="chat-preview text-muted d-block text-truncate" title="${box.last_message || ''}">
+                  ${box.last_message || '<i>Không có tin nhắn</i>'}
+                </small>
+              </div>
+              ${isUnread ? `<span class="badge rounded-pill chat-unread-badge">${box.unread}</span>` : ''}
+            </a>
+          </li>`;
+              }).join('');
+            }
+
+            // Render lần đầu từ state nhúng sẵn
+            if (window.__HDR) {
+              updateNotificationHeader({
+                notifications: window.__HDR.notifications || [],
+                unread_notifications: window.__HDR.unread_notifications || 0,
+                unread_messages: window.__HDR.unread_messages || 0,
+              });
+              updateChatHeader(window.__HDR.chat?.unread_total || 0, window.__HDR.chat);
+            }
+
+            // Nghe WebSocket cập nhật
+            if (USER_ID && window.Echo) {
+              window.Echo.private('user.header.' + USER_ID)
+                .listen('.header.summary', (e) => {
+                  const json = e.payload || {};
+                  updateNotificationHeader({
+                    notifications: json.notifications || [],
+                    unread_notifications: json.unread_notifications || 0,
+                    unread_messages: json.unread_messages || 0,
+                  });
+                  updateChatHeader(json.chat?.unread_total || 0, json.chat);
+                });
+            }
+
+            // Mark all notifications read
+            $(document).on('click', '#header-notifications > a', function (e) {
+              e.preventDefault();
+              $.post("{{ route('notifications.markRead') }}", { _token: '{{ csrf_token() }}' })
+                .fail(xhr => console.error('❌ Error marking notifications as read:', xhr));
+              window.location = $(this).attr('href');
+            });
+
+            // Mark chat box read
+            $(document).on('click', '#chat-dropdown li a', function () {
+              const boxId = $(this).attr('href').split('box=')[1];
+              if (!boxId) return;
+              const $li = $(this).closest('li');
+              const $badge = $li.find('.chat-unread-badge');
+              const unreadCount = parseInt($badge.text()) || 0;
+
+              $.post("{{ route('chat.markBoxRead') }}", {
+                _token: '{{ csrf_token() }}',
+                box_id: boxId
+              }).done(() => {
+                $li.removeClass('unread'); $badge.remove();
+                const $chatBadge = $('#chat-badge');
+                let currentCount = parseInt($chatBadge.text()) || 0;
+                const newCount = Math.max(currentCount - unreadCount, 0);
+                if (newCount <= 0) $chatBadge.addClass('d-none');
+                $chatBadge.text(newCount);
+              });
+            });
+          });
+        </script>
+
+
+
 
         <!-- Search -->
         <li class="nav-item position-relative">
@@ -478,9 +634,6 @@
       background-color: #fff !important;
     }
 
-    .btn-primary {
-      border-radius: 0 50rem 50rem 0 !important;
-    }
 
     .search-suggestions {
       position: absolute;

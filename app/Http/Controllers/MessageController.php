@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use App\Models\Notification;
+use App\Events\MessageNotificationBroadcasted;
+use Illuminate\Support\Facades\Cache;
 
 class MessageController extends Controller
 {
@@ -118,7 +120,7 @@ class MessageController extends Controller
             $receiverId = $message->receiver_id ?? $request->input('receiver_id');
 
             if ($receiverId && $receiverId != $senderId) {
-                $this->notificationService->create(
+                $notification = $this->notificationService->create(
                     userId: $receiverId,
                     type: Notification::TYPE_MESSAGE,
                     title: 'Bạn có tin nhắn mới',
@@ -131,7 +133,18 @@ class MessageController extends Controller
                     actorId: $senderId,
                     severity: 'low'
                 );
+
+                try {
+                    broadcast(new MessageNotificationBroadcasted($notification))->toOthers();
+                    
+                    Cache::forget("header_json_{$receiverId}");
+                } catch (\Exception $e) {
+                    Log::error('Broadcast message notification thất bại', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
+
             return response()->json([
                 'id' => $message->id,
                 'content' => $request->input('content'),
@@ -211,11 +224,16 @@ class MessageController extends Controller
         }
     }
 
-    public function getChatList()
-    {
-        $userId = Auth::id();
-        $conversations = $this->messageService->getChatList($userId);
+   public function getChatList()
+{
+    $userId = Auth::id();
+    $cacheKey = "chat_list_{$userId}";
+    
+    // Lấy từ cache, hết hạn sau 5 phút
+    $conversations = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($userId) {
+        return $this->messageService->getChatList($userId);
+    });
 
-        return response()->json($conversations);
-    }
+    return response()->json($conversations);
+}
 }

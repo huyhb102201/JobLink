@@ -1,4 +1,5 @@
 <script>
+    // Existing variables
     let currentChat = '';
     let currentItem = null;
     let currentPartnerId = {{ $box && $receiverId ? $receiverId : 'null' }};
@@ -10,6 +11,43 @@
     let offcanvas = null;
     let replyingTo = null;
     let selectedImage = null;
+
+    // === Added: Global variable for presence channel ===
+    window.presenceInitialized = false;
+
+    // === Added: Function to set user online/offline status ===
+    function setUserOnline(userId, online) {
+        const elements = document.querySelectorAll(`#status-${userId}, #chatHeaderStatus`);
+        elements.forEach(el => {
+            if (el) {
+                el.classList.toggle('status-online', online);
+                el.classList.toggle('status-offline', !online);
+                const statusText = el.closest('#chatHeader')?.querySelector('#chatHeaderStatusText');
+                if (statusText) statusText.textContent = online ? 'Đang hoạt động' : 'Ngoại tuyến';
+            }
+        });
+    }
+
+    // === Added: Initialize presence channel ===
+    function initPresenceChannel() {
+        if (window.presenceInitialized || !window.Echo) return;
+        window.presenceInitialized = true;
+
+        window.Echo.join('online-users')
+            .here(users => {
+                console.log('👥 Người dùng online ban đầu:', users);
+                users.forEach(u => setUserOnline(u.id, true));
+            })
+            .joining(user => {
+                console.log('🟢 Người dùng vừa online:', user);
+                setUserOnline(user.id, true);
+            })
+            .leaving(user => {
+                console.log('🔴 Người dùng vừa offline:', user);
+                setUserOnline(user.id, false);
+            })
+            .error(error => console.error('Lỗi presence channel:', error));
+    }
 
     function scrollToBottom() {
         const chatBox = document.getElementById('chatMessages');
@@ -277,22 +315,29 @@
         if (partnerId) {
             const avatarImg = element.querySelector("img");
             const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/defaultavatar.jpg') }}";
-            const dot = element.querySelector(".status-dot");
-            const isOnline = dot && dot.classList.contains("status-online");
-
+            // === Modified: Remove initial online status assumption, rely on presence channel ===
             header.innerHTML = `
                 <div class="d-flex align-items-center gap-2">
                     <div class="position-relative" style="width:45px;height:45px;">
                         <img id="chatHeaderAvatar" src="${avatarUrl}" 
                              class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
-                        <span class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="chatHeaderStatus"></span>
+                        <span class="status-dot status-offline" id="chatHeaderStatus"></span>
                     </div>
                     <div>
                         <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-1-1"><i class="bi bi-person"></i></span></div>
-                        <div class="small text-muted" id="chatHeaderStatusText">${isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</div>
+                        <div class="small text-muted" id="chatHeaderStatusText">Ngoại tuyến</div>
                     </div>
                 </div>
             `;
+            // === Added: Update online status dynamically ===
+            if (window.Echo && partnerId) {
+                fetch(`/chat/user-status/${partnerId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setUserOnline(partnerId, data.is_online);
+                    })
+                    .catch(err => console.error('Lỗi khi lấy trạng thái người dùng:', err));
+            }
         } else if (jobId) {
             header.innerHTML = `
                 <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
@@ -431,6 +476,30 @@
         if (offcanvasElement) {
             offcanvas = new bootstrap.Offcanvas(offcanvasElement);
         }
+
+        // === Added: Initialize Echo and presence channel ===
+        const waitForEcho = () => {
+            if (!window.Echo || !window.Echo.connector || !window.Echo.connector.pusher) {
+                console.warn('⏳ Đang chờ Echo khởi tạo...');
+                return setTimeout(waitForEcho, 500);
+            }
+
+            const pusher = window.Echo.connector.pusher;
+
+            const checkConnection = () => {
+                if (pusher.connection.state === 'connected') {
+                    console.log('🟢 Echo đã kết nối, khởi tạo presence channel...');
+                    initPresenceChannel();
+                } else {
+                    console.warn('⏳ Echo chưa sẵn sàng, thử lại sau 1 giây...');
+                    setTimeout(checkConnection, 1000);
+                }
+            };
+
+            checkConnection();
+        };
+
+        waitForEcho();
 
         @if($box && $receiverId)
             const boxElement = document.querySelector(`[data-box-id="${currentBoxId}"]`);

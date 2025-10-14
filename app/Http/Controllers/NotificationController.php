@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Auth;
-use App\Models\Notification;
-use App\Models\BoxChat;
-use App\Models\Account;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+    // --- Header Data (badge & 5 thông báo gần nhất) - giữ cho tương thích cũ
     public function headerData()
     {
         $userId = Auth::id();
@@ -24,39 +28,14 @@ class NotificationController extends Controller
             ]);
         }
 
-        // Latest 5 notifications (dropdown)
-        $notifications = Notification::forUser($userId)
-            ->where('type', '!=', Notification::TYPE_MESSAGE)
-            ->where('visible', true)
-            ->orderByDesc('created_at')
-            ->take(5)
-            ->get();
-
-        // Count badges
-        $unreadNotifications = Notification::forUser($userId)
-            ->where('type', '!=', Notification::TYPE_MESSAGE)
-            ->unread()
-            ->where('visible', true)
-            ->count();
-
-        $unreadMessages = Notification::forUser($userId)
-            ->where('type', Notification::TYPE_MESSAGE)
-            ->unread()
-            ->where('visible', true)
-            ->count();
-
-        return response()->json([
-            'notifications' => $notifications,
-            'unread_notifications' => $unreadNotifications,
-            'unread_messages' => $unreadMessages,
-        ]);
+        $data = $this->notificationService->getHeaderData($userId);
+        return response()->json($data);
     }
 
-
+    // --- Header Chat List (giữ cho tương thích cũ)
     public function headerList()
     {
         $userId = Auth::id();
-
         if (!$userId) {
             return response()->json([
                 'boxes' => [],
@@ -64,95 +43,78 @@ class NotificationController extends Controller
             ]);
         }
 
-        // --- Lấy 5 box gần nhất ---
-        $boxes = BoxChat::where(function ($q) use ($userId) {
-            $q->where('sender_id', $userId)
-                ->orWhere('receiver_id', $userId);
-        })
-            ->with(['sender', 'receiver', 'latestMessage'])
-            ->orderByDesc('updated_at')
-            ->take(5)
-            ->get();
+        $data = $this->notificationService->getHeaderChatList($userId);
+        return response()->json($data);
+    }
 
-        // --- Lấy toàn bộ notification chưa đọc của user ---
-        $notifications = DB::table('notifications')
+    // --- NEW: Gộp cả 2 API thành 1, có ETag/304 ---
+    public function headerSummary(Request $request)
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json([
+                'notifications' => [],
+                'unread_notifications' => 0,
+                'unread_messages' => 0,
+                'chat' => ['boxes' => [], 'unread_total' => 0],
+            ]);
+        }
+
+        // Tính etag đơn giản dựa trên mốc cập nhật gần nhất
+        $notifMax = DB::table('notifications')
             ->where('user_id', $userId)
-            ->whereNull('read_at') // hoặc 'is_read' = 0 tùy cấu trúc DB
-            ->get();
+            ->where('visible', 1)
+            ->max('updated_at') ?? now();
+        $boxMax = DB::table('box_chat')
+            ->where(function ($q) use ($userId) {
+                $q->where('sender_id', $userId)
+                  ->orWhere('receiver_id', $userId)
+                  ->orWhereExists(function ($s) use ($userId) {
+                      $s->select(DB::raw(1))
+                        ->from('org_members')
+                        ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                        ->where('org_members.account_id', $userId)
+                        ->where('org_members.status', 'ACTIVE');
+                  });
+            })
+            ->max('updated_at') ?? now();
 
-        // --- Giải mã meta để lấy message_id ---
-        $messageIds = $notifications->map(function ($n) {
-            $meta = json_decode($n->meta, true);
-            return $meta['message_id'] ?? null;
-        })->filter()->values();
+        $etag = md5($userId.'|'.$notifMax.'|'.$boxMax);
+        $clientEtags = $request->getETags();
+        if (!empty($clientEtags) && $clientEtags[0] === $etag) {
+            return response()->noContent(304)->setEtag($etag);
+        }
 
-        // --- Lấy box_id tương ứng từ bảng messages ---
-        $messages = DB::table('messages')
-            ->whereIn('id', $messageIds)
-            ->select('id', 'box_id')
-            ->get();
+        $notif = $this->notificationService->getHeaderData($userId);
+        $chat  = $this->notificationService->getHeaderChatList($userId);
 
-        $messageBoxMap = $messages->groupBy('box_id')->map->count();
+        return response()->json($notif + ['chat' => $chat])->setEtag($etag);
+    }
 
-        // --- Duyệt từng box để build dữ liệu ---
-        $result = $boxes->map(function ($box) use ($userId, $messageBoxMap) {
-            $latest = $box->latestMessage;
-            $lastMessage = '';
+    // --- Đánh dấu toàn bộ thông báo (trừ message) là đã đọc ---
+    public function markNotificationsRead()
+    {
+        $userId = Auth::id();
 
-            if (!empty($latest?->content)) {
-                try {
-                    $lastMessage = Crypt::decryptString($latest->content);
-                } catch (\Exception $e) {
-                    $lastMessage = $latest->content;
-                }
-            }
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Chưa đăng nhập'], 401);
+        }
 
-            // --- Xác định thông tin hiển thị theo loại box ---
-            $name = 'Người dùng';
-            $avatar = asset('assets/img/defaultavatar.jpg');
+        $this->notificationService->markAllNonMessageAsRead($userId);
+        return response()->json(['success' => true]);
+    }
 
-            switch ($box->type) {
-                case 1: // 1:1 chat
-                    $partner = $box->sender_id === $userId ? $box->receiver : $box->sender;
-                    $name = $partner->name ?? 'Người dùng';
-                    $avatar = !empty($partner->avatar_url)
-                        ? asset($partner->avatar_url)
-                        : $avatar;
-                    break;
+    // --- Đánh dấu tin nhắn trong 1 box đã đọc ---
+    public function markBoxMessagesRead(Request $request)
+    {
+        $userId = Auth::id();
+        $boxId = (int) $request->input('box_id');
 
-                case 2: // nhóm chat
-                    $name = $box->name ?? 'Nhóm trò chuyện';
-                    $avatar = !empty($box->avatar_url)
-                        ? asset($box->avatar_url)
-                        : asset('assets/img/group-default.png');
-                    break;
+        if (!$userId || !$boxId) {
+            return response()->json(['success' => false, 'message' => 'Thiếu dữ liệu'], 400);
+        }
 
-                case 3: // doanh nghiệp
-                    // Nếu có quan hệ tới bảng accounts
-                    $company = Account::find($box->company_id ?? null);
-                    $name = $company->name ?? $box->name ?? 'Doanh nghiệp';
-                    $avatar = !empty($company->logo_url ?? $box->avatar_url)
-                        ? asset($company->logo_url ?? $box->avatar_url)
-                        : asset('assets/img/company-default.png');
-                    break;
-            }
-
-            return [
-                'id' => $box->id,
-                'type' => $box->type,
-                'name' => $name,
-                'avatar' => $avatar,
-                'last_message' => $lastMessage,
-                'last_time' => $latest?->created_at?->diffForHumans() ?? '',
-                'unread' => $messageBoxMap[$box->id] ?? 0,
-            ];
-        });
-
-        $unreadTotal = $result->sum('unread');
-
-        return response()->json([
-            'boxes' => $result,
-            'unread_total' => $unreadTotal,
-        ]);
+        $this->notificationService->markBoxMessagesAsRead($userId, $boxId);
+        return response()->json(['success' => true]);
     }
 }
