@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
 use App\Services\NotificationService;
 use App\Events\CommentNotificationBroadcasted;
+use Illuminate\Support\Facades\Cache;
+
 
 class JobController extends Controller
 {
@@ -189,10 +191,7 @@ class JobController extends Controller
                 // Broadcast realtime
                 try {
                     broadcast(new CommentNotificationBroadcasted($notification, $receiverId))->toOthers();
-                    Log::info('📡 Broadcast bình luận mới thành công', [
-                        'notification_id' => $notification->id,
-                        'receiver_id' => $receiverId
-                    ]);
+                    Cache::forget("header_json_{$receiverId}");
                 } catch (\Exception $e) {
                     Log::error('❌ Broadcast bình luận thất bại', [
                         'error' => $e->getMessage(),

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use App\Models\Notification;
 use App\Events\MessageNotificationBroadcasted;
+use Illuminate\Support\Facades\Cache;
 
 class MessageController extends Controller
 {
@@ -133,15 +134,12 @@ class MessageController extends Controller
                     severity: 'low'
                 );
 
-                // ✅ broadcast realtime cho người nhận
                 try {
                     broadcast(new MessageNotificationBroadcasted($notification))->toOthers();
-                    Log::info('📡 Broadcast message notification thành công', [
-                        'notification_id' => $notification->id,
-                        'receiver_id' => $receiverId
-                    ]);
+                    
+                    Cache::forget("header_json_{$receiverId}");
                 } catch (\Exception $e) {
-                    Log::error('❌ Broadcast message notification thất bại', [
+                    Log::error('Broadcast message notification thất bại', [
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -226,11 +224,16 @@ class MessageController extends Controller
         }
     }
 
-    public function getChatList()
-    {
-        $userId = Auth::id();
-        $conversations = $this->messageService->getChatList($userId);
+   public function getChatList()
+{
+    $userId = Auth::id();
+    $cacheKey = "chat_list_{$userId}";
+    
+    // Lấy từ cache, hết hạn sau 5 phút
+    $conversations = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($userId) {
+        return $this->messageService->getChatList($userId);
+    });
 
-        return response()->json($conversations);
-    }
+    return response()->json($conversations);
+}
 }

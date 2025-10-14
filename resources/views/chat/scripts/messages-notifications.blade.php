@@ -1,77 +1,100 @@
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Đảm bảo Echo đã được khởi tạo
-        const checkEchoReady = setInterval(() => {
-            if (window.Echo) {
-                clearInterval(checkEchoReady);
-                initEchoListeners();
-            }
-        }, 200);
+document.addEventListener('DOMContentLoaded', function () {
+  const checkEchoReady = setInterval(() => {
+    if (window.Echo) { clearInterval(checkEchoReady); initEchoListeners(); }
+  }, 200);
 
-        function initEchoListeners() {
-            const USER_ID = {{ Auth::user()->account_id ?? 'null' }};
+  function initEchoListeners() {
+    const USER_ID = {{ Auth::user()->account_id ?? 'null' }};
+    if (!USER_ID) return;
+    console.log('✅ Echo ready, listening for user:', USER_ID);
 
-            if (!USER_ID) return;
+    // ============== Helpers dùng chung ==============
+    const esc = (s='') => (s+'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-            console.log('✅ Echo ready, listening for user:', USER_ID);
+    function bumpBadge(id, delta=1) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = parseInt(el.textContent || '0') || 0;
+      const next = Math.max(cur + delta, 0);
+      if (next > 0) { el.textContent = next; el.classList.remove('d-none'); }
+      else { el.classList.add('d-none'); el.textContent = ''; }
+    }
 
-            window.Echo.channel('user-notification.' + USER_ID)
-                .listen('.new-message-notification', (e) => {
-                    console.log('💬 Tin nhắn mới realtime:', e.notification);
+    function prependNotifItem(n, { icon = 'bi-bell-fill' } = {}) {
+      const list = document.getElementById('notif-list');
+      if (!list) return;
+      const html = `
+        <li class="unread">
+          <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="/notifications/${esc(n.id)}">
+            <i class="bi ${icon} text-primary fs-5 mt-1"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold text-truncate" style="max-width:170px;">${esc(n.title || '(Không tiêu đề)')}</div>
+              <small class="text-muted text-truncate d-block" style="max-width:170px;">${esc(n.body || '')}</small>
+            </div>
+            <span class="badge bg-primary ms-auto">Mới</span>
+          </a>
+        </li>`;
+      // nếu đang có "Không có thông báo" thì xóa đi
+      if (list.firstElementChild && list.firstElementChild.classList.contains('text-muted')) {
+        list.innerHTML = '';
+      }
+      list.insertAdjacentHTML('afterbegin', html);
+    }
 
-                    // Badge header chat
-                    const badge = document.getElementById('chat-badge');
-                    if (badge) {
-                        let current = parseInt(badge.textContent || '0');
-                        badge.textContent = current + 1;
-                        badge.classList.remove('d-none');
-                    }
+    function toast(n, icon='info') {
+      // SweetAlert2
+      Swal?.fire({
+        title: n.title || 'Thông báo',
+        text: n.body || '',
+        icon, toast: true, position: 'bottom-end',
+        showConfirmButton: false, timer: 4000
+      });
+    }
 
-                    // Reload header chat list
-                    if (typeof loadChatHeader === 'function') {
-                        loadChatHeader();
-                    }
-                });
+    // ============== COMMENT NOTI (giữ nguyên ý tưởng cũ) ==============
+    window.Echo.channel('user-notification.' + USER_ID)
+      .listen('.new-comment-notification', (e) => {
+        const n = e.notification || {};
+        console.log('💬 Bình luận realtime:', n);
 
-            window.Echo.channel('user-notification.' + USER_ID)
-                .listen('.new-comment-notification', (e) => {
-                    console.log('💬 Bình luận realtime:', e.notification);
+        bumpBadge('notif-badge', +1);
+        prependNotifItem(n, { icon: 'bi-chat-dots' });
+        toast(n, 'info');
+      });
 
-                    // Cập nhật badge
-                    const badge = document.getElementById('notif-badge');
-                    const current = parseInt(badge.textContent || 0) + 1;
-                    badge.textContent = current;
-                    badge.classList.remove('d-none');
+    // ============== MESSAGE NOTI (làm y hệt comment) ==============
+    window.Echo.channel('user-notification.' + USER_ID)
+      .listen('.new-message-notification', (e) => {
+        const n = e.notification || {};
+        console.log('💬 Tin nhắn mới realtime:', n);
 
-                    // Thêm vào danh sách thông báo
-                    const notifList = document.getElementById('notif-list');
-                    const n = e.notification;
-                    const html = `
-                    <li class="unread">
-                        <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="/notifications/${n.id}">
-                            <i class="bi bi-chat-dots text-primary fs-5 mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold text-truncate" style="max-width:170px;">${n.title}</div>
-                                <small class="text-muted text-truncate d-block" style="max-width:170px;">${n.body}</small>
-                            </div>
-                            <span class="badge bg-primary ms-auto">Mới</span>
-                        </a>
-                    </li>
-                `;
-                    notifList.insertAdjacentHTML('afterbegin', html);
+        // Badge chat + danh sách chat
+        bumpBadge('chat-badge', +1);
+        if (typeof loadChatHeader === 'function') loadChatHeader();
 
-                    // Toast thông báo
-                    Swal.fire({
-                        title: n.title,
-                        text: n.body,
-                        icon: 'info',
-                        toast: true,
-                        position: 'bottom-end',
-                        showConfirmButton: false,
-                        timer: 4000,
-                    });
-                });
-        }
-    });
+        // (A) Nếu bạn muốn message cũng xuất hiện trong danh sách thông báo:
+        bumpBadge('notif-badge', +1);
+        prependNotifItem(
+          {
+            id: n.id,
+            title: n.title || 'Tin nhắn mới',
+            body: n.body || n.preview || (n.sender_name ? `Tin nhắn từ ${n.sender_name}` : '')
+          },
+          { icon: 'bi-envelope-fill' }
+        );
 
+        // (B) Toast giống comment
+        toast(
+          {
+            title: n.title || (n.sender_name ? `Tin nhắn từ ${n.sender_name}` : 'Tin nhắn mới'),
+            body:  n.body || n.preview || ''
+          },
+          'info'
+        );
+      });
+  }
+});
 </script>

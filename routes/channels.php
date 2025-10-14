@@ -49,3 +49,8 @@ Broadcast::channel('online-users', function ($user) {
 Broadcast::channel('user-notification.{userId}', function ($user, $userId) {
     return (int)$user->account_id === (int)$userId;
 });
+
+Broadcast::channel('user.header.{userId}', function ($user, $userId) {
+    // Cho phép user đang đăng nhập nghe kênh của chính họ
+    return (int) $user->account_id === (int) $userId || (int) ($user->account_id ?? 0) === (int) $userId;
+});

@@ -90,7 +90,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
-
+Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
+    ->name('header.summary');
     Route::get('/notifications/header-data', [NotificationController::class, 'headerData'])
         ->name('notifications.headerData');
     Route::get('/chat/header', [NotificationController::class, 'headerList'])
