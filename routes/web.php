@@ -239,6 +239,7 @@ Route::middleware(['auth', 'role:CLIENT|BUSS'])   // cả CLIENT và BUSS
         Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
         Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
         Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
+         Route::post('/jobs/ai/submit', [JobAIFormController::class, 'submit'])->name('jobs.ai.submit');
         Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
 
         Route::patch('/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
