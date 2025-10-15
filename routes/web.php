@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\JobController as AdminJobController;
 use App\Http\Controllers\Admin\AdminVerificationController;
 use App\Http\Controllers\PaymentController as PublicPaymentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\TaskController;
 
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
@@ -90,8 +91,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
-Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
-    ->name('header.summary');
+    Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
+        ->name('header.summary');
     Route::get('/notifications/header-data', [NotificationController::class, 'headerData'])
         ->name('notifications.headerData');
     Route::get('/chat/header', [NotificationController::class, 'headerList'])
@@ -101,7 +102,7 @@ Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
         ->name('notifications.markRead');
 
     Route::post('/chat/mark-box-read', [NotificationController::class, 'markBoxMessagesRead'])
-    ->name('chat.markBoxRead');
+        ->name('chat.markBoxRead');
 
 
 
@@ -142,12 +143,21 @@ Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
     Route::delete('/client/jobs/{job}', [JobController::class, 'destroy'])
         ->name('client.jobs.destroy');
 
+    Route::get('submitted_jobs', [JobController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC|F_PLUS');
+    Route::get('/jobs/{job}/user-tasks', [JobController::class, 'userTasks'])
+        ->name('jobs.user_tasks');
+
+    Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
+    Route::get('/jobs/{jobId}/drive/{taskId?}', [TaskController::class, 'getVirtualDrive'])->name('jobs.drive.data');
+
 
 });
 // Hiển thị danh sách công việc
 Route::get('/jobs', [JobController::class, 'index'])->name('jobs.index');
 
 Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
+
+
 
 // Hiển thị danh sách freelancer
 Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
@@ -240,7 +250,7 @@ Route::middleware(['auth', 'role:CLIENT|BUSS'])   // cả CLIENT và BUSS
         Route::get('/jobs/wizard/step/{n}', [JobWizardController::class, 'show'])->name('jobs.wizard.step');
         Route::post('/jobs/wizard/step/{n}', [JobWizardController::class, 'store'])->name('jobs.wizard.store');
         Route::post('/jobs/wizard/submit', [JobWizardController::class, 'submit'])->name('jobs.wizard.submit');
-         Route::post('/jobs/ai/submit', [JobAIFormController::class, 'submit'])->name('jobs.ai.submit');
+        Route::post('/jobs/ai/submit', [JobAIFormController::class, 'submit'])->name('jobs.ai.submit');
         Route::get('/jobs/mine', [MyJobsController::class, 'index'])->name('jobs.mine');
 
         Route::patch('/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])

@@ -23,7 +23,7 @@ class Job extends Model
         'deadline',
         'apply_id',
     ];
-     protected $casts = [
+    protected $casts = [
         'deadline' => 'datetime',
         'budget' => 'decimal:2',
         'status' => 'string',
@@ -52,8 +52,8 @@ class Job extends Model
     }
 
     public function applicants()
-{
-    return $this->belongsToMany(
+    {
+        return $this->belongsToMany(
             \App\Models\Account::class, // model liên quan
             'job_apply',                // bảng pivot
             'job_id',                   // FK của Job trong pivot
@@ -61,12 +61,12 @@ class Job extends Model
             'job_id',                   // khóa chính của Job
             'account_id'                // khóa chính của Account
         )
-        ->withPivot(['id','status','introduction','created_at','updated_at'])
-        ->withTimestamps()
-        ->with('profile'); // eager profile cho mỗi account
-}
+            ->withPivot(['id', 'status', 'introduction', 'created_at', 'updated_at'])
+            ->withTimestamps()
+            ->with('profile'); // eager profile cho mỗi account
+    }
 
-        // Quan hệ với Comment
+    // Quan hệ với Comment
     public function comments()
     {
         return $this->hasMany(Comment::class, 'job_id');
@@ -80,6 +80,11 @@ class Job extends Model
     {
         return $this->belongsTo(JobCategory::class, 'category_id', 'category_id');
     }
-    
+
+   public function tasks()
+{
+    return $this->hasMany(Task::class, 'job_id', 'job_id');
+}
+
 
 }

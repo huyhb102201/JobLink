@@ -36,6 +36,7 @@ class Notification extends Model
     public const TYPE_NOTIFICATION = 'notification';
     public const TYPE_MESSAGE = 'message';
     public const TYPE_COMMENT = 'comment';
+    public const TYPE_JOB_APPLY = 'job_apply';
     public const TYPE_SCAM_REPORT = 'scam_report';
     public const TYPE_ALERT = 'alert';
     public const TYPE_SYSTEM = 'system';

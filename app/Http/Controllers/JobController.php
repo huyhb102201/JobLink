@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
 use App\Services\NotificationService;
 use App\Events\CommentNotificationBroadcasted;
+use App\Events\NewCommentPosted;
 use Illuminate\Support\Facades\Cache;
-
 
 class JobController extends Controller
 {
@@ -70,14 +70,14 @@ class JobController extends Controller
             'ip_address' => $ip,
             'action' => 'view',
         ];
+        /*
+                $jobView = JobView::where($conditions)->first();
 
-        $jobView = JobView::where($conditions)->first();
-
-        if ($jobView) {
-            $jobView->increment('view');
-        } else {
-            JobView::create(array_merge($conditions, ['view' => 1]));
-        }
+                if ($jobView) {
+                    $jobView->increment('view');
+                } else {
+                    JobView::create(array_merge($conditions, ['view' => 1]));
+                }*/
 
         // --- Lấy bài viết liên quan ---
         $relatedJobs = Job::with('account.profile')
@@ -105,7 +105,6 @@ class JobController extends Controller
         return view('jobs.show', compact('job', 'relatedJobs'));
     }
 
-
     public function apply($jobId)
     {
         if (!auth()->check()) {
@@ -121,7 +120,6 @@ class JobController extends Controller
 
         // Kiểm tra nếu user đã apply
         $exists = JobApply::where('job_id', $jobId)->where('user_id', $userId)->exists();
-
         if ($exists) {
             return response()->json([
                 'success' => false,
@@ -134,16 +132,51 @@ class JobController extends Controller
         JobApply::create([
             'job_id' => $jobId,
             'user_id' => $userId,
-            'status' => 1
+            'status' => 1, // Chờ duyệt
         ]);
+
+        // === Gửi thông báo cho chủ bài đăng ===
+        try {
+            $user = Auth::user();
+            $receiverId = $job->account_id; // chủ bài đăng
+
+            if ($receiverId && $receiverId !== $user->account_id) {
+                // Tạo notification
+                $notification = app(NotificationService::class)->create(
+                    userId: $receiverId,
+                    type: Notification::TYPE_JOB_APPLY,
+                    title: 'Có người vừa ứng tuyển công việc của bạn',
+                    body: "{$user->name} vừa ứng tuyển vào công việc: \"{$job->title}\"",
+                    meta: [
+                        'job_id' => $job->job_id,
+                        'applicant_id' => $user->account_id,
+                    ],
+                    actorId: $user->account_id,
+                    severity: 'medium'
+                );
+
+                // Broadcast realtime
+                try {
+                    broadcast(new CommentNotificationBroadcasted($notification, $receiverId))->toOthers();
+                    Cache::forget("header_json_{$receiverId}");
+                } catch (\Exception $e) {
+                    Log::error('Broadcast ứng tuyển thất bại', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo thông báo ứng tuyển', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Ứng tuyển thành công!',
-            'statusLabel' => 'Chờ duyệt'
+            'statusLabel' => 'Chờ duyệt',
         ]);
     }
-
 
     public function store(Request $request, Job $job)
     {
@@ -161,7 +194,8 @@ class JobController extends Controller
                 'parent_id' => $validated['parent_id'] ?? null,
             ]);
 
-            $comment->load('account'); // để lấy avatar, name
+            $comment->load('account');
+            event(new NewCommentPosted($comment));
 
             // Xác định người nhận notification
             if ($validated['parent_id']) {
@@ -193,7 +227,7 @@ class JobController extends Controller
                     broadcast(new CommentNotificationBroadcasted($notification, $receiverId))->toOthers();
                     Cache::forget("header_json_{$receiverId}");
                 } catch (\Exception $e) {
-                    Log::error('❌ Broadcast bình luận thất bại', [
+                    Log::error('Broadcast bình luận thất bại', [
                         'error' => $e->getMessage(),
                     ]);
                 }
@@ -221,25 +255,13 @@ class JobController extends Controller
         }
     }
 
-    public function destroy($id)
-    {
-        $job = Job::findOrFail($id);
-
-        // Kiểm tra quyền sở hữu nếu cần
-        if (auth()->id() !== $job->account_id) {
-            abort(403, 'Bạn không có quyền xóa job này.');
-        }
-
-        $job->delete();
-
-        return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
-    }
-
-
     public function report(Request $request, $jobId)
     {
         if (!auth()->check()) {
-            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập để báo cáo.']);
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng đăng nhập để báo cáo.'
+            ]);
         }
 
         $request->validate([
@@ -255,7 +277,7 @@ class JobController extends Controller
             }
         }
 
-        JobReport::create([
+        $report = JobReport::create([
             'job_id' => $jobId,
             'user_id' => auth()->id(),
             'reason' => $request->reason,
@@ -263,6 +285,128 @@ class JobController extends Controller
             'img' => $paths ? implode(',', $paths) : null,
         ]);
 
-        return response()->json(['success' => true]);
+        // === Gửi thông báo cho admin ===
+        try {
+            $adminId = 42; // ID tài khoản admin
+            $user = Auth::user();
+            $job = Job::find($jobId);
+
+            $notification = app(NotificationService::class)->create(
+                userId: $adminId,
+                type: Notification::TYPE_SCAM_REPORT,
+                title: 'Báo cáo mới từ người dùng',
+                body: "{$user->name} đã gửi báo cáo về công việc: \"{$job->title}\"",
+                meta: [
+                    'job_id' => $job->job_id,
+                    'report_id' => $report->id,
+                ],
+                actorId: $user->account_id,
+                severity: 'high'
+            );
+
+            // Broadcast realtime
+            try {
+                broadcast(new CommentNotificationBroadcasted($notification, $adminId))->toOthers();
+                Cache::forget("header_json_{$adminId}");
+            } catch (\Exception $e) {
+                Log::error('Broadcast báo cáo thất bại', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi gửi thông báo báo cáo', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Báo cáo của bạn đã được gửi. Cảm ơn bạn đã giúp cải thiện hệ thống!'
+        ]);
     }
+
+    public function destroy($id)
+    {
+        $job = Job::findOrFail($id);
+
+        // Kiểm tra quyền sở hữu nếu cần
+        if (auth()->id() !== $job->account_id) {
+            abort(403, 'Bạn không có quyền xóa job này.');
+        }
+
+        $job->delete();
+
+        return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
+    }
+
+   public function submitted_jobs(Request $request)
+{
+    $userId = Auth::id();
+
+    // Lấy tất cả JobApply của user hiện tại, kèm quan hệ job, category, account, tasks
+    $query = JobApply::with([
+        'job.jobCategory',
+        'job.account.profile',
+        'job.tasks',
+        'user.profile'
+    ])->where('user_id', $userId);
+
+    if ($request->has('status') && is_array($request->status)) {
+        $query->whereIn('status', $request->status);
+    }
+
+    $applies = $query->orderBy('created_at', 'desc')->paginate(6);
+
+    // Lấy tất cả applicants khác đang làm cùng job (status = 2)
+    $jobIds = $applies->pluck('job_id')->unique();
+    $otherApplicants = JobApply::with('user.profile')
+        ->whereIn('job_id', $jobIds)
+        ->where('status', 2) // Đang làm
+        ->where('user_id', '<>', $userId) // Loại bỏ user hiện tại
+        ->get()
+        ->groupBy('job_id');
+
+    if ($request->ajax()) {
+        return response()->json([
+            'applies' => view('jobs.partials.jobs_apply_list', compact('applies', 'otherApplicants'))->render(),
+            'pagination' => view('components.pagination', [
+                'paginator' => $applies,
+                'elements' => $applies->links()->elements ?? []
+            ])->render(),
+        ]);
+    }
+
+    return view('jobs.submitted_jobs', compact('applies', 'otherApplicants'));
+}
+
+
+    public function userTasks(Job $job)
+    {
+        $userId = Auth::id();
+
+        // Lấy tất cả task của job kèm assignee
+        $tasks = $job->tasks()->with('assignee')->orderBy('created_at', 'asc')->get();
+
+        // Nhóm theo task_id
+        $groupedTasks = $tasks->groupBy('task_id')->map(function ($tasksForSameId) use ($userId) {
+            $userTask = $tasksForSameId->firstWhere('assigned_to', $userId); // Task của bạn
+            $otherAssignees = $tasksForSameId->where('assigned_to', '<>', $userId); // Người khác cùng task_id
+
+            return [
+                'task_id' => $tasksForSameId->first()->task_id,
+                'main_task' => $userTask ?? null,
+                'other_assignees' => $otherAssignees,
+            ];
+        });
+
+        // Tách ra: task của bạn và task khác
+        $userTasks = $groupedTasks->filter(fn($t) => $t['main_task'] !== null);
+        $otherTasks = $groupedTasks->filter(fn($t) => $t['main_task'] === null);
+
+        return view('jobs.partials.user_tasks', compact('userTasks', 'otherTasks'))->render();
+    }
+
+
+
+
 }
