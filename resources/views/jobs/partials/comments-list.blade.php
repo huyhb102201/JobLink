@@ -100,6 +100,46 @@
 
                     commentForm.reset();
                     document.getElementById('parent_id').value = '';
+
+
+                    window.Echo.channel('job-comments.' + {{ $job->job_id }})
+                        .listen('.new-comment', e => {
+                            const data = e.comment;
+
+                            const html = `
+            <div id="comment-${data.id}" class="comment ${data.parent_id ? 'comment-reply' : ''}">
+                <div class="d-flex mb-3">
+                    <div class="comment-img me-3">
+                        <img src="${data.account?.avatar_url || '/assets/img/blog/comments-1.jpg'}" width="50" alt="Người dùng">
+                    </div>
+                    <div>
+                        <h5>
+                            <a href="#">${data.account?.name || 'Khách'}</a>
+                            <a href="#" class="reply-btn" data-id="${data.id}">
+                                <i class="bi bi-reply-fill"></i> Trả lời
+                            </a>
+                        </h5>
+                        <time datetime="${data.created_at}">${new Date(data.created_at).toLocaleDateString('vi-VN')}</time>
+                        <p>${data.content}</p>
+                    </div>
+                </div>
+            </div>`;
+
+                            // Nếu là reply
+                            if (data.parent_id) {
+                                const parentDiv = document.getElementById(`comment-${data.parent_id}`);
+                                if (parentDiv) parentDiv.insertAdjacentHTML('beforeend', html);
+                            } else {
+                                document.querySelector('.comments-list').insertAdjacentHTML('afterbegin', html);
+                            }
+
+                            // Cập nhật đếm số bình luận
+                            const commentCountEl = document.querySelector('.comments-count');
+                            let count = parseInt(commentCountEl.getAttribute('data-count') || 0) + 1;
+                            commentCountEl.setAttribute('data-count', count);
+                            commentCountEl.textContent = `${count} Bình luận`;
+                        });
+
                 })
                 .catch(err => {
                     console.error(err);
@@ -149,5 +189,9 @@
                     });
                 });
         }
+
+
+
+
     });
 </script>
