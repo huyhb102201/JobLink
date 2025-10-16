@@ -147,7 +147,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/jobs/{job}/user-tasks', [JobController::class, 'userTasks'])
         ->name('jobs.user_tasks');
 
-    Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
+     Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])
+        ->name('tasks.submit');
+
+    Route::delete('/tasks/{task}/files', [TaskController::class, 'deleteFile'])
+        ->name('tasks.files.delete');
     Route::get('/jobs/{jobId}/drive/{taskId?}', [TaskController::class, 'getVirtualDrive'])->name('jobs.drive.data');
 
 
@@ -392,4 +396,9 @@ use App\Http\Controllers\CloudinaryTestController;
 
 Route::get('/upload', [CloudinaryTestController::class, 'index']);
 Route::post('/upload', [CloudinaryTestController::class, 'upload'])->name('cloudinary.upload');
+
+use App\Http\Controllers\CloudinaryUploadController;
+
+Route::get('/cloudinary/upload', [CloudinaryUploadController::class, 'form']);
+Route::post('/cloudinary/upload', [CloudinaryUploadController::class, 'store'])->name('cloudinary.store');
 

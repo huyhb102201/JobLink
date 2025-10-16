@@ -1,3 +1,4 @@
+{{-- jobs/partials/virtual_drive.blade.php --}}
 @php
     $tasks = \App\Models\Task::where('job_id', $jobId)->get()->groupBy('task_id');
 @endphp
@@ -10,7 +11,7 @@
             $files = collect(explode('|', $fileList))->filter()->unique();
         @endphp
 
-        <div class="card mb-3 shadow-sm">
+        <div class="card mb-3 shadow-sm virtual-task" data-task-id="{{ $mainTask->id }}">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <div><strong>{{ $mainTask->title }}</strong><i> #{{ $mainTask->task_id }}</i></div>
                 <small class="text-muted">{{ $files->count() }} file</small>
@@ -23,7 +24,7 @@
                     <ul class="list-group list-group-flush">
                         @foreach($files as $file)
                             <li class="list-group-item d-flex align-items-center justify-content-between">
-                                <div><i class="bi bi-file-earmark-text me-2 text-secondary"></i>{{ $file }}</div>
+                                <div><i class="bi bi-file-earmark-text me-2 text-secondary"></i>{{ basename($file) }}</div>
                                 <span class="badge bg-secondary-subtle text-secondary">Ảo</span>
                             </li>
                         @endforeach
