@@ -102,146 +102,152 @@
 @endsection
 
 @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            if (!window.bootstrap) return;
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.bootstrap) return;
 
-            const group = document.getElementById('jobs-group');
+    const group = document.getElementById('jobs-group');
 
-            document.querySelectorAll('[data-collapse]').forEach(function (btn) {
-                const targetSel = btn.getAttribute('data-bs-target');
-                const target = document.querySelector(targetSel);
-                if (!target) return;
+    // Gắn collapse behavior cho từng nút
+    document.querySelectorAll('[data-collapse]').forEach(function (btn) {
+        const targetSel = btn.getAttribute('data-bs-target');
+        const target = document.querySelector(targetSel);
+        if (!target) return;
 
-                const inst = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
-                const icon = btn.querySelector('.icon');
-                const label = btn.querySelector('.label');
-                const openText = btn.getAttribute('data-open-text') || 'Ẩn chi tiết';
-                const closeText = btn.getAttribute('data-close-text') || 'Chi tiết';
+        const inst = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+        const icon = btn.querySelector('.icon');
+        const label = btn.querySelector('.label');
+        const openText = btn.getAttribute('data-open-text') || 'Ẩn chi tiết';
+        const closeText = btn.getAttribute('data-close-text') || 'Chi tiết';
 
-                // Xử lý click mở/đóng
-                btn.addEventListener('click', function () {
-                    inst.toggle();
-                });
+        // Click để mở/đóng collapse
+        btn.addEventListener('click', function () {
+            inst.toggle();
+        });
 
-                // Đóng các khối khác khi mở một khối
-                target.addEventListener('show.bs.collapse', function () {
-                    if (!group) return;
-                    group.querySelectorAll('.collapse.show').forEach(function (el) {
-                        if (el !== target) {
-                            bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).hide();
-                        }
-                    });
-                });
-
-                // Khi mở: cập nhật giao diện + load task
-                // Xử lý sự kiện khi collapse được mở
-                $('.collapse').on('shown.bs.collapse', function () {
-                    const target = this;
-                    const targetSel = '#' + target.id;
-                    const btn = document.querySelector(`[data-bs-target="${targetSel}"]`);
-                    const icon = btn.querySelector('.icon');
-                    const label = btn.querySelector('.label');
-                    const openText = btn.dataset.openText || 'Ẩn chi tiết';
-
-                    // Cập nhật giao diện nút
-                    btn.classList.remove('btn-outline-secondary');
-                    btn.classList.add('btn-secondary');
-                    if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
-                    if (label) label.textContent = openText;
-
-                    // Gọi AJAX để tải user-tasks
-                    const jobId = targetSel.replace('#details-', '');
-                    if (!target.classList.contains('loaded')) {
-                        target.classList.add('loaded');
-                        $(target).html('<div class="text-center py-2 text-muted small">Đang tải task...</div>');
-
-                        $.ajax({
-                            url: `/jobs/${jobId}/user-tasks`,
-                            type: 'GET',
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            success: function (html) {
-                                // Chèn nội dung HTML
-                                $(target).html(html);
-
-                                // Tìm và thực thi các thẻ <script> trong nội dung tải về
-                                const scripts = $(target).find('script');
-                                scripts.each(function () {
-                                    const scriptContent = $(this).html();
-                                    try {
-                                        // Thực thi script bằng eval (cẩn thận với nội dung script)
-                                        eval(scriptContent);
-                                    } catch (err) {
-                                        console.error('Lỗi khi thực thi script:', err);
-                                        $(target).html('<div class="text-danger">Không thể tải task. Vui lòng thử lại.</div>');
-                                    }
-                                });
-                            },
-                            error: function (xhr) {
-                                console.error('Lỗi khi tải user-tasks:', xhr);
-                                $(target).html('<div class="text-danger">Không thể tải task. Vui lòng thử lại.</div>');
-                            }
-                        });
-                    }
-                });
-
-
-                // Khi đóng
-                target.addEventListener('hidden.bs.collapse', function () {
-                    btn.classList.remove('btn-secondary');
-                    btn.classList.add('btn-outline-secondary');
-                    if (icon) icon.className = 'bi bi-info-circle me-1 icon';
-                    if (label) label.textContent = closeText;
-                });
-
-                // Trạng thái ban đầu
-                if (target.classList.contains('show')) {
-                    btn.classList.remove('btn-outline-secondary');
-                    btn.classList.add('btn-secondary');
-                    if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
-                    if (label) label.textContent = openText;
-                } else {
-                    btn.classList.remove('btn-secondary');
-                    btn.classList.add('btn-outline-secondary');
-                    if (icon) icon.className = 'bi bi-info-circle me-1 icon';
-                    if (label) label.textContent = closeText;
+        // Đóng các collapse khác khi mở 1 cái
+        target.addEventListener('show.bs.collapse', function () {
+            if (!group) return;
+            group.querySelectorAll('.collapse.show').forEach(function (el) {
+                if (el !== target) {
+                    bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).hide();
                 }
             });
+        });
 
+        // Khi collapse bị đóng → reset nút
+        target.addEventListener('hidden.bs.collapse', function () {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-outline-secondary');
+            if (icon) icon.className = 'bi bi-info-circle me-1 icon';
+            if (label) label.textContent = closeText;
+        });
 
-            // ==== Giữ nguyên phần load applies qua AJAX ====
-            function loadapplies(page = 1) {
-                let filters = $("#applies-filter").serialize();
-                $.ajax({
-                    url: "/submitted_jobs?page=" + page,
-                    type: "GET",
-                    dataType: "json",
-                    data: filters,
-                    beforeSend: function () { $("#jobs-group").css("opacity", "0.5"); },
-                    success: function (res) {
-                        $("#jobs-group").html(res.applies);
-                        $("#pagination-wrapper").html(res.pagination);
-                        $("#jobs-group").css("opacity", "1");
-                    },
-                    error: function () {
-                        alert("Không load được dữ liệu. Vui lòng thử lại.");
-                        $("#jobs-group").css("opacity", "1");
+        // Trạng thái ban đầu
+        if (target.classList.contains('show')) {
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-secondary');
+            if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
+            if (label) label.textContent = openText;
+        } else {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-outline-secondary');
+            if (icon) icon.className = 'bi bi-info-circle me-1 icon';
+            if (label) label.textContent = closeText;
+        }
+    });
+
+    // ✅ Chỉ gắn 1 listener toàn cục cho tất cả collapse
+    $(document).on('shown.bs.collapse', '.collapse', function () {
+        const target = this;
+        const targetSel = '#' + target.id;
+        const btn = document.querySelector(`[data-bs-target="${targetSel}"]`);
+        const icon = btn?.querySelector('.icon');
+        const label = btn?.querySelector('.label');
+        const openText = btn?.dataset.openText || 'Ẩn chi tiết';
+
+        // Đổi giao diện nút
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-secondary');
+        if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
+        if (label) label.textContent = openText;
+
+        const jobId = targetSel.replace('#details-', '');
+
+        // ✅ Chặn load trùng
+        if (target.classList.contains('loaded') || target.dataset.loading === 'true') {
+            return;
+        }
+
+        target.dataset.loading = 'true';
+        $(target).html('<div class="text-center py-2 text-muted small">Đang tải task...</div>');
+
+        // Gọi AJAX chỉ 1 lần
+        $.ajax({
+            url: `/jobs/${jobId}/user-tasks`,
+            type: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function (html) {
+                $(target).html(html);
+                target.classList.add('loaded');
+
+                // Chạy script con nếu có
+                const scripts = $(target).find('script');
+                scripts.each(function () {
+                    try {
+                        eval($(this).html());
+                    } catch (err) {
+                        console.error('Lỗi khi thực thi script:', err);
                     }
                 });
+            },
+            error: function (xhr) {
+                console.error('Lỗi khi tải user-tasks:', xhr);
+                $(target).html('<div class="text-danger">Không thể tải task. Vui lòng thử lại.</div>');
+            },
+            complete: function () {
+                target.dataset.loading = 'false';
             }
-
-            $(document).on('click', '.ajax-page-link', function (e) {
-                e.preventDefault();
-                let page = $(this).data('page');
-                loadapplies(page);
-            });
-
-            $('#applies-filter input[name="keyword"]').on('keyup', function () {
-                loadapplies(1);
-            });
-            $('#applies-filter select').on('change', function () {
-                loadapplies(1);
-            });
         });
-    </script>
+    });
+
+    // ==========================
+    // AJAX load danh sách applies
+    // ==========================
+    function loadapplies(page = 1) {
+        let filters = $("#applies-filter").serialize();
+        $.ajax({
+            url: "/submitted_jobs?page=" + page,
+            type: "GET",
+            dataType: "json",
+            data: filters,
+            beforeSend: function () {
+                $("#jobs-group").css("opacity", "0.5");
+            },
+            success: function (res) {
+                $("#jobs-group").html(res.applies);
+                $("#pagination-wrapper").html(res.pagination);
+                $("#jobs-group").css("opacity", "1");
+            },
+            error: function () {
+                alert("Không load được dữ liệu. Vui lòng thử lại.");
+                $("#jobs-group").css("opacity", "1");
+            }
+        });
+    }
+
+    $(document).on('click', '.ajax-page-link', function (e) {
+        e.preventDefault();
+        let page = $(this).data('page');
+        loadapplies(page);
+    });
+
+    $('#applies-filter input[name="keyword"]').on('keyup', function () {
+        loadapplies(1);
+    });
+    $('#applies-filter select').on('change', function () {
+        loadapplies(1);
+    });
+});
+</script>
 @endpush

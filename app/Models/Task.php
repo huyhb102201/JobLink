@@ -29,6 +29,7 @@ class Task extends Model
         'assigned_to',
         'file_root',
         'file_path',
+        'file_url',
     ];
 
     /**

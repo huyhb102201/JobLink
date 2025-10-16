@@ -152,7 +152,7 @@
                         <button type="button" class="btn btn-sm btn-primary task-submit-btn" data-bs-toggle="modal"
                             data-bs-target="#submitTaskModal-{{ $task->id }}" data-task-id="{{ $task->id }}">
                             <i class="bi bi-upload me-1"></i>
-                            {{ $task->file_path ? 'Cập nhật' : 'Nộp file' }}
+                            {{ $task->file_url ? 'Cập nhật' : 'Nộp file' }}  {{-- Dùng file_url thay file_path --}}
                         </button>
                     </div>
                 </div>
@@ -166,7 +166,7 @@
                         <div class="modal-header bg-light">
                             <h5 class="modal-title" id="submitTaskLabel-{{ $task->id }}">
                                 <i class="bi bi-upload text-primary me-2"></i>
-                                {{ $task->file_path ? 'Cập nhật file' : 'Nộp file' }}
+                                {{ $task->file_url ? 'Cập nhật file' : 'Nộp file' }}
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                         </div>
@@ -215,7 +215,7 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" id="closeModalBtn-{{ $task->id }}">Đóng</button>
                             <button type="button" class="btn btn-primary" id="submitTask-{{ $task->id }}">
-                                {{ $task->file_path ? 'Cập nhật' : 'Nộp file' }}
+                                {{ $task->file_url ? 'Cập nhật' : 'Nộp file' }}
                             </button>
                         </div>
                     </div>
@@ -366,6 +366,32 @@
         color: white;
     }
 
+    /* Nút download mới cho existing files */
+    .unified-file-preview .thumb .download-btn {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        background: rgba(25, 135, 84, .8);  /* Xanh lá cho download */
+        color: #fff;
+        border: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        font-size: 12px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: all .2s ease;
+        cursor: pointer;
+        z-index: 3;
+    }
+
+    .unified-file-preview .thumb:hover .download-btn {
+        opacity: 1;
+    }
+
     .unified-file-preview .thumb .remove-btn {
         position: absolute;
         top: 4px;
@@ -384,6 +410,7 @@
         opacity: 0;
         transition: all .2s ease;
         cursor: pointer;
+        z-index: 3;
     }
 
     .unified-file-preview .thumb:hover .remove-btn {
@@ -514,15 +541,16 @@
         const MAX_SIZE = 16 * 1024 * 1024; // 16MB
         const ALLOWED_EXT = ['rar', 'zip', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
 
-        // Global cache cho files existing per task (không reload trang, update từ AJAX)
+        // Global cache cho files existing per task (không reload trang, update từ AJAX) - lưu full URL
         window.taskFilesCache = window.taskFilesCache || {};
-        // Init cache từ server data
+        // Init cache từ server data (sử dụng file_url thay vì file_path)
         @foreach($userTasks as $group)
             @php
                 $task = $group['main_task'];
-                $existingFiles = $task->file_path ? explode('|', $task->file_path) : [];
+                $existingFiles = $task->file_url ? explode('|', $task->file_url) : [];
             @endphp
             window.taskFilesCache[{{ $task->id }}] = @json($existingFiles);
+            console.log('Init cache for task {{ $task->id }}:', window.taskFilesCache[{{ $task->id }}]);  // Debug
         @endforeach
 
             // Hàm update cache và re-render virtual drive nếu đang mở
@@ -536,6 +564,7 @@
                     currentFiles = currentFiles.concat(newFiles);
                 }
                 window.taskFilesCache[taskId] = currentFiles;
+                console.log('Updated cache for task', taskId, ':', currentFiles);  // Debug
 
                 // Re-render virtual drive nếu modal đang mở
                 const $virtualModal = $(`#virtualDriveModal-{{ $jobIdForDrive ?? 0 }}`);
@@ -650,13 +679,13 @@
                 $inTimeRange = ($start && $end) ? $now->between($start, $end) : true;
                 $jobCanSubmit = in_array($jobStatus, ['open', 'in_progress']);
                 $canSubmit = $jobCanSubmit && $inTimeRange;
-                $existingFiles = $task->file_path ? explode('|', $task->file_path) : [];
+                $existingFiles = $task->file_url ? explode('|', $task->file_url) : [];
                 $existingBasenames = array_map(fn($f) => basename($f), $existingFiles);
             @endphp
 
                 (function setupTask{{ $task->id }}() {
                     const taskId = {{ $task->id }};
-                    let existingFiles = window.taskFilesCache[taskId] || []; // Lấy từ global cache
+                    let existingFiles = window.taskFilesCache[taskId] || []; // Lấy từ global cache (full URLs)
                     let existingBasenames = existingFiles.map(basename);
                     const canSubmit = {{ $canSubmit ? 'true' : 'false' }};
 
@@ -740,16 +769,15 @@
 
                     function renderUnifiedPreview() {
                         $preview.empty();
-                        // Render existing từ cache
-                        existingFiles.forEach((path, i) => {
-                            const name = basename(path);
+                        // Render existing từ cache (full URLs)
+                        existingFiles.forEach((url, i) => {
+                            const name = basename(url);
                             const ext = (name.split('.').pop() || '').toLowerCase();
-                            const url = path; // Từ cache path (tên file)
                             const $thumb = $('<div class="thumb existing"></div>');
                             $thumb.addClass(isImage(ext) ? '' : 'd-flex align-items-center justify-content-center');
 
                             if (isImage(ext)) {
-                                $thumb.append(`<img src="{{ asset('storage/') }}${url}" alt="${name}" onerror="this.src='{{ asset('assets/img/defaultavatar.jpg') }}'">`);
+                                $thumb.append(`<img src="${url}" alt="${name}" onerror="this.src='{{ asset('assets/img/defaultavatar.jpg') }}'">`);
                             } else {
                                 $thumb.append(`
                                         <div class="icon-placeholder">
@@ -761,30 +789,41 @@
                             }
 
                             $thumb.append(`<span class="file-badge">Cũ</span>`);
+
+                            // Nút download cho existing (chỉ hiện khi hover)
+                            const $dlBtn = $(`<button type="button" class="download-btn" title="Tải file"><i class="bi bi-download"></i></button>`);
+                            $dlBtn.on('click', (e) => {
+                                e.stopPropagation();
+                                // Direct download từ Cloudinary URL
+                                window.open(url, '_blank');  // Hoặc dùng route nếu có: window.location.href = '{{ route("tasks.files.download", ":filename") }}'.replace(':filename', name);
+                            });
+                            $thumb.append($dlBtn);
+
+                            // Nút xóa
                             const $rm = $(`<button type="button" class="remove-btn" title="Xoá file cũ">&times;</button>`);
                             $rm.on('click', (e) => {
                                 e.stopPropagation();
                                 if (confirm(`Xoá file "${name}" đã upload?`)) {
-                                    const deletedPath = path;
+                                    const deletedUrl = url;
                                     const deletedName = name;
                                     // Hiệu ứng loading
                                     $thumb.addClass('deleting');
                                     $rm.addClass('loading').prop('disabled', true).html('');
 
-                                    // Gọi delete ajax
+                                    // Gọi delete ajax (gửi full URL)
                                     $.ajax({
                                         url: '{{ route('tasks.files.delete', $task->id) }}',
                                         type: 'DELETE',
                                         data: {
                                             _token: $('meta[name="csrf-token"]').attr('content'),
-                                            file: deletedPath
+                                            file: deletedName  // Gửi name thay vì full URL, vì Controller dùng name để filter
                                         },
                                         success: function (res) {
                                             $thumb.removeClass('deleting');
                                             $rm.removeClass('loading').prop('disabled', false).html('&times;');
                                             if (res.success) {
-                                                // Sync cache từ server full list
-                                                existingFiles = res.updated_paths || [];
+                                                // Sync cache từ server full list (full URLs)
+                                                existingFiles = res.updated_urls || [];
                                                 updateExistingBasenames();
                                                 // Xóa khỏi buffer nếu có trùng tên
                                                 removeFromBufferIfDuplicate(deletedName);
@@ -813,7 +852,7 @@
                             $preview.append($thumb);
                         });
 
-                        // Render new files
+                        // Render new files (không có download btn)
                         filesBuf.forEach((file, i) => {
                             const ext = (file.name.split('.').pop() || '').toLowerCase();
                             const $thumb = $('<div class="thumb new"></div>');
@@ -941,10 +980,10 @@
 
                     // Khi mở modal
                     $btnOpen.on('click', function () {
-                        console.log('Mở modal cho task', taskId);
+                        console.log('Mở modal cho task', taskId, 'cache:', existingFiles);  // Debug
                         if (!canSubmit) return;
                         filesBuf = loadBuffer(taskId); // Reload để chắc
-                        existingFiles = window.taskFilesCache[taskId] || []; // Reload từ cache
+                        existingFiles = window.taskFilesCache[taskId] || []; // Reload từ cache (full URLs)
                         updateExistingBasenames();
                         isSubmitting = false; // Reset flag
                         isDirty = filesBuf.length > 0;
@@ -1084,16 +1123,17 @@
                             processData: false,
                             contentType: false,
                             success: function (res) {
+                                console.log('Submit response:', res);  // Debug
                                 isSubmitting = false;
                                 if (res.success) {
                                     showAlert('File đã được cập nhật thành công!', 'success');
                                     clearBuffer(taskId);
                                     filesBuf = [];
                                     isDirty = false;
-                                    // Sync cache từ server full list (xử lý dup ở server)
-                                    existingFiles = res.updated_paths || [];
+                                    // Sync cache từ server full list (full URLs từ file_url)
+                                    existingFiles = res.updated_urls || [];
                                     updateExistingBasenames();
-                                    window.taskFilesCache[taskId] = existingFiles;
+                                    window.taskFilesCache[taskId] = existingFiles;  // Update global cache
                                     updateButtonTexts(existingFiles.length > 0);
                                     // Trigger virtual drive update
                                     $(document).trigger('taskFilesUpdated', { taskId: taskId, files: existingFiles });
@@ -1136,10 +1176,11 @@
 
         // Listen event để update virtual drive partial (nếu modal đang mở)
         $(document).on('taskFilesUpdated', function (e, data) {
+            console.log('Virtual drive updated:', data);  // Debug
             // Target per task card trong virtual drive
             const $taskEl = $(`#virtualDriveContent-{{ $jobIdForDrive ?? 0 }} .virtual-task[data-task-id="${data.taskId}"]`);
             if ($taskEl.length) {
-                // Re-render list files từ data.files
+                // Re-render list files từ data.files (full URLs)
                 let html = '';
                 if (data.files.length === 0) {
                     html = '<div class="text-muted fst-italic">Chưa có file nào được nộp.</div>';
