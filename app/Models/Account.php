@@ -33,6 +33,10 @@ class Account extends Authenticatable implements MustVerifyEmail
         'oauth_expires_at',
         'last_login_ip',
         'login_provider_last',
+        'locked_until',
+        'failed_attempts',
+        'last_failed_at',
+        'temp_lock_strikes',
     ];
 
     protected $hidden = ['password', 'oauth_access_token', 'oauth_refresh_token'];
@@ -44,6 +48,8 @@ class Account extends Authenticatable implements MustVerifyEmail
         'oauth_expires_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'locked_until' => 'datetime',
+        'last_failed_at'  => 'datetime',
     ];
 
     // Laravel mặc định dùng cột 'email' làm username; nếu muốn đổi có thể override:
