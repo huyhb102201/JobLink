@@ -41,6 +41,10 @@ use App\Http\Controllers\PaymentController as PublicPaymentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TaskController;
 
+use App\Http\Controllers\Auth\AccountPasswordResetController;
+use App\Http\Controllers\SocialAuthController;
+use App\Http\Controllers\ConnectedServicesController;
+
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -147,13 +151,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/jobs/{job}/user-tasks', [JobController::class, 'userTasks'])
         ->name('jobs.user_tasks');
 
-     Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])
-        ->name('tasks.submit');
-
-    Route::delete('/tasks/{task}/files', [TaskController::class, 'deleteFile'])
-        ->name('tasks.files.delete');
+    Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
     Route::get('/jobs/{jobId}/drive/{taskId?}', [TaskController::class, 'getVirtualDrive'])->name('jobs.drive.data');
-Route::get('/tasks/files/download/{filename}', [TaskController::class, 'downloadFile'])->name('tasks.files.download');
+
 
 });
 // Hiển thị danh sách công việc
@@ -397,11 +397,33 @@ use App\Http\Controllers\CloudinaryTestController;
 Route::get('/upload', [CloudinaryTestController::class, 'index']);
 Route::post('/upload', [CloudinaryTestController::class, 'upload'])->name('cloudinary.upload');
 
-use App\Http\Controllers\CloudinaryUploadController;
+Route::get('/forgot-password', [AccountPasswordResetController::class, 'showRequestForm'])
+        ->name('password.request');
 
-Route::get('/cloudinary/upload', [CloudinaryUploadController::class, 'form']);
-Route::post('/cloudinary/upload', [CloudinaryUploadController::class, 'store'])->name('cloudinary.store');
+    Route::post('/forgot-password', [AccountPasswordResetController::class, 'sendLink'])
+        ->middleware('throttle:6,1')
+        ->name('password.email');
 
-// LEGAL PAGES
-Route::view('/terms', 'legal.terms')->name('legal.terms');
-Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
+    Route::get('/reset-password/{token}', [AccountPasswordResetController::class, 'showResetForm'])
+        ->name('password.reset');
+
+    Route::post('/reset-password', [AccountPasswordResetController::class, 'reset'])
+        ->name('password.update');
+
+
+Route::get('/settings/connected', [ConnectedServicesController::class, 'index'])
+        ->name('settings.connected');
+
+    // Hủy liên kết
+    Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesController::class, 'unlink'])
+        ->name('settings.connected.unlink');
+
+    // OAuth
+    Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
+        ->whereIn('provider', ['github','facebook'])
+        ->name('oauth.redirect');
+
+    Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['github','facebook'])
+        ->name('oauth.callback');
+

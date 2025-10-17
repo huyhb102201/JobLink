@@ -326,7 +326,7 @@
 
           <div class="d-flex align-items-baseline justify-content-between mb-1">
             <h2 class="h5 fw-semibold form-title mb-0">Đăng nhập</h2>
-            <a href="" class="small-link small">Quên mật khẩu?</a>
+           <a href="{{ route('password.request') }}" class="small-link small">Quên mật khẩu?</a>
           </div>
           <p class="text-muted small mb-4">Chọn phương thức đăng nhập của bạn</p>
 
