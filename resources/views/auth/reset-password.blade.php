@@ -64,7 +64,7 @@
 </div>
 {{-- Script nên đặt sau các phần tử trên --}}
 {{-- Toast container --}}
-<div id="toast-area" class="position-fixed bottom-0 end-0 p-3" style="z-index:1080;"></div>
+<div id="toast-area" class="position-fixed top-0 end-0 p-3" style="z-index:1080;"></div>
 
 <script>
 (function () {
