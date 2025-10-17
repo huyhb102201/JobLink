@@ -102,12 +102,13 @@
 @endsection
 
 @push('scripts')
-    <script>
+<script>
 document.addEventListener('DOMContentLoaded', function () {
     if (!window.bootstrap) return;
 
     const group = document.getElementById('jobs-group');
 
+    // Gắn collapse behavior cho từng nút
     document.querySelectorAll('[data-collapse]').forEach(function (btn) {
         const targetSel = btn.getAttribute('data-bs-target');
         const target = document.querySelector(targetSel);
@@ -119,12 +120,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const openText = btn.getAttribute('data-open-text') || 'Ẩn chi tiết';
         const closeText = btn.getAttribute('data-close-text') || 'Chi tiết';
 
-        // Xử lý click mở/đóng
+        // Click để mở/đóng collapse
         btn.addEventListener('click', function () {
             inst.toggle();
         });
 
-        // Đóng các khối khác khi mở một khối
+        // Đóng các collapse khác khi mở 1 cái
         target.addEventListener('show.bs.collapse', function () {
             if (!group) return;
             group.querySelectorAll('.collapse.show').forEach(function (el) {
@@ -134,33 +135,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
-        // Khi mở: cập nhật giao diện + load task
-        target.addEventListener('shown.bs.collapse', function () {
-            btn.classList.remove('btn-outline-secondary');
-            btn.classList.add('btn-secondary');
-            if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
-            if (label) label.textContent = openText;
-
-            // === GỌI AJAX LOAD TASK Ở ĐÂY ===
-            const jobId = targetSel.replace('#details-', '');
-            if (!target.classList.contains('loaded')) {
-                target.classList.add('loaded');
-                target.insertAdjacentHTML('beforeend', '<div class="text-center py-2 text-muted small">Đang tải task...</div>');
-                fetch(`/jobs/${jobId}/user-tasks`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                    .then(res => res.text())
-                    .then(html => {
-                        target.innerHTML = html;
-                    })
-                    .catch(err => {
-                        target.innerHTML = '<div class="text-danger">Không thể tải task. Vui lòng thử lại.</div>';
-                        console.error(err);
-                    });
-            }
-        });
-
-        // Khi đóng
+        // Khi collapse bị đóng → reset nút
         target.addEventListener('hidden.bs.collapse', function () {
             btn.classList.remove('btn-secondary');
             btn.classList.add('btn-outline-secondary');
@@ -182,8 +157,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    
-    // ==== Giữ nguyên phần load applies qua AJAX ====
+    // ✅ Chỉ gắn 1 listener toàn cục cho tất cả collapse
+    $(document).on('shown.bs.collapse', '.collapse', function () {
+        const target = this;
+        const targetSel = '#' + target.id;
+        const btn = document.querySelector(`[data-bs-target="${targetSel}"]`);
+        const icon = btn?.querySelector('.icon');
+        const label = btn?.querySelector('.label');
+        const openText = btn?.dataset.openText || 'Ẩn chi tiết';
+
+        // Đổi giao diện nút
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-secondary');
+        if (icon) icon.className = 'bi bi-chevron-up me-1 icon';
+        if (label) label.textContent = openText;
+
+        const jobId = targetSel.replace('#details-', '');
+
+        // ✅ Chặn load trùng
+        if (target.classList.contains('loaded') || target.dataset.loading === 'true') {
+            return;
+        }
+
+        target.dataset.loading = 'true';
+        $(target).html('<div class="text-center py-2 text-muted small">Đang tải task...</div>');
+
+        // Gọi AJAX chỉ 1 lần
+        $.ajax({
+            url: `/jobs/${jobId}/user-tasks`,
+            type: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function (html) {
+                $(target).html(html);
+                target.classList.add('loaded');
+
+                // Chạy script con nếu có
+                const scripts = $(target).find('script');
+                scripts.each(function () {
+                    try {
+                        eval($(this).html());
+                    } catch (err) {
+                        console.error('Lỗi khi thực thi script:', err);
+                    }
+                });
+            },
+            error: function (xhr) {
+                console.error('Lỗi khi tải user-tasks:', xhr);
+                $(target).html('<div class="text-danger">Không thể tải task. Vui lòng thử lại.</div>');
+            },
+            complete: function () {
+                target.dataset.loading = 'false';
+            }
+        });
+    });
+
+    // ==========================
+    // AJAX load danh sách applies
+    // ==========================
     function loadapplies(page = 1) {
         let filters = $("#applies-filter").serialize();
         $.ajax({
@@ -191,7 +221,9 @@ document.addEventListener('DOMContentLoaded', function () {
             type: "GET",
             dataType: "json",
             data: filters,
-            beforeSend: function () { $("#jobs-group").css("opacity", "0.5"); },
+            beforeSend: function () {
+                $("#jobs-group").css("opacity", "0.5");
+            },
             success: function (res) {
                 $("#jobs-group").html(res.applies);
                 $("#pagination-wrapper").html(res.pagination);

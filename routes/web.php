@@ -427,3 +427,11 @@ Route::get('/settings/connected', [ConnectedServicesController::class, 'index'])
         ->whereIn('provider', ['github','facebook'])
         ->name('oauth.callback');
 
+use App\Http\Controllers\CloudinaryUploadController;
+
+Route::get('/cloudinary/upload', [CloudinaryUploadController::class, 'form']);
+Route::post('/cloudinary/upload', [CloudinaryUploadController::class, 'store'])->name('cloudinary.store');
+
+// LEGAL PAGES
+Route::view('/terms', 'legal.terms')->name('legal.terms');
+Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
