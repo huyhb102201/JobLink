@@ -153,8 +153,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
     Route::get('/jobs/{jobId}/drive/{taskId?}', [TaskController::class, 'getVirtualDrive'])->name('jobs.drive.data');
-Route::delete('/tasks/{task}/files/delete', [TaskController::class, 'deleteFile'])->name('tasks.files.delete');
-Route::get('/tasks/files/download/{filename}', [TaskController::class, 'downloadFile'])->name('tasks.files.download');
+    Route::delete('/tasks/{task}/files/delete', [TaskController::class, 'deleteFile'])->name('tasks.files.delete');
+    Route::get('/tasks/files/download/{filename}', [TaskController::class, 'downloadFile'])->name('tasks.files.download');
 
 });
 // Hiển thị danh sách công việc
@@ -399,34 +399,34 @@ Route::get('/upload', [CloudinaryTestController::class, 'index']);
 Route::post('/upload', [CloudinaryTestController::class, 'upload'])->name('cloudinary.upload');
 
 Route::get('/forgot-password', [AccountPasswordResetController::class, 'showRequestForm'])
-        ->name('password.request');
+    ->name('password.request');
 
-    Route::post('/forgot-password', [AccountPasswordResetController::class, 'sendLink'])
-        ->middleware('throttle:6,1')
-        ->name('password.email');
+Route::post('/forgot-password', [AccountPasswordResetController::class, 'sendLink'])
+    ->middleware('throttle:6,1')
+    ->name('password.email');
 
-    Route::get('/reset-password/{token}', [AccountPasswordResetController::class, 'showResetForm'])
-        ->name('password.reset');
+Route::get('/reset-password/{token}', [AccountPasswordResetController::class, 'showResetForm'])
+    ->name('password.reset');
 
-    Route::post('/reset-password', [AccountPasswordResetController::class, 'reset'])
-        ->name('password.update');
+Route::post('/reset-password', [AccountPasswordResetController::class, 'reset'])
+    ->name('password.update');
 
 
 Route::get('/settings/connected', [ConnectedServicesController::class, 'index'])
-        ->name('settings.connected');
+    ->name('settings.connected');
 
-    // Hủy liên kết
-    Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesController::class, 'unlink'])
-        ->name('settings.connected.unlink');
+// Hủy liên kết
+Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesController::class, 'unlink'])
+    ->name('settings.connected.unlink');
 
-    // OAuth
-    Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
-        ->whereIn('provider', ['github','facebook'])
-        ->name('oauth.redirect');
+// OAuth
+Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
+    ->whereIn('provider', ['github', 'facebook'])
+    ->name('oauth.redirect');
 
-    Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
-        ->whereIn('provider', ['github','facebook'])
-        ->name('oauth.callback');
+Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
+    ->whereIn('provider', ['github', 'facebook'])
+    ->name('oauth.callback');
 
 use App\Http\Controllers\CloudinaryUploadController;
 
