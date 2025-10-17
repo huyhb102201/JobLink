@@ -1,5 +1,7 @@
 <?php
+// app/Http/Controllers/ConnectedServicesController.php
 namespace App\Http\Controllers;
+
 use App\Models\SocialAccount;
 use Illuminate\Support\Facades\Auth;
 
