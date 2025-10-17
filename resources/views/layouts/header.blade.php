@@ -28,12 +28,13 @@
             $code = strtoupper($acc->type->code ?? '');
             $isClient = $code === 'CLIENT' || $code === 'BUSS';
 
-            // active khi user đang ở route liên quan tới client jobs
+            // Kiểm tra route để active menu
             $activePost = request()->routeIs('client.jobs.choose', 'client.jobs.wizard.*', 'client.jobs.create', 'client.jobs.ai_form');
             $activeMine = request()->routeIs('client.jobs.mine');
           @endphp
 
           @if($isClient)
+            <!-- Menu dropdown cho Client/Buss -->
             <li class="nav-item dropdown dropdown-hover">
               <a class="nav-link {{ request()->is('client/jobs*') ? 'active fw-semibold' : '' }}" href="#"
                 data-bs-toggle="dropdown" aria-expanded="false">
@@ -62,41 +63,25 @@
               </ul>
             </li>
           @else
-            <!--<li class="nav-item">
+            <!-- Những quyền khác như Admin/Staff: chỉ thấy link đơn giản -->
+            <li class="nav-item">
               <a class="nav-link {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
                 href="{{ url('/jobs') }}">
                 Công việc
               </a>
-            </li>-->
-            <li class="nav-item dropdown dropdown-hover">
-              <a class="nav-link {{ request()->is('jobs*') ? 'active fw-semibold' : '' }}" href="#"
-                data-bs-toggle="dropdown" aria-expanded="false">
-                <span>Công việc</span>
-                <i class="bi bi-chevron-down toggle-dropdown"></i>
-              </a>
-              <ul class="dropdown-menu shadow-sm" style="min-width:240px">
-                <li>
-                  <a class="dropdown-item {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
-                    href="{{ url('/jobs') }}">
-                    Danh sách công việc
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item {{ $activePost ? 'active fw-semibold' : '' }}"
-                    href="{{ route('submitted_jobs') }}">
-                    Công việc đã ứng tuyển
-                  </a>
-                </li>
-                <li>
-                  <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}"
-                    href="#">
-                    Công việc yêu thích
-                  </a>
-                </li>
-              </ul>
             </li>
           @endif
+        @else
+          <!-- Chưa đăng nhập: chỉ thấy link đơn giản -->
+          <li class="nav-item">
+            <a class="nav-link {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
+              href="{{ url('/jobs') }}">
+              Công việc
+            </a>
+          </li>
         @endauth
+
+
 
         <li class="nav-item">
           <a class="nav-link {{ request()->is('orgs*') ? 'active fw-semibold' : '' }}" href="{{ url('/orgs') }}">
