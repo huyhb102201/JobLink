@@ -41,6 +41,7 @@ use App\Http\Controllers\PaymentController as PublicPaymentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TaskController;
 
+use App\Http\Controllers\Auth\AccountPasswordResetController;
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -393,3 +394,15 @@ use App\Http\Controllers\CloudinaryTestController;
 Route::get('/upload', [CloudinaryTestController::class, 'index']);
 Route::post('/upload', [CloudinaryTestController::class, 'upload'])->name('cloudinary.upload');
 
+Route::get('/forgot-password', [AccountPasswordResetController::class, 'showRequestForm'])
+        ->name('password.request');
+
+    Route::post('/forgot-password', [AccountPasswordResetController::class, 'sendLink'])
+        ->middleware('throttle:6,1')
+        ->name('password.email');
+
+    Route::get('/reset-password/{token}', [AccountPasswordResetController::class, 'showResetForm'])
+        ->name('password.reset');
+
+    Route::post('/reset-password', [AccountPasswordResetController::class, 'reset'])
+        ->name('password.update');
