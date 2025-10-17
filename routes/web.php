@@ -153,7 +153,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
     Route::get('/jobs/{jobId}/drive/{taskId?}', [TaskController::class, 'getVirtualDrive'])->name('jobs.drive.data');
-
+Route::delete('/tasks/{task}/files/delete', [TaskController::class, 'deleteFile'])->name('tasks.files.delete');
+Route::get('/tasks/files/download/{filename}', [TaskController::class, 'downloadFile'])->name('tasks.files.download');
 
 });
 // Hiển thị danh sách công việc
