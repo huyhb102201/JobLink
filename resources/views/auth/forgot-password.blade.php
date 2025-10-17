@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title','Quên mật khẩu')
 @section('content')
-<div class="container" style="max-width:500px; margin-top:60px; margin-bottom:80px;">
+<div class="container" style="max-width:500px; margin-top:60px; margin-bottom:200px; ">
   <h3 class="mb-3">Quên mật khẩu</h3>
   @if (session('status')) <div class="alert alert-success">{{ session('status') }}</div> @endif
   <form method="POST" action="{{ route('password.email') }}">
