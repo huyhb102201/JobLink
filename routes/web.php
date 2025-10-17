@@ -42,6 +42,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TaskController;
 
 use App\Http\Controllers\Auth\AccountPasswordResetController;
+use App\Http\Controllers\SocialAuthController;
+use App\Http\Controllers\ConnectedServicesController;
+
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
     Route::get('/register/role', [RegisterController::class, 'showRole'])->name('register.role.show');
@@ -406,3 +409,21 @@ Route::get('/forgot-password', [AccountPasswordResetController::class, 'showRequ
 
     Route::post('/reset-password', [AccountPasswordResetController::class, 'reset'])
         ->name('password.update');
+
+
+Route::get('/settings/connected', [ConnectedServicesController::class, 'index'])
+        ->name('settings.connected');
+
+    // Hủy liên kết
+    Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesController::class, 'unlink'])
+        ->name('settings.connected.unlink');
+
+    // OAuth
+    Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
+        ->whereIn('provider', ['github','facebook'])
+        ->name('oauth.redirect');
+
+    Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['github','facebook'])
+        ->name('oauth.callback');
+

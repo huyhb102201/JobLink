@@ -90,5 +90,10 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Comment::class, 'account_id');
     }
+    public function socialAccounts()
+{
+    return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
+}
+
 
 }
