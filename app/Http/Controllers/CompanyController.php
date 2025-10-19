@@ -283,15 +283,29 @@ public function index(Request $r)
 
 public function inviteByUsername(Request $r)
 {
+    // Laravel sẽ tự trả 422 JSON cho validate() nếu header Accept: application/json
     $r->validate([
         'org_id'   => 'required|integer',
         'username' => ['required','string','max:255','regex:/^[A-Za-z0-9._-]+$/'],
         '_modal'   => 'nullable|string',
     ]);
 
+    $isAjax = $r->ajax() || $r->wantsJson();
+
+    // helper trả lỗi JSON hoặc back() tuỳ request
+    $fail = function(array $errors, int $status = 422) use ($isAjax) {
+        if ($isAjax) {
+            return response()->json([
+                'message' => is_array(reset($errors)) ? (reset($errors)[0] ?? 'Dữ liệu không hợp lệ.') : (reset($errors) ?: 'Dữ liệu không hợp lệ.'),
+                'errors'  => $errors,
+            ], $status);
+        }
+        return back()->withErrors($errors)->withInput();
+    };
+
     $me = $r->user()->loadMissing('type');
     if (($me->type?->code) !== 'BUSS') {
-        return back()->withErrors(['msg' => 'Chỉ Business mới được mời thành viên.']);
+        return $fail(['msg' => 'Chỉ Business mới được mời thành viên.'], 403);
     }
 
     // Chỉ OWNER của org mới được mời
@@ -300,33 +314,31 @@ public function inviteByUsername(Request $r)
         ->first();
 
     if (!$org) {
-        return back()->withErrors(['msg' => 'Bạn không có quyền với tổ chức này.'])->withInput();
+        return $fail(['msg' => 'Bạn không có quyền với tổ chức này.'], 403);
     }
 
-    // Lấy account theo username (case-insensitive an toàn với collation)
+    // Lấy account theo username (case-insensitive an toàn)
     $username = trim($r->username);
     $target = Account::query()
         ->join('profiles as p', 'p.account_id', '=', 'accounts.account_id')
         ->whereRaw('LOWER(p.username) = ?', [mb_strtolower($username)])
-        ->select('accounts.*') // tránh lấy trùng cột
+        ->select('accounts.*')
         ->first();
 
     if (!$target) {
-        return back()->withErrors(['username' => 'Không tìm thấy username này.'])->withInput();
+        return $fail(['username' => ['Không tìm thấy username này.']], 404);
     }
 
     // Không mời chính mình
     if ((int) $target->account_id === (int) $me->account_id) {
-        return back()->withErrors(['username' => 'Bạn là chủ tổ chức này.'])->withInput();
+        return $fail(['username' => ['Bạn là chủ tổ chức này.']], 409);
     }
 
     // ---- CHẶN NẾU USER ĐÃ THUỘC DOANH NGHIỆP KHÁC ----
     // 1) Người này là OWNER của một org khác
     $ownerOrg = Org::where('owner_account_id', $target->account_id)->first();
     if ($ownerOrg && (int) $ownerOrg->org_id !== (int) $org->org_id) {
-        return back()->withErrors([
-            'username' => "Tài khoản này đang thuộc doanh nghiệp khác."
-        ])->withInput();
+        return $fail(['username' => ['Tài khoản này đang thuộc doanh nghiệp khác.']], 409);
     }
 
     // 2) Người này đã là member ACTIVE/PENDING ở org khác
@@ -337,11 +349,7 @@ public function inviteByUsername(Request $r)
         ->first();
 
     if ($otherMembership) {
-        $other = Org::find($otherMembership->org_id);
-        $otherName = $other?->name ? "{$other->name} (#{$other->org_id})" : "#{$otherMembership->org_id}";
-        return back()->withErrors([
-            'username' => "Người này đã thuộc doanh nghiệp khác."
-        ])->withInput();
+        return $fail(['username' => ['Người này đã thuộc doanh nghiệp khác.']], 409);
     }
 
     // ---- NẾU ĐÃ Ở TRONG CÙNG ORG NÀY THÌ BÁO LẠI ----
@@ -351,10 +359,10 @@ public function inviteByUsername(Request $r)
         ->first();
 
     if ($sameOrgMember && $sameOrgMember->status === 'ACTIVE') {
-        return back()->withErrors(['username' => 'Người này đã là thành viên của tổ chức.'])->withInput();
+        return $fail(['username' => ['Người này đã là thành viên của tổ chức.']], 409);
     }
     if ($sameOrgMember && $sameOrgMember->status === 'PENDING') {
-        return back()->withErrors(['username' => 'Bạn đã mời người này, đang chờ xác nhận.'])->withInput();
+        return $fail(['username' => ['Bạn đã mời người này, đang chờ xác nhận.']], 409);
     }
 
     // ---- TẠO/ TÁI SỬ DỤNG INVITE CÒN HẠN ----
@@ -388,11 +396,36 @@ public function inviteByUsername(Request $r)
         );
     }
 
-    // Gửi email mời
-    $this->sendOrgInviteEmail($target, $org, $invite);
+    // Gửi email mời (bảo vệ bằng try/catch để trả JSON hợp lý)
+    try {
+        $this->sendOrgInviteEmail($target, $org, $invite);
+    } catch (\Throwable $e) {
+        \Log::error('Send invite email error', ['msg' => $e->getMessage()]);
+        return $fail(['msg' => 'Gửi email mời thất bại. Vui lòng thử lại sau.'], 500);
+    }
+
+    // Trả JSON cho AJAX hoặc back() cho non-AJAX
+    if ($isAjax) {
+        $payload = [
+            'email'            => $target->email,
+            'invitee_email'    => $target->email,
+            'invitee_fullname' => $target->profile->fullname ?? null,
+            'invitee_username' => $target->profile->username ?? null,
+            'role'             => $invite->role ?? 'MEMBER',
+            'created_at_fmt'   => optional($invite->created_at)->format('d/m/Y H:i'),
+            'expires_at_fmt'   => optional($invite->expires_at)->format('d/m/Y H:i'),
+            'status'           => $invite->status,
+        ];
+
+        return response()->json([
+            'message' => 'Đã gửi lời mời tới ' . $target->email . '.',
+            'invite'  => $payload,
+        ], 200);
+    }
 
     return back()->with('ok', 'Đã gửi lời mời tới ' . $target->email . '.');
 }
+
 
     public function acceptInvite(Request $r, string $token)
     {
@@ -496,47 +529,61 @@ public function inviteByUsername(Request $r)
             'usedSeats'
         ));
     }
-    public function removeMember(Request $r, int $org, int $account)
-    {
-        $me = $r->user();
-        $orgRow = Org::where('org_id', $org)
-            ->where('owner_account_id', $me->account_id) // chỉ Owner mới gỡ
-            ->first();
+   public function removeMember(Request $r, int $org, int $account)
+{
+    $me = $r->user();
 
-        if (!$orgRow) {
-            return back()->withErrors(['msg' => 'Bạn không có quyền với tổ chức này.']);
+    $deny = function ($msg, $code = 403) use ($r) {
+        if ($r->expectsJson()) {
+            return response()->json(['success' => false, 'message' => $msg], $code);
         }
+        return back()->withErrors(['msg' => $msg]);
+    };
 
-        $member = DB::table('org_members')
-            ->where('org_id', $org)
-            ->where('account_id', $account)
-            ->first();
-
-        if (!$member) {
-            return back()->withErrors(['msg' => 'Không tìm thấy thành viên.']);
+    $ok = function ($payload = [], $msg = 'Đã xoá thành viên khỏi tổ chức.') use ($r) {
+        $data = array_merge(['success' => true, 'message' => $msg], $payload);
+        if ($r->expectsJson()) {
+            return response()->json($data);
         }
-        if ($member->role === 'OWNER') {
-            return back()->withErrors(['msg' => 'Không thể xoá Chủ sở hữu.']);
-        }
+        return back()->with('ok', $msg);
+    };
 
-        // Xoá membership
-        DB::table('org_members')
-            ->where('org_id', $org)
-            ->where('account_id', $account)
-            ->delete();
-
-        // Nếu có lời mời pending theo email -> chuyển CANCELLED (optional)
-        $acc = \App\Models\Account::find($account);
-        if ($acc) {
-            DB::table('org_invitations')
-                ->where('org_id', $org)
-                ->where('email', $acc->email)
-                ->where('status', 'PENDING')
-                ->update(['status' => 'CANCELLED', 'updated_at' => now()]);
-        }
-
-        return back()->with('ok', 'Đã xoá thành viên khỏi tổ chức.');
+    $orgRow = Org::where('org_id', $org)
+        ->where('owner_account_id', $me->account_id)
+        ->first();
+    if (!$orgRow) {
+        return $deny('Bạn không có quyền với tổ chức này.');
     }
+
+    $member = DB::table('org_members')
+        ->where('org_id', $org)
+        ->where('account_id', $account)
+        ->first();
+
+    if (!$member) {
+        return $deny('Không tìm thấy thành viên.', 404);
+    }
+    if ($member->role === 'OWNER') {
+        return $deny('Không thể xoá Chủ sở hữu.', 422);
+    }
+
+    DB::table('org_members')
+        ->where('org_id', $org)
+        ->where('account_id', $account)
+        ->delete();
+
+    // Optional: hủy invite pending theo email
+    if ($acc = \App\Models\Account::find($account)) {
+        DB::table('org_invitations')
+            ->where('org_id', $org)
+            ->where('email', $acc->email)
+            ->where('status', 'PENDING')
+            ->update(['status' => 'CANCELLED', 'updated_at' => now()]);
+    }
+
+    // Trả kèm id để phía client remove DOM
+    return $ok(['removed_account_id' => $account]);
+}
 
 
 public function submitVerification(Request $r)

@@ -11,11 +11,20 @@
 
             <!-- Avatar -->
             <div class="position-absolute top-100 start-50 translate-middle" style="margin-top: -60px;">
-                <div class="position-relative d-inline-block">
-                    <img src="{{ $account->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
+                <div class="position-relative d-inline-block" id="avatarWrapper">
+                    {{-- Ảnh đại diện --}}
+                    <img id="avatarImg" src="{{ $account->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
                         class="rounded-circle border border-4 border-white shadow-lg"
                         style="width:160px; height:160px; object-fit:cover;">
 
+                    {{-- Overlay spinner --}}
+                    <div id="avatarSpinner" class="avatar-spinner d-none">
+                        <div class="spinner-border text-light" role="status" style="width: 2rem; height: 2rem;">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                    </div>
+
+                    {{-- Tick xác minh --}}
                     @if($account->account_type_id == 2)
                         <span
                             class="position-absolute bottom-0 end-0 bg-warning border border-white rounded-circle d-flex align-items-center justify-content-center"
@@ -26,15 +35,15 @@
 
                     {{-- Nút upload ảnh (chỉ hiện khi đúng chủ tài khoản) --}}
                     @if(Auth::check() && Auth::id() === $account->account_id)
-                        <form action="#" method="POST" enctype="multipart/form-data" id="avatarForm">
+                        <form action="{{ route('profile.avatar.upload') }}" method="POST" enctype="multipart/form-data"
+                            id="avatarForm">
                             @csrf
-                            <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display:none"
-                                onchange="document.getElementById('avatarForm').submit()">
+                            <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display:none">
                         </form>
-                        <span
+
+                        <span id="avatarBtn"
                             class="position-absolute bottom-0 end-0 bg-secondary border border-white rounded-circle d-flex align-items-center justify-content-center"
-                            style="width:42px; height:42px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;"
-                            onclick="document.getElementById('avatarInput').click()">
+                            style="width:42px; height:42px; box-shadow:0 2px 6px rgba(0,0,0,0.2); cursor:pointer;">
                             <i class="bi bi-camera-fill text-white fs-6"></i>
                         </span>
                     @endif
@@ -42,12 +51,88 @@
             </div>
 
         </div>
+        <style>
+            #avatarWrapper {
+                width: 160px;
+                height: 160px;
+            }
 
+            .avatar-spinner {
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.25);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: opacity .2s;
+            }
+
+            .is-uploading #avatarBtn {
+                pointer-events: none;
+                opacity: 0.6;
+            }
+        </style>
         <!-- Name + Stats -->
         <div class="text-center mt-5 mb-4">
             <h2 class="fw-bold">{{ $profile->fullname }}</h2>
             <p class="text-muted mb-1">@ {{ $profile->username }}</p>
-            <p><i class="bi bi-geo-alt"></i> {{ $profile->location ?? 'Chưa cập nhật địa chỉ' }}</p>
+            <div class="d-inline-flex align-items-center gap-2">
+                <p class="mb-0">
+                    <i class="bi bi-geo-alt"></i>
+                    <span id="locationText">{{ $profile->location ?? 'Chưa cập nhật địa chỉ' }}</span>
+                </p>
+
+
+                @if(Auth::check() && Auth::id() === $account->account_id)
+                    <button type="button" class="btn btn-link text-muted p-0 border-0" data-bs-toggle="modal"
+                        data-bs-target="#editLocationModal" title="Chỉnh sửa địa chỉ" style="box-shadow:none;">
+                        <i class="bi bi-pencil fs-15"></i>
+                    </button>
+
+                @endif
+            </div>
+
+            {{-- Modal chỉnh sửa Location --}}
+            @if(Auth::check() && Auth::id() === $account->account_id)
+                <div class="modal fade" id="editLocationModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <form id="locationAjaxForm" class="modal-content" method="POST"
+                            action="{{ route('portfolios.location.update') }}">
+                            @csrf @method('PATCH')
+                            <div class="modal-header">
+                                <h5 class="modal-title">Chỉnh sửa địa chỉ</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Tỉnh / Thành phố</label>
+                                    <select id="c_province" class="form-select" style="width:100%">
+                                        <option value=""></option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Phường / Xã</label>
+                                    <select id="c_ward" class="form-select" style="width:100%" disabled>
+                                        <option value=""></option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Địa chỉ lưu</label>
+                                    <input type="text" name="location" id="locationInput" class="form-control"
+                                        value="{{ old('location', $profile->location) }}" maxlength="150"
+                                        placeholder="VD: Phường Bến Nghé, TP.HCM">
+                                    <div class="form-text">Tối đa 150 ký tự. Sẽ tự ghép theo lựa chọn phía trên.</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer"> <button type="button" class="btn btn-light"
+                                    data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-primary">Lưu</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
 
             <div class="row justify-content-center mt-4 g-3">
                 <div class="col-6 col-md-3">
@@ -375,7 +460,22 @@
                             </div>
                         </div>
                     </div>
-
+                    @if (session('ok'))
+                        <div aria-live="polite" aria-atomic="true" class="position-relative">
+                            <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
+                                <div id="okToast" class="toast align-items-center text-white bg-success border-0" role="alert"
+                                    aria-live="assertive" aria-atomic="true">
+                                    <div class="d-flex">
+                                        <div class="toast-body">
+                                            {{ session('ok') }}
+                                        </div>
+                                        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                                            data-bs-dismiss="toast" aria-label="Close"></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                     <!-- CSS: sao màu vàng -->
                     <style>
                         #starRating i {
@@ -405,6 +505,12 @@
                                 }
                             });
                         });
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const el = document.getElementById('okToast');
+                            if (!el) return;
+                            const toast = new bootstrap.Toast(el, { autohide: true, delay: 3000 });
+                            toast.show();
+                        });
 
                         document.addEventListener('DOMContentLoaded', function () {
                             const toggleBtn = document.getElementById('toggle-reviews');
@@ -425,22 +531,367 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const toggleBtn = document.getElementById('toggle-jobs');
-            const jobItems = document.querySelectorAll('.job-item.d-none');
-            let expanded = false;
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', function () {
-                    jobItems.forEach(item => item.classList.toggle('d-none'));
-                    expanded = !expanded;
-                    toggleBtn.innerHTML = expanded
-                        ? 'Thu gọn <i class="bi bi-chevron-up"></i>'
-                        : 'Xem thêm <i class="bi bi-chevron-down"></i>';
-                });
-            }
+<style>
+  /* Giữ nguyên style avatar */
+  #avatarWrapper { width:160px; height:160px; }
+  .avatar-spinner{
+    position:absolute; inset:0; background:rgba(0,0,0,.25);
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%; transition:opacity .2s;
+  }
+  .is-uploading #avatarBtn{ pointer-events:none; opacity:.6; }
+
+  /* Chặn Bootstrap tự set padding-right khi mở modal (tránh giật/đơ cuộn) */
+  body.modal-open { padding-right: 0 !important; }
+
+  /* Nếu SweetAlert2 mở, vẫn cho cuộn (tránh kẹt) */
+  body.swal2-shown { overflow: auto !important; }
+</style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  // ====== Helper gỡ mọi khóa cuộn (Modal/Swal) ======
+  function unlockScroll() {
+    // Bootstrap Modal leftovers
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('padding-right');
+    document.body.style.removeProperty('overflow');
+    document.documentElement.style.removeProperty('overflow');
+
+    // SweetAlert2 leftovers
+    ['swal2-shown','swal2-height-auto','swal2-no-backdrop','swal2-toast-shown']
+      .forEach(c => document.body.classList.remove(c));
+
+    // Xóa mọi backdrop còn sót
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+  }
+
+  // ====== UI phụ khác (toggle jobs, avatar spinner) ======
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggleBtn = document.getElementById('toggle-jobs');
+    const jobItems  = document.querySelectorAll('.job-item.d-none');
+    let expanded = false;
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function () {
+        jobItems.forEach(item => item.classList.toggle('d-none'));
+        expanded = !expanded;
+        toggleBtn.innerHTML = expanded
+          ? 'Thu gọn <i class="bi bi-chevron-up"></i>'
+          : 'Xem thêm <i class="bi bi-chevron-down"></i>';
+      });
+    }
+  });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('avatarBtn');
+  const input = document.getElementById('avatarInput');
+  const form = document.getElementById('avatarForm');
+  const spinner = document.getElementById('avatarSpinner');
+  const wrapper = document.getElementById('avatarWrapper');
+  const img = document.getElementById('avatarImg');
+
+  if (!btn || !input || !form || !spinner || !img) return;
+
+  btn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', () => {
+    if (!input.files.length) return;
+
+    const file = input.files[0];
+    // Kiểm tra client-side (tùy thích)
+    const validTypes = ['image/jpeg','image/png','image/webp'];
+    if (!validTypes.includes(file.type)) {
+      Swal.fire({ icon:'error', title:'Tệp không hợp lệ', text:'Chỉ chấp nhận JPG, PNG, WEBP.' });
+      input.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire({ icon:'error', title:'Tệp quá lớn', text:'Kích thước tối đa 5MB.' });
+      input.value = '';
+      return;
+    }
+
+    // UI loading
+    spinner.classList.remove('d-none');
+    wrapper.classList.add('is-uploading');
+
+    // Chuẩn bị FormData
+    const fd = new FormData();
+    fd.append('avatar', file);
+
+    // Lấy CSRF
+    const token = (form.querySelector('input[name="_token"]') || {}).value
+               || (document.querySelector('meta[name="csrf-token"]') || {}).content
+               || '';
+
+    // Gửi AJAX
+    $.ajax({
+      url: form.action,
+      method: 'POST',
+      data: fd,
+      processData: false,
+      contentType: false,
+      headers: { 'X-CSRF-TOKEN': token }
+    })
+    .done(function(res) {
+      if (res && res.ok) {
+        // cập nhật ảnh (bypass cache)
+        const url = res.url + (res.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+        img.src = url;
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Thành công!',
+          text: res.message || 'Ảnh đại diện đã được cập nhật.',
+          timer: 1500,
+          showConfirmButton: false,
+          didOpen: unlockScroll, willClose: unlockScroll, didClose: unlockScroll, didDestroy: unlockScroll
         });
-    </script>
+      } else {
+        const msg = (res && (res.message || (res.errors && Object.values(res.errors).flat().join(' ')))) || 'Upload thất bại.';
+        Swal.fire({ icon:'error', title:'Lỗi!', text: msg,
+          didOpen: unlockScroll, willClose: unlockScroll, didClose: unlockScroll, didDestroy: unlockScroll
+        });
+      }
+    })
+    .fail(function(xhr) {
+      let msg = 'Upload thất bại.';
+      if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+        msg = Object.values(xhr.responseJSON.errors).flat().join(' ');
+      } else if (xhr.responseJSON && xhr.responseJSON.message) {
+        msg = xhr.responseJSON.message;
+      }
+      Swal.fire({ icon:'error', title:'Lỗi!', text: msg,
+        didOpen: unlockScroll, willClose: unlockScroll, didClose: unlockScroll, didDestroy: unlockScroll
+      });
+    })
+    .always(function() {
+      spinner.classList.add('d-none');
+      wrapper.classList.remove('is-uploading');
+      input.value = ''; // reset input để có thể chọn lại cùng file
+    });
+  });
+});
+
+
+  // ====== Modal Location + Select2 ======
+  (function () {
+    const $modal = $('#editLocationModal');
+    let provincesData = [];
+    let provincesLoaded = false;
+
+    function ensureProvincesLoaded() {
+      return new Promise((resolve, reject) => {
+        if (provincesLoaded && provincesData.length) return resolve(provincesData);
+        $.getJSON('https://provinces.open-api.vn/api/v2/?depth=2')
+          .done(data => {
+            provincesData = Array.isArray(data) ? data : [];
+            provincesLoaded = true;
+            resolve(provincesData);
+          })
+          .fail(reject);
+      });
+    }
+
+    function collectWards(p) {
+      if (!p) return [];
+      if (Array.isArray(p.wards) && p.wards.length) return p.wards;
+      const wards = [];
+      (p.districts || []).forEach(d => (d.wards || []).forEach(w => wards.push(w)));
+      return wards;
+    }
+
+    function fillProvinces() {
+      const $prov = $('#c_province');
+      $prov.empty().append('<option value=""></option>');
+      provincesData.forEach(p => $prov.append(`<option value="${p.code}">${p.name}</option>`));
+      $prov.val('');
+    }
+
+    function initSelect2() {
+      if ($('#c_province').hasClass('select2-hidden-accessible')) $('#c_province').select2('destroy');
+      if ($('#c_ward').hasClass('select2-hidden-accessible')) $('#c_ward').select2('destroy');
+      const s2 = { theme: 'bootstrap-5', allowClear: true, width: '100%', dropdownParent: $modal };
+      $('#c_province').select2({ ...s2, placeholder: 'Chọn tỉnh / thành phố' });
+      $('#c_ward').select2({ ...s2, placeholder: 'Chọn phường / xã' });
+
+      $(document).off('select2:open._focus').on('select2:open._focus', () => {
+        const el = document.querySelector('.select2-container--open .select2-search__field');
+        if (el) el.focus();
+      });
+    }
+
+    function setupHandlers() {
+      $('#c_province').off('change').on('change', function () {
+        const provCode = $(this).val();
+        const $ward = $('#c_ward');
+        $ward.prop('disabled', true).empty().append('<option value=""></option>').val(null).trigger('change.select2');
+        $('#locationInput').val('');
+        if (!provCode) return;
+
+        const province = provincesData.find(p => String(p.code) === String(provCode));
+        if (!province) return;
+        $('#locationInput').val(province.name);
+
+        const wards = collectWards(province);
+        wards.forEach(w => $ward.append(`<option value="${w.code}" data-codename="${w.codename || ''}">${w.name}</option>`));
+        $ward.prop('disabled', false).val(null).trigger('change.select2');
+        syncLocation();
+      });
+
+      $('#c_ward').off('change').on('change', function () {
+        syncLocation();
+      });
+    }
+
+    function syncLocation() {
+      const pCode = $('#c_province').val();
+      const wText = $('#c_ward').find(':selected').text() || '';
+      const pName = provincesData.find(x => String(x.code) === String(pCode))?.name || '';
+      $('#locationInput').val([wText, pName].filter(Boolean).join(', '));
+    }
+
+    $modal.on('shown.bs.modal', async function () {
+      try {
+        await ensureProvincesLoaded();
+        fillProvinces();
+        initSelect2();
+        setupHandlers();
+      } catch (e) { /* ignore */ }
+    });
+
+    $modal.on('hidden.bs.modal', function () {
+      if ($('#c_province').hasClass('select2-hidden-accessible')) $('#c_province').select2('destroy');
+      if ($('#c_ward').hasClass('select2-hidden-accessible')) $('#c_ward').select2('destroy');
+      forceModalCleanup();
+      unlockScroll(); // đảm bảo mở khóa cuộn khi modal đóng
+    });
+  })();
+
+  // ====== AJAX cập nhật Location (SweetAlert2) — CHỈ 1 HANDLER ======
+  (function () {
+    const $modal = $('#editLocationModal');
+
+    $modal.off('submit.location').on('submit.location', 'form#locationAjaxForm, form[action$="portfolios/location"]', function (e) {
+      e.preventDefault();
+
+      const $form = $(this);
+      const action = $form.attr('action');
+      const $btnSave = $form.find('button[type="submit"]');
+      const token = $form.find('input[name="_token"]').val(); // fallback nếu meta csrf thiếu
+
+      // khóa nút
+      $btnSave.prop('disabled', true).addClass('disabled');
+      const originalHtml = $btnSave.html();
+      $btnSave.html('<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...');
+
+      // payload
+      const data = $form.serializeArray();
+      if (!data.find(x => x.name === '_method')) data.push({ name: '_method', value: 'PATCH' });
+
+      $.ajax({
+        url: action,
+        type: 'POST',
+        data: $.param(data),
+        headers: { 'X-CSRF-TOKEN': token || ($('meta[name="csrf-token"]').attr('content') || '') }
+      })
+      .done(function (res) {
+        if (res?.ok) {
+          if (res.location) $('#locationText').text(res.location);
+
+          // đóng select2 trước khi ẩn
+          try { $('#c_province').select2('close'); } catch (e) {}
+          try { $('#c_ward').select2('close'); } catch (e) {}
+
+          const modalEl = document.getElementById('editLocationModal');
+          const m = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+          // dọn rác khi hidden (chuẩn)
+          modalEl.addEventListener('hidden.bs.modal', function onHidden() {
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            forceModalCleanup();
+            unlockScroll(); // mở khóa cuộn khi đã hidden
+          }, { once: true });
+
+          m.hide(); // ẩn modal
+
+          // Dự phòng: cưỡng bức sau 150ms nếu event không bắn
+          setTimeout(function(){ forceModalCleanup(); unlockScroll(); }, 150);
+
+          // thông báo
+          Swal.fire({
+            icon: 'success',
+            title: 'Thành công!',
+            text: res.message || 'Đã lưu địa chỉ.',
+            timer: 1800,
+            showConfirmButton: false,
+            didOpen: unlockScroll,
+            willClose: unlockScroll,
+            didClose: unlockScroll,
+            didDestroy: unlockScroll
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Lỗi!',
+            text: res?.message || 'Không thể cập nhật địa chỉ.',
+            didOpen: unlockScroll,
+            willClose: unlockScroll,
+            didClose: unlockScroll,
+            didDestroy: unlockScroll
+          });
+        }
+      })
+      .fail(function (xhr) {
+        const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Có lỗi xảy ra khi cập nhật.';
+        Swal.fire({
+          icon: 'error', title: 'Lỗi!', text: msg,
+          didOpen: unlockScroll, willClose: unlockScroll, didClose: unlockScroll, didDestroy: unlockScroll
+        });
+      })
+      .always(function () {
+        $btnSave.prop('disabled', false).removeClass('disabled').html(originalHtml);
+      });
+    });
+
+    // Hàm dọn rác backdrop + body.lock
+    window.forceModalCleanup = function () {
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('padding-right');
+      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    };
+  })();
+
+  // ====== Watchdog dọn backdrop còn sót (phòng edge cases) ======
+  (function () {
+    function cleanupBackdrops() {
+      const hasOpen = document.querySelector('.modal.show');
+      if (!hasOpen) {
+        window.forceModalCleanup && window.forceModalCleanup();
+        unlockScroll(); // thêm để chắc chắn
+      }
+    }
+    document.addEventListener('hidden.bs.modal', cleanupBackdrops);
+    document.addEventListener('shown.bs.modal', cleanupBackdrops);
+    setInterval(() => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      if (backdrops.length && !document.querySelector('.modal.show')) cleanupBackdrops();
+    }, 800);
+  })();
+
+  // ====== (Giữ nguyên các script rating / toast phía trên của bạn) ======
+</script>
+
 
 @endsection
