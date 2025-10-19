@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\File as FileRule;
 use Cloudinary\Api\Upload\UploadApi;
+use App\Models\Review;
 class PortfolioController extends Controller
 {
     public function index()
@@ -19,25 +20,88 @@ class PortfolioController extends Controller
         return view('portfolios.index');
     }
 
-    public function show($username)
-    {
-        $profile = Profile::with('account')
-            ->where('username', $username)
-            ->firstOrFail();
 
-        $account = $profile->account;
 
-        // Lấy tất cả jobs (sắp xếp mới nhất trước)
-        $jobs = $account->jobs()->whereNotIn('status', ['pending', 'cancelled'])->latest()->get();
+   public function show($username)
+{
+    $profile = Profile::with('account')
+        ->where('username', $username)
+        ->firstOrFail();
 
-        $stats = [
-            'total_jobs' => $jobs->count(),
-            'completed_jobs' => $jobs->where('status', 'completed')->count(),
-            'ongoing_jobs' => $jobs->where('status', 'ongoing')->count(),
-        ];
+    $account = $profile->account;
 
-        return view('portfolios.index', compact('profile', 'account', 'jobs', 'stats'));
+    // Jobs
+    $jobs = $account->jobs()
+        ->whereNotIn('status', ['pending', 'cancelled'])
+        ->latest()
+        ->get();
+
+    $stats = [
+        'total_jobs'      => $jobs->count(),
+        'completed_jobs'  => $jobs->where('status', 'completed')->count(),
+        'ongoing_jobs'    => $jobs->where('status', 'ongoing')->count(),
+    ];
+
+    // Skills (giữ nguyên logic demo)
+    $skillIds = collect($profile->skill_list ?? [])->map(fn($v)=>(int)$v)->filter()->unique()->values()->all();
+    $skills = collect();
+    if ($skillIds) {
+        $order  = implode(',', $skillIds);
+        $skills = \App\Models\Skill::whereIn('skill_id', $skillIds)
+            ->orderByRaw("FIELD(skill_id, $order)")
+            ->get(['skill_id','name'])
+            ->map(fn($s)=>[
+                'name'    => $s->name,
+                'rating'  => rand(3,5),
+                'endorse' => rand(5,50),
+                'level'   => ['Beginner','Intermediate','Advanced','Expert'][rand(1,3)],
+            ]);
     }
+
+    // Reviews (reviewee_id là profile_id)
+    $reviews = Review::where('reviewee_id', $profile->profile_id)
+        ->with(['reviewerProfile:profile_id,fullname,username'])
+        ->latest()
+        ->get();
+
+    $avgRating   = round((float) $reviews->avg('rating'), 1);
+    $reviewCount = $reviews->count();
+
+    /* ===================== ORGS THEO account_id ===================== */
+    // DN user sở hữu
+    $ownedOrgs = \App\Models\Org::with('owner')
+        ->withCount('members')
+        ->where('owner_account_id', $account->account_id)
+        ->get()
+        ->map(function ($o) {
+            $o->via_role      = 'OWNER';
+            $o->member_status = 'ACTIVE';
+            return $o;
+        });
+
+    // DN user tham gia (qua org_members) — lấy cả role + status
+    $memberOrgs = \App\Models\Org::query()
+        ->with('owner')
+        ->withCount('members')
+        ->join('org_members as m', 'm.org_id', '=', 'orgs.org_id')
+        ->where('m.account_id', $account->account_id)
+        // ->where('m.status', 'ACTIVE') // bật nếu chỉ muốn DN đang active
+        ->select('orgs.*', 'm.role as via_role', 'm.status as member_status')
+        ->get();
+
+    // Gộp & loại trùng
+    $orgs = $ownedOrgs->concat($memberOrgs)->unique('org_id')->values();
+
+    return view('portfolios.index', compact(
+        'profile', 'account',
+        'jobs', 'stats',
+        'skills',
+        'reviews', 'avgRating', 'reviewCount',
+        'orgs' // <<=== TRUYỀN RA VIEW
+    ));
+}
+
+
 
     public function upload(Request $r)
     {

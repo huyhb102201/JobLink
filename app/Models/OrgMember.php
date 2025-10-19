@@ -26,4 +26,11 @@ class OrgMember extends Model
     {
         return $this->belongsTo(Account::class, 'account_id', 'account_id');
     }
+    const STATUS_ACTIVE = 'ACTIVE';
+    const STATUS_PENDING = 'PENDING';
+
+    public function scopeActive($q)
+    {
+        return $q->where('status', self::STATUS_ACTIVE);
+    }
 }

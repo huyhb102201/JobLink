@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateProfileRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Auth;
 class ProfileController extends Controller
 {
     public function show(Request $request)
@@ -65,5 +65,40 @@ class ProfileController extends Controller
         $account->update(['avatar_url' => 'storage/'.$path]);
 
         return back()->with('ok','Đã cập nhật ảnh đại diện');
+    }
+    public function updateAbout(Request $request)
+    {
+        // Validate
+        $data = $request->validate([
+            'description' => ['nullable','string','max:5000'],
+        ]);
+
+        // Lấy profile theo user hiện tại (giả sử khóa ngoại là account_id / user_id)
+        $user = Auth::user();
+        $profile = $user->profile; // nếu quan hệ là hasOne Profile
+
+        if (!$profile) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Không tìm thấy hồ sơ để cập nhật.',
+            ], 404);
+        }
+
+        // (Khuyến nghị) sanitize để tránh XSS — nếu bạn có HTMLPurifier/clean()
+        $cleanHtml = $data['description'] ?? '';
+        if (function_exists('clean')) {
+            // preset 'user_profile' là ví dụ: bạn tự cấu hình whitelist
+            $cleanHtml = clean($cleanHtml, 'user_profile');
+        }
+
+        $profile->description = $cleanHtml;
+        $profile->save();
+
+        // Trả JSON để JS cập nhật ngay trên UI
+        return response()->json([
+            'ok'      => true,
+            'message' => 'Đã cập nhật giới thiệu.',
+            'html'    => $cleanHtml, // nội dung đã sanitize
+        ]);
     }
 }
