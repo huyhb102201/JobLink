@@ -740,12 +740,32 @@ document.addEventListener('DOMContentLoaded', function(){
   opacity: 0.7;
   cursor: not-allowed;
 }
+#aboutToast {
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  border-radius: 8px;
+  font-weight: 500;
+}
 </style>
 
       <div class="small text-muted">AI sẽ sinh văn bản và tự chèn vào ô soạn thảo ở modal.</div>
     </form>
   </div>
 </div>
+
+<!-- Toast lưu giới thiệu thành công -->
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000">
+    <div id="aboutToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-check-circle-fill me-2"></i> Giới thiệu đã được cập nhật thành công!
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
   /* Đưa offcanvas lên trên modal */
   .offcanvas,
@@ -1086,6 +1106,8 @@ document.addEventListener('DOMContentLoaded', function(){
                     const modalEl = document.getElementById('editAboutModal');
                     bootstrap.Modal.getInstance(modalEl)?.hide();
                 }
+                const toastEl = document.getElementById('aboutToast');
+      if (toastEl) new bootstrap.Toast(toastEl, { delay: 2500 }).show();
             })
             .catch(err => { alert(err.message || 'Có lỗi xảy ra khi lưu.'); })
             .finally(() => { spin?.classList.add('d-none'); });
