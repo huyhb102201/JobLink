@@ -219,10 +219,13 @@
                             <h5 class="fw-semibold text-dark mb-3">Thành viên</h5>
 
                             @if($isOwner)
-                                <button class="btn btn-primary rounded-pill" data-bs-toggle="modal"
-                                    data-bs-target="#addMemberModal">
-                                    <i class="bi bi-person-plus me-2"></i>Thêm thành viên
-                                </button>
+                                <button class="btn btn-sm text-white fw-semibold rounded-pill px-4 py-2 border-0 shadow-sm d-inline-flex align-items-center gap-2"
+        style="background: linear-gradient(135deg, #4e73df, #1cc88a); transition: all .3s;"
+        data-bs-toggle="modal" data-bs-target="#addMemberModal">
+  <i class="bi bi-person-plus"></i>
+  <span>Thêm thành viên</span>
+</button>
+
                             @else
                                 <form method="POST" action="{{ route('company.members.leave', ['org' => $org->org_id]) }}"
                                     class="m-0" onsubmit="return confirm('Bạn chắc chắn muốn rời doanh nghiệp này?');">
@@ -421,7 +424,7 @@
         <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-md modal-dialog-centered">
                 <div class="modal-content rounded-4">
-                    <form method="POST" action="{{ route('company.members.invite') }}">
+                    <form id="inviteForm" method="POST" action="{{ route('company.members.invite') }}">
                         @csrf
                         <input type="hidden" name="_modal" value="add_member">
                         <input type="hidden" name="org_id" value="{{ $org->org_id }}">
@@ -439,27 +442,69 @@
                             @endif
 
                             <label class="form-label fw-semibold">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text">@</span>
-                                <input type="text" name="username" class="form-control" required placeholder="vd: nguyenvana"
-                                    value="{{ old('username') }}">
-                            </div>
+<div class="input-group">
+  <span class="input-group-text">@</span>
+  <input id="inviteUsername" type="text" name="username" class="form-control" required
+         placeholder="vd: nguyenvana" value="{{ old('username') }}">
+</div>
+<!-- nơi hiện lỗi validate của username -->
+<div id="inviteUsernameError" class="text-danger small mt-1 d-none"></div>
                             <div class="form-text">Người được mời cần xác nhận qua email. Quyền mặc định:
                                 <strong>Member</strong>.</div>
                             @error('username') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
 
                         <div class="modal-footer border-0 pt-0">
-                            <button class="btn btn-primary rounded-pill px-4" type="submit">Gửi lời mời</button>
-                            <button class="btn btn-outline-secondary rounded-pill" type="button"
-                                data-bs-dismiss="modal">Hủy</button>
-                        </div>
+  <button id="btnInviteSubmit"
+          class="btn btn-sm fw-semibold text-white rounded-pill px-4 py-2 border-0 shadow-sm"
+          style="background: linear-gradient(135deg, #5fa8f1, #7fe0b5); transition: all .3s;"
+          type="submit" form="inviteForm">
+    <i class="bi bi-send me-1"></i> Gửi lời mời
+  </button>
+  <button class="btn btn-sm fw-semibold rounded-pill px-4 py-2 border-0 text-secondary bg-light shadow-sm"
+          type="button" data-bs-dismiss="modal">
+    <i class="bi bi-x-circle me-1"></i> Hủy
+  </button>
+</div>
                     </form>
                 </div>
             </div>
         </div>
     @endif
+        {{-- MODAL: Xác nhận xoá thành viên (dùng chung) --}}
+<div class="modal fade" id="confirmRemoveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold text-dark">
+          <i class="bi bi-person-dash me-2"></i> Xác nhận xoá
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
 
+      <div class="modal-body">
+        <div class="alert alert-light border d-flex align-items-start gap-2 mb-0">
+          <i class="bi bi-exclamation-circle-fill fs-5 text-danger"></i>
+          <div>
+            Bạn có chắc muốn xoá
+            <strong id="confirmRemoveName">thành viên</strong>
+            khỏi tổ chức? Hành động này không thể hoàn tác.
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
+          Hủy
+        </button>
+        <button id="btnConfirmRemove" type="button"
+                class="btn btn-danger rounded-pill px-4">
+          <i class="bi bi-trash me-1"></i> Xoá khỏi tổ chức
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
     @push('styles')
         <style>
             .surface {
@@ -623,6 +668,172 @@
             }
         </style>
     @endpush
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form   = document.getElementById('inviteForm');
+  if (!form) return;
+
+  const btn    = document.getElementById('btnInviteSubmit');
+  const modalEl= document.getElementById('addMemberModal');
+  const usernameEl = document.getElementById('inviteUsername');
+  const errEl  = document.getElementById('inviteUsernameError');
+  const csrf   = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+  // Toast helper (nếu bạn đã có sẵn, dùng cái hiện có)
+  function showToast(message, type = 'success') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      container.style.zIndex = 1090;
+      document.body.appendChild(container);
+    }
+    const cls = {
+      success:'bg-success text-white',
+      error:'bg-danger text-white',
+      warning:'bg-warning text-dark',
+      info:'bg-info text-dark'
+    }[type] || 'bg-success text-white';
+
+    const el = document.createElement('div');
+    el.className = `toast align-items-center border-0 ${cls}`;
+    el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
+    el.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
+    container.appendChild(el);
+    const t = new bootstrap.Toast(el, { delay: 3000, autohide: true });
+    t.show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+  }
+
+  // (Tuỳ chọn) chèn dòng Pending vào danh sách
+  function appendPendingInvite(invite) {
+    // Tìm khối “Đang chờ xác nhận” nếu có
+    const list = document.querySelector('.member-list');
+    if (!list) return;
+
+    // Nếu chưa có header “Đang chờ xác nhận”, thêm nhanh
+    let header = [...list.querySelectorAll('.list-group-item')].find(x => x.textContent.includes('Đang chờ xác nhận'));
+    if (!header) {
+      const count = 1;
+      list.insertAdjacentHTML('beforeend', `
+        <div class="list-group-item px-4 py-2 bg-white">
+          <span class="text-secondary small fw-semibold">Đang chờ xác nhận (${count})</span>
+        </div>
+      `);
+      header = list.lastElementChild;
+    } else {
+      // cập nhật số lượng (tìm số trong ngoặc)
+      const span = header.querySelector('span');
+      if (span) {
+        const m = span.textContent.match(/\((\d+)\)/);
+        const n = m ? (parseInt(m[1],10) + 1) : 1;
+        span.textContent = `Đang chờ xác nhận (${n})`;
+      }
+    }
+
+    // Thêm item mới
+    const name  = invite.invitee_fullname || (invite.invitee_username ? '@' + invite.invitee_username : (invite.email || invite.invitee_email || '—'));
+    const email = invite.email || invite.invitee_email || '—';
+    const role  = (invite.role || 'MEMBER').toLowerCase();
+    const roleClass = {
+      OWNER:'badge-owner', ADMIN:'badge-admin', MANAGER:'badge-manager', MEMBER:'badge-member', BILLING:'badge-billing'
+    }[(invite.role || 'MEMBER').toUpperCase()] || 'badge-member';
+    const initial = (name || email).trim().charAt(0).toUpperCase();
+
+    const createdAt = invite.created_at_fmt || '';
+    const expiresAt = invite.expires_at_fmt ? ` • Hết hạn ${invite.expires_at_fmt}` : '';
+
+    const html = `
+      <div class="list-group-item px-4 py-3 bg-light">
+        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+          <div class="d-flex align-items-center gap-3">
+            <div class="avatar">${initial}</div>
+            <div>
+              <div class="fw-semibold text-dark">${name}</div>
+              <div class="text-secondary small">
+                ${email} • Mời ${createdAt}${expiresAt}
+              </div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill" style="background:#fff4cc;color:#8a6d3b;">Pending</span>
+            <span class="badge rounded-pill role-badge ${roleClass}">${role.charAt(0).toUpperCase()+role.slice(1)}</span>
+          </div>
+        </div>
+      </div>`;
+    list.insertAdjacentHTML('beforeend', html);
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (errEl) { errEl.textContent = ''; errEl.classList.add('d-none'); }
+
+    // BTN state
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang gửi...';
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+        },
+        body: new FormData(form)
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        // 422 từ Laravel: có errors
+        if (res.status === 422 && data?.errors) {
+          const msg = data.errors.username?.join(' ') || data.message || 'Dữ liệu không hợp lệ.';
+          if (errEl) { errEl.textContent = msg; errEl.classList.remove('d-none'); }
+          usernameEl?.classList.add('is-invalid');
+        } else {
+          showToast(data?.message || 'Không thể gửi lời mời.', 'error');
+        }
+        return;
+      }
+
+      // Success
+      usernameEl?.classList.remove('is-invalid');
+      form.reset();
+
+      // Đóng modal
+      if (window.bootstrap && modalEl) {
+        const instance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalEl.addEventListener('hidden.bs.modal', () => {
+          showToast(data?.message || 'Đã gửi lời mời.', 'success');
+        }, { once: true });
+        instance.hide();
+      } else {
+        showToast(data?.message || 'Đã gửi lời mời.', 'success');
+      }
+
+      // (Tuỳ chọn) chèn pending invite mới vào danh sách
+      if (data?.invite) {
+        appendPendingInvite(data.invite);
+      }
+
+    } catch (err) {
+      showToast('Lỗi mạng, vui lòng thử lại.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  });
+});
+</script>
+@endpush
 
     @push('scripts')
         <script>
@@ -646,25 +857,89 @@
         });
 
             // Xoá thành viên (chỉ Owner mới render nút)
-            document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('.js-remove-form .btn-icon').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        const name = this.dataset.name || 'thành viên';
-                        if (confirm(`Xoá ${name} khỏi tổ chức?`)) {
-                            this.disabled = true;
-                            const html = this.innerHTML;
-                            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-                            this.closest('form').submit();
-                            setTimeout(() => {
-                                if (!document.hidden) {
-                                    this.disabled = false;
-                                    this.innerHTML = html;
-                                }
-                            }, 8000);
-                        }
-                    });
-                });
-            });
+            // Xoá thành viên bằng Bootstrap Modal xác nhận
+document.addEventListener('DOMContentLoaded', function () {
+  const modalEl = document.getElementById('confirmRemoveModal');
+  if (!modalEl) return;
+
+  const nameEl  = modalEl.querySelector('#confirmRemoveName');
+  const okBtn   = modalEl.querySelector('#btnConfirmRemove');
+  const bsModal = new bootstrap.Modal(modalEl);
+
+  let pendingForm = null;   // form sẽ submit sau khi xác nhận
+  let triggerBtn  = null;   // nút X để restore trạng thái nếu cần
+  let savedHtml   = '';     // HTML gốc của nút
+
+  // Gán click cho các nút xoá
+  document.querySelectorAll('.js-remove-form .btn-icon').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const name = this.dataset.name?.trim() || 'thành viên';
+      nameEl.textContent = name;
+
+      // Lưu lại context
+      pendingForm = this.closest('form');
+      triggerBtn  = this;
+      savedHtml   = this.innerHTML;
+
+      // Mở modal
+      bsModal.show();
+    });
+  });
+
+  // Khi bấm xác nhận
+ // Khi bấm xác nhận
+okBtn.addEventListener('click', async function () {
+  if (!pendingForm || !triggerBtn) return;
+
+  // --- Loading state trên NÚT XÁC NHẬN ---
+  const okOriginal = okBtn.innerHTML;
+  okBtn.disabled = true;
+  okBtn.innerHTML =
+    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xoá...';
+
+  // (tuỳ chọn) khoá nút X cho chắc, nhưng KHÔNG đổi icon/text của nó
+  triggerBtn.disabled = true;
+
+  const url  = pendingForm.action;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const fd   = new FormData(pendingForm); // có _token + _method=DELETE
+
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+      },
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.success) {
+      window.showToast(data?.message || 'Không thể xoá thành viên.', 'error');
+      return;
+    }
+
+    // Xoá item trên UI
+    const item = pendingForm.closest('.list-group-item');
+    if (item) item.remove();
+
+    window.showToast(data.message || 'Đã xoá thành viên khỏi tổ chức.', 'success');
+    bsModal.hide();
+  } catch (e) {
+    window.showToast('Lỗi mạng, vui lòng thử lại.', 'error');
+  } finally {
+    // Khôi phục trạng thái nút xác nhận & nút X
+    okBtn.disabled = false;
+    okBtn.innerHTML = okOriginal;
+    if (triggerBtn) triggerBtn.disabled = false;
+
+    pendingForm = null;
+    triggerBtn  = null;
+  }
+});
+
 
             // Nếu có lỗi xác minh thì tự mở modal (chỉ mở nếu modal tồn tại — tức Owner)
             document.addEventListener('DOMContentLoaded', function () {
@@ -674,6 +949,122 @@
                 @endif
         });
         </script>
+        <script>
+window.showToast = window.showToast || function (message, type = 'success') {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = 1090;
+    document.body.appendChild(container);
+  }
+  const cls = { success:'bg-success text-white', error:'bg-danger text-white', warning:'bg-warning text-dark', info:'bg-info text-dark' }[type] || 'bg-success text-white';
+  const el = document.createElement('div');
+  el.className = `toast align-items-center border-0 ${cls}`;
+  el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  container.appendChild(el);
+  const t = new bootstrap.Toast(el, { delay: 3000, autohide: true });
+  t.show();
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  const modalEl = document.getElementById('confirmRemoveModal');
+  if (!modalEl) { console.warn('confirmRemoveModal not found'); return; }
+
+  const nameEl  = modalEl.querySelector('#confirmRemoveName');
+  const okBtn   = modalEl.querySelector('#btnConfirmRemove');
+  const bsModal = new bootstrap.Modal(modalEl);
+
+  let pendingForm = null;
+  let triggerBtn  = null;
+  let savedHtml   = '';
+
+  // 1) UỶ QUYỀN SỰ KIỆN: bắt mọi click vào nút X
+  document.body.addEventListener('click', function (e) {
+    const btn = e.target.closest('.js-remove-form .btn-icon');
+    if (!btn) return;
+
+    const form = btn.closest('form');
+    if (!form) return;
+
+    const name = btn.dataset.name?.trim() || 'thành viên';
+    nameEl.textContent = name;
+
+    pendingForm = form;
+    triggerBtn  = btn;
+    savedHtml   = btn.innerHTML;
+
+    bsModal.show();
+  });
+
+  // 2) XÁC NHẬN XOÁ (AJAX)
+  okBtn.addEventListener('click', async function () {
+    if (!pendingForm || !triggerBtn) return;
+
+    okBtn.disabled = true;
+    triggerBtn.disabled = true;
+    const originalHtml = triggerBtn.innerHTML;
+    triggerBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    const url  = pendingForm.action;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const fd   = new FormData(pendingForm); // có _token + _method=DELETE
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST', // Laravel hiểu method qua _method
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
+        },
+        body: fd
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        window.showToast(data?.message || 'Không thể xoá thành viên.', 'error');
+        return;
+      }
+
+      // Remove item khỏi UI
+      const item = pendingForm.closest('.list-group-item');
+      if (item) item.remove();
+
+      window.showToast(data.message || 'Đã xoá thành viên khỏi tổ chức.', 'success');
+      bsModal.hide();
+    } catch (err) {
+      window.showToast('Lỗi mạng, vui lòng thử lại.', 'error');
+    } finally {
+      okBtn.disabled = false;
+      if (triggerBtn) {
+        triggerBtn.disabled = false;
+        triggerBtn.innerHTML = savedHtml || originalHtml;
+      }
+      pendingForm = null;
+      triggerBtn  = null;
+      savedHtml   = '';
+    }
+  });
+
+  // 3) Reset khi modal đóng (phòng trường hợp user bấm Hủy)
+  modalEl.addEventListener('hidden.bs.modal', () => {
+    okBtn.disabled = false;
+    if (triggerBtn) {
+      triggerBtn.disabled = false;
+      triggerBtn.innerHTML = savedHtml || triggerBtn.innerHTML;
+    }
+    pendingForm = null;
+    triggerBtn  = null;
+    savedHtml   = '';
+  });
+});
+</script>
+
     @endpush
 
 @endsection
