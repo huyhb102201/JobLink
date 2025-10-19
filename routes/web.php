@@ -45,6 +45,12 @@ use App\Http\Controllers\Auth\AccountPasswordResetController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\ConnectedServicesController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ProfileAiController;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
+        ->name('profile.about.ai');
+});
 
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
@@ -122,7 +128,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');
     Route::get('/settings', [SettingsController::class, 'index'])
         ->name('settings.index');
-
+    Route::patch('/profile/about', [ProfileController::class, 'updateAbout'])
+        ->name('profile.about.update');
     Route::put('/settings/my-info', [SettingsController::class, 'updateMyInfo'])
         ->name('settings.myinfo.update');
 
@@ -443,3 +450,9 @@ Route::get('/settings/billing', [BillingController::class, 'index'])->name('sett
 Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
 Route::delete('/settings/billing/card', [BillingController::class, 'deleteCard'])->name('settings.billing.deleteCard');
 Route::get('/api/momo/bankcodes', [BillingController::class, 'bankcodes'])->name('momo.bankcodes');
+use App\Http\Controllers\ReviewController;
+
+Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])
+    ->name('reviews.store');
+        Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
+        ->name('profile.about.ai');

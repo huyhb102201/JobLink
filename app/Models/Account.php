@@ -71,9 +71,9 @@ class Account extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(Profile::class, 'account_id', 'account_id');
     }
     public function type()
-{
-    return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
-}
+    {
+        return $this->belongsTo(AccountType::class, 'account_type_id', 'account_type_id');
+    }
     public function sendEmailVerificationNotification()
     {
         // Gửi bằng SendGrid SDK thay vì Mailer
@@ -91,15 +91,36 @@ class Account extends Authenticatable implements MustVerifyEmail
     }
 
 
-     // Quan hệ với Comment
+    // Quan hệ với Comment
     public function comments()
     {
         return $this->hasMany(Comment::class, 'account_id');
     }
     public function socialAccounts()
-{
-    return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
-}
+    {
+        return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
+    }
+
+    // App\Models\Account.php
+
+    public function ownedOrgs()
+    {
+        // DN do tài khoản này sở hữu
+        return $this->hasMany(Org::class, 'owner_account_id', 'account_id');
+    }
+
+    public function orgMemberships()
+    {
+        // Bản ghi membership của tài khoản trong org_members
+        return $this->hasMany(OrgMember::class, 'account_id', 'account_id');
+    }
+
+    public function orgs()
+    {
+        // DN tài khoản đang là thành viên (many-to-many qua org_members)
+        return $this->belongsToMany(Org::class, 'org_members', 'account_id', 'org_id')
+            ->withPivot(['role', 'status', 'created_at', 'updated_at']);
+    }
 
 
 }
