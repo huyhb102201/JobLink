@@ -44,6 +44,13 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\Auth\AccountPasswordResetController;
 use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\ConnectedServicesController;
+use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ProfileAiController;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
+        ->name('profile.about.ai');
+});
 
 // Routes đăng ký
 Route::middleware('guest')->group(function () {
@@ -121,7 +128,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar');
     Route::get('/settings', [SettingsController::class, 'index'])
         ->name('settings.index');
-
+    Route::patch('/profile/about', [ProfileController::class, 'updateAbout'])
+        ->name('profile.about.update');
     Route::put('/settings/my-info', [SettingsController::class, 'updateMyInfo'])
         ->name('settings.myinfo.update');
 
@@ -428,11 +436,23 @@ Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'
     ->whereIn('provider', ['github', 'facebook'])
     ->name('oauth.callback');
 
-use App\Http\Controllers\CloudinaryUploadController;
-
-Route::get('/cloudinary/upload', [CloudinaryUploadController::class, 'form']);
-Route::post('/cloudinary/upload', [CloudinaryUploadController::class, 'store'])->name('cloudinary.store');
-
 // LEGAL PAGES
 Route::view('/terms', 'legal.terms')->name('legal.terms');
 Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
+
+Route::post('/profile/avatar', [PortfolioController::class, 'upload'])
+        ->name('profile.avatar.upload');
+
+Route::patch('/portfolios/location', [PortfolioController::class, 'updateLocation'])
+        ->name('portfolios.location.update');
+
+Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
+Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
+Route::delete('/settings/billing/card', [BillingController::class, 'deleteCard'])->name('settings.billing.deleteCard');
+Route::get('/api/momo/bankcodes', [BillingController::class, 'bankcodes'])->name('momo.bankcodes');
+use App\Http\Controllers\ReviewController;
+
+Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])
+    ->name('reviews.store');
+        Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
+        ->name('profile.about.ai');
