@@ -27,6 +27,7 @@
             $acc = Auth::user()->loadMissing('type');
             $code = strtoupper($acc->type->code ?? '');
             $isClient = $code === 'CLIENT' || $code === 'BUSS';
+            $isFreelencer = $code === 'F_BASIC' || $code === 'F_PLUS';
 
             // Kiểm tra route để active menu
             $activePost = request()->routeIs('client.jobs.choose', 'client.jobs.wizard.*', 'client.jobs.create', 'client.jobs.ai_form');
@@ -58,6 +59,33 @@
                   <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}"
                     href="{{ route('client.jobs.mine') }}">
                     Công việc của tôi
+                  </a>
+                </li>
+              </ul>
+            </li>
+          @elseif($isFreelencer)
+            <li class="nav-item dropdown dropdown-hover">
+              <a class="nav-link {{ request()->is('jobs*') ? 'active fw-semibold' : '' }}" href="#"
+                data-bs-toggle="dropdown" aria-expanded="false">
+                <span>Công việc</span>
+                <i class="bi bi-chevron-down toggle-dropdown"></i>
+              </a>
+              <ul class="dropdown-menu shadow-sm" style="min-width:240px">
+                <li>
+                  <a class="dropdown-item {{ request()->is('jobs') || request()->is('jobs/*') ? 'active fw-semibold' : '' }}"
+                    href="{{ url('/jobs') }}">
+                    Danh sách công việc
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item {{ $activePost ? 'active fw-semibold' : '' }}"
+                    href="{{ route('submitted_jobs') }}">
+                    Công việc đã ứng tuyển
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}" href="#">
+                    Công việc yêu thích
                   </a>
                 </li>
               </ul>
