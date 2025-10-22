@@ -30,19 +30,25 @@
     /* Định width cho từng cột */
     #payments-table th:nth-child(1),
     #payments-table td:nth-child(1) { 
-        width: 300px; 
+        width: 200px; 
         white-space: normal;
-    } /* Tài khoản */
+    } /* Người dùng */
     
     #payments-table th:nth-child(2),
-    #payments-table td:nth-child(2) { width: 150px; } /* Tổng thanh toán */
+    #payments-table td:nth-child(2) { width: 150px; } /* Mã đơn hàng */
     
     #payments-table th:nth-child(3),
-    #payments-table td:nth-child(3) { width: 150px; } /* Số lần thanh toán */
+    #payments-table td:nth-child(3) { width: 120px; } /* Số tiền */
     
     #payments-table th:nth-child(4),
-    #payments-table td:nth-child(4) { 
-        width: 120px; 
+    #payments-table td:nth-child(4) { width: 100px; } /* Trạng thái */
+    
+    #payments-table th:nth-child(5),
+    #payments-table td:nth-child(5) { width: 130px; } /* Ngày tạo */
+    
+    #payments-table th:nth-child(6),
+    #payments-table td:nth-child(6) { 
+        width: 80px; 
         text-align: center;
         white-space: nowrap;
     } /* Thao tác */
@@ -203,39 +209,49 @@
         <table class="table table-bordered table-hover" id="payments-table">
           <thead class="table-light">
             <tr>
-              <th>Tài khoản</th>
-              <th>Tổng thanh toán</th>
-              <th>Số lần thanh toán</th>
+              <th>Người dùng</th>
+              <th>Mã đơn hàng</th>
+              <th>Số tiền</th>
+              <th>Trạng thái</th>
+              <th>Ngày tạo</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            @foreach($groupedPayments as $index => $group)
+            @foreach($payments as $payment)
             <tr>
               <td>
                 <div class="user-info">
-                  <img src="{{ $group['account_avatar'] }}" 
+                  <img src="{{ $payment->account->avatar_url ?: asset('images/man.jpg') }}" 
                        alt="Avatar" 
                        class="user-avatar" 
                        onerror="this.src='{{ asset('images/man.jpg') }}'"
                        loading="lazy">
                   <div class="user-details">
-                    <div class="user-name">{{ $group['account_name'] }}</div>
-                    <div class="user-id" style="font-size: 0.7rem;">{{ $group['account_email'] }}</div>
+                    <div class="user-name">{{ $payment->account->profile->fullname ?? $payment->account->name ?? 'N/A' }}</div>
+                    <div class="user-id">{{ $payment->account->email }}</div>
                   </div>
                 </div>
               </td>
+              <td>{{ $payment->order_code ?? 'N/A' }}</td>
               <td>
-                <span class="badge bg-success">{{ number_format($group['total_amount']) }} đ</span>
+                <span class="badge bg-info">{{ number_format($payment->amount) }} đ</span>
               </td>
               <td>
-                <span class="badge bg-info">{{ $group['payment_count'] }} lần</span>
+                @if($payment->status == 'success')
+                  <span class="badge bg-success">Thành công</span>
+                @elseif($payment->status == 'failed')
+                  <span class="badge bg-danger">Thất bại</span>
+                @else
+                  <span class="badge bg-warning">Đang chờ</span>
+                @endif
               </td>
+              <td>{{ $payment->created_at->format('d/m/Y H:i') }}</td>
               <td>
-                <button class="btn btn-primary btn-sm view-account-payments-btn" 
-                        data-account-index="{{ $index }}" 
+                <button class="btn btn-info btn-sm view-payment-btn" 
+                        data-payment-id="{{ $payment->payment_id }}" 
                         title="Xem chi tiết">
-                  <i class="fas fa-eye"></i> Chi tiết
+                  <i class="fas fa-eye"></i>
                 </button>
               </td>
             </tr>
@@ -250,39 +266,28 @@
   <div class="modal fade" id="membershipPlansModal" tabindex="-1" aria-labelledby="membershipPlansModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header bg-success text-white">
-          <h5 class="modal-title" id="membershipPlansModalLabel">
-            <i class="fas fa-crown me-2"></i>Quản lý gói Membership
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-header">
+          <h5 class="modal-title" id="membershipPlansModalLabel">Quản lý gói Membership</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body p-4">
+        <div class="modal-body">
           <!-- Form thêm gói membership mới -->
-          <div class="card mb-4 border-success">
-            <div class="card-header bg-success text-white">
-              <h6 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Thêm gói Membership mới</h6>
+          <div class="card mb-3">
+            <div class="card-header">
+              <h6 class="mb-0">Thêm gói Membership mới</h6>
             </div>
             <div class="card-body">
               <form id="addMembershipPlanForm">
                 <div class="row">
-                  <div class="col-md-3">
+                  <div class="col-md-4">
                     <label class="form-label">Tên gói</label>
                     <input type="text" class="form-control" id="newPlanName" name="name" required placeholder="VD: Premium Plan">
                   </div>
-                  <div class="col-md-3">
-                    <label class="form-label">Loại tài khoản</label>
-                    <select class="form-select" id="newPlanAccountType" name="account_type_id" required>
-                      <option value="">-- Chọn loại --</option>
-                      @foreach($accountTypes as $type)
-                        <option value="{{ $type->account_type_id }}">{{ $type->name }}</option>
-                      @endforeach
-                    </select>
-                  </div>
-                  <div class="col-md-3">
+                  <div class="col-md-4">
                     <label class="form-label">Giá (VNĐ)</label>
                     <input type="number" class="form-control" id="newPlanPrice" name="price" required placeholder="99000">
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-4">
                     <label class="form-label">Thời hạn (ngày)</label>
                     <input type="number" class="form-control" id="newPlanDuration" name="duration_days" required placeholder="30">
                   </div>
@@ -312,21 +317,20 @@
           </div>
 
           <!-- Danh sách gói membership hiện có -->
-          <div class="card border-primary">
-            <div class="card-header bg-primary text-white">
-              <h6 class="mb-0"><i class="fas fa-list me-2"></i>Danh sách gói Membership hiện có</h6>
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Danh sách gói Membership hiện có</h6>
             </div>
             <div class="card-body">
               <div class="table-responsive">
                 <table class="table table-sm table-hover" id="membershipPlansTable">
                   <thead class="table-light">
                     <tr>
-                      <th width="18%">Tên gói</th>
-                      <th width="12%">Loại TK</th>
-                      <th width="12%">Giá</th>
+                      <th width="20%">Tên gói</th>
+                      <th width="15%">Giá</th>
                       <th width="10%">Thời hạn</th>
-                      <th width="8%">Giảm giá</th>
-                      <th width="20%">Mô tả</th>
+                      <th width="10%">Giảm giá</th>
+                      <th width="25%">Mô tả</th>
                       <th width="10%">Trạng thái</th>
                       <th width="10%">Thao tác</th>
                     </tr>
@@ -339,9 +343,6 @@
                         @if($plan->is_popular)
                           <span class="badge bg-warning ms-1">Popular</span>
                         @endif
-                      </td>
-                      <td>
-                        <span class="badge bg-secondary">{{ $plan->accountType->name ?? 'N/A' }}</span>
                       </td>
                       <td>
                         <span class="text-success fw-bold">{{ number_format($plan->price) }} đ</span>
@@ -368,8 +369,7 @@
                                 data-plan-name="{{ $plan->name ?? $plan->tagline }}"
                                 data-plan-price="{{ $plan->price }}"
                                 data-plan-discount="{{ $plan->discount_percent ?? 0 }}"
-                                data-plan-popular="{{ $plan->is_popular ? 1 : 0 }}"
-                                data-plan-active="{{ $plan->is_active ? 1 : 0 }}">
+                                data-plan-popular="{{ $plan->is_popular ? 1 : 0 }}">
                           <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-sm btn-outline-danger delete-plan-btn" 
@@ -386,23 +386,21 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>Đóng
-          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal xem chi tiết thanh toán của tài khoản -->
-  <div class="modal fade" id="accountPaymentsModal" tabindex="-1" aria-labelledby="accountPaymentsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+  <!-- Modal xem chi tiết thanh toán -->
+  <div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="accountPaymentsModalLabel">Lịch sử thanh toán</h5>
+          <h5 class="modal-title" id="paymentDetailsModalLabel">Chi tiết giao dịch</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body" id="accountPaymentsContent">
+        <div class="modal-body" id="paymentDetailsContent">
           <!-- Nội dung sẽ được load bằng JavaScript -->
         </div>
         <div class="modal-footer">
@@ -444,18 +442,10 @@
                 </label>
               </div>
             </div>
-            <div class="mb-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="edit-plan-active" name="is_active" checked>
-                <label class="form-check-label" for="edit-plan-active">
-                  Trạng thái hoạt động
-                </label>
-              </div>
-            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="button" class="btn btn-primary" onclick="submitEditForm()">Cập nhật</button>
+            <button type="submit" class="btn btn-primary">Cập nhật</button>
           </div>
         </form>
       </div>
@@ -466,69 +456,8 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// Function để submit edit form - GLOBAL SCOPE
-function submitEditForm() {
-    console.log('=== submitEditForm() CALLED ===');
-    
-    const form = $('#editMembershipPlanForm');
-    const actionUrl = form.attr('action');
-    
-    console.log('Form:', form);
-    console.log('Action URL:', actionUrl);
-    console.log('Form data:', form.serialize());
-    
-    if (!actionUrl || actionUrl === '') {
-        alert('Lỗi: Không tìm thấy URL cập nhật');
-        return;
-    }
-    
-    // Show global loading
-    showLoading('Đang cập nhật gói membership...');
-    
-    $.ajax({
-        url: actionUrl,
-        method: 'POST',
-        data: form.serialize() + '&_method=PUT',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function(response) {
-            hideLoading();
-            console.log('Success:', response);
-            if (response.success) {
-                // Đóng modal ngay lập tức
-                $('#editMembershipPlanModal').modal('hide');
-                
-                // Hiển thị thông báo và reload ngay
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Thành công!',
-                    text: 'Đã cập nhật gói membership',
-                    timer: 1000,
-                    showConfirmButton: false,
-                    allowOutsideClick: false
-                });
-                
-                // Reload sau 1 giây
-                setTimeout(function() {
-                    location.reload(true); // Force reload từ server
-                }, 1000);
-            }
-        },
-        error: function(xhr) {
-            hideLoading();
-            console.error('Error:', xhr);
-            Swal.fire({
-                icon: 'error',
-                title: 'Lỗi!',
-                text: xhr.responseJSON?.message || 'Có lỗi xảy ra'
-            });
-        }
-    });
-}
-
-// Preload grouped payments data
-const groupedPaymentsData = @json($groupedPayments);
+// Preload payment details
+const paymentDetailsData = @json($paymentDetails);
 
 $(document).ready(function() {
 
@@ -538,7 +467,7 @@ $(document).ready(function() {
         serverSide: false,
         ordering: true,
         paging: true,
-        pageLength: 10,
+        pageLength: 25,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         stateSave: true,
         searching: true,
@@ -546,8 +475,8 @@ $(document).ready(function() {
         deferRender: true,
         autoWidth: false,
         columnDefs: [
-            { orderable: false, targets: [3] }, // Tắt sort cho action
-            { className: "text-center", targets: [3] }
+            { orderable: false, targets: [5] }, // Tắt sort cho action
+            { className: "text-center", targets: [5] }
         ],
         language: {
             lengthMenu: "Hiển thị _MENU_ mục",
@@ -564,101 +493,109 @@ $(document).ready(function() {
     });
 
     function bindEvents() {
-        // View account payments button
-        $('.view-account-payments-btn').off('click').on('click', function(e) {
+        // View button events – sử dụng dữ liệu đã preload
+        $('.view-payment-btn').off('click').on('click', function(e) {
             e.preventDefault();
-            const accountIndex = $(this).data('account-index');
-            
-            // Find account data by index
-            const accountData = groupedPaymentsData[accountIndex];
-            
-            if (!accountData) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Lỗi!',
-                    text: 'Không tìm thấy thông tin thanh toán'
-                });
+            const paymentId = $(this).data('payment-id');
+            const payment = paymentDetailsData[paymentId];
+
+            $('#paymentDetailsModal').modal('show');
+
+            if (!payment) {
+                $('#paymentDetailsContent').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Không thể tải thông tin giao dịch
+                    </div>
+                `);
                 return;
             }
-            
-            // Build payment history table with DataTables for pagination
-            let paymentsHtml = `
-                <div class="mb-4">
-                    <div class="card border-primary">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6><i class="fas fa-user me-2 text-primary"></i>Thông tin tài khoản</h6>
-                                    <p class="mb-1"><strong>Tên:</strong> ${accountData.account_name}</p>
-                                    <p class="mb-1"><strong>Email:</strong> ${accountData.account_email}</p>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <h6><i class="fas fa-money-bill-wave me-2 text-success"></i>Thống kê thanh toán</h6>
-                                    <p class="mb-1"><strong>Tổng số đơn:</strong> <span class="badge bg-primary">${accountData.payments.length}</span></p>
-                                    <p class="mb-1"><strong>Tổng tiền (thành công):</strong> <span class="badge bg-success fs-6">${new Intl.NumberFormat().format(accountData.total_amount)} đ</span></p>
-                                </div>
-                            </div>
-                        </div>
+
+            const customerName = payment.account.fullname || payment.account.name || 'N/A';
+            const customerEmail = payment.account.email || 'N/A';
+            const plan = payment.plan;
+
+            const planHtml = plan ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6 class="text-primary mb-3"><i class="fas fa-crown me-2"></i>Thông tin gói Membership</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td width="20%" class="text-muted">Tên gói:</td>
+                                <td><strong>${plan.name || 'Không có'}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Giá gói:</td>
+                                <td><span class="text-success fw-bold">${plan.price_formatted || '0'} đ</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Thời hạn:</td>
+                                <td>${plan.duration_days || 0} ngày</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover table-sm" id="modalPaymentsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Mã đơn hàng</th>
-                                <th>Gói Membership</th>
-                                <th>Số tiền</th>
-                                <th>Phương thức</th>
-                                <th>Trạng thái</th>
-                                <th>Ngày tạo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            accountData.payments.forEach(payment => {
-                const paymentMethod = payment.payment_method || 'Chưa xác định';
-                paymentsHtml += `
-                    <tr>
-                        <td><code class="text-primary">${payment.order_code}</code></td>
-                        <td><strong>${payment.plan_name}</strong></td>
-                        <td><span class="badge bg-info fs-6">${payment.amount_formatted} đ</span></td>
-                        <td><span class="badge bg-secondary">${paymentMethod}</span></td>
-                        <td>${payment.status_badge}</td>
-                        <td><small>${payment.created_at}</small></td>
-                    </tr>
-                `;
-            });
-            
-            paymentsHtml += `
-                        </tbody>
-                    </table>
+            ` : '';
+
+            const descriptionHtml = payment.description ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6 class="text-primary mb-2"><i class="fas fa-info-circle me-2"></i>Mô tả</h6>
+                        <p class="text-muted">${payment.description}</p>
+                    </div>
                 </div>
+            ` : '';
+
+            const content = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Thông tin khách hàng</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td width="40%" class="text-muted">Họ tên:</td>
+                                <td><strong>${customerName}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Email:</td>
+                                <td>${customerEmail}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">ID tài khoản:</td>
+                                <td><code>${payment.account.id}</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3"><i class="fas fa-receipt me-2"></i>Thông tin giao dịch</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td width="40%" class="text-muted">Mã giao dịch:</td>
+                                <td><code>${payment.payment_id}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Mã đơn hàng:</td>
+                                <td><strong>${payment.order_code}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Số tiền:</td>
+                                <td><span class="badge bg-info">${payment.amount_formatted} đ</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Trạng thái:</td>
+                                <td>${payment.status_badge}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Ngày tạo:</td>
+                                <td>${payment.created_at}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                ${planHtml}
+                ${descriptionHtml}
             `;
-            
-            $('#accountPaymentsContent').html(paymentsHtml);
-            
-            // Destroy existing DataTable if exists
-            if ($.fn.DataTable.isDataTable('#modalPaymentsTable')) {
-                $('#modalPaymentsTable').DataTable().destroy();
-            }
-            
-            // Initialize DataTables with pagination (client-side, instant)
-            $('#modalPaymentsTable').DataTable({
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-                ordering: true,
-                searching: false,
-                language: {
-                    lengthMenu: "Hiển thị _MENU_ mục",
-                    zeroRecords: "Không tìm thấy dữ liệu",
-                    info: "Hiển thị _START_ đến _END_ của _TOTAL_ mục",
-                    infoEmpty: "Hiển thị 0 đến 0 của 0 mục",
-                    paginate: { first: "Đầu", last: "Cuối", next: "Tiếp", previous: "Trước" }
-                }
-            });
-            
-            $('#accountPaymentsModal').modal('show');
+
+            $('#paymentDetailsContent').html(content);
         });
     }
 
@@ -669,14 +606,11 @@ $(document).ready(function() {
         
         const formData = {
             name: $('#newPlanName').val(),
-            account_type_id: $('#newPlanAccountType').val(),
             price: $('#newPlanPrice').val(),
             duration_days: $('#newPlanDuration').val(),
             description: $('#newPlanDescription').val(),
             is_active: $('#newPlanActive').is(':checked') ? 1 : 0
         };
-        
-        showLoading('Đang thêm gói membership...');
         
         $.ajax({
             url: '/admin/membership-plans',
@@ -686,7 +620,6 @@ $(document).ready(function() {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
-                hideLoading();
                 if (response.success) {
                     // Add new row to table
                     const plan = response.plan;
@@ -695,9 +628,6 @@ $(document).ready(function() {
                             <td>
                                 <strong>${plan.name || plan.tagline || 'Không có tên'}</strong>
                                 ${plan.is_popular ? '<span class="badge bg-warning ms-1">Popular</span>' : ''}
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">${plan.account_type?.name || 'N/A'}</span>
                             </td>
                             <td>
                                 <span class="text-success fw-bold">${new Intl.NumberFormat().format(plan.price || 0)} đ</span>
@@ -710,7 +640,7 @@ $(document).ready(function() {
                             </td>
                             <td>${plan.description || 'Không có mô tả'}</td>
                             <td>
-                                <span class="badge ${plan.is_active ? 'bg-success' : 'bg-secondary'}">${plan.is_active ? 'Hoạt động' : 'Tạm dừng'}</span>
+                                <span class="badge bg-success">Tạm dừng</span>
                             </td>
                             <td>
                                 <button class="btn btn-sm btn-outline-primary edit-plan-btn" 
@@ -718,8 +648,7 @@ $(document).ready(function() {
                                         data-plan-name="${plan.name || plan.tagline}"
                                         data-plan-price="${plan.price}"
                                         data-plan-discount="${plan.discount_percent || 0}"
-                                        data-plan-popular="${plan.is_popular ? 1 : 0}"
-                                        data-plan-active="${plan.is_active ? 1 : 0}">
+                                        data-plan-popular="${plan.is_popular ? 1 : 0}">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger delete-plan-btn" 
@@ -745,7 +674,6 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
-                hideLoading();
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi!',
@@ -762,14 +690,12 @@ $(document).ready(function() {
         const planPrice = $(this).data('plan-price');
         const planDiscount = $(this).data('plan-discount');
         const planPopular = $(this).data('plan-popular');
-        const planActive = $(this).data('plan-active');
         
         // Populate modal fields
         $('#edit-plan-name').val(planName);
         $('#edit-plan-price').val(planPrice);
         $('#edit-plan-discount').val(planDiscount);
         $('#edit-plan-popular').prop('checked', planPopular == 1);
-        $('#edit-plan-active').prop('checked', planActive == 1);
         
         // Set form action
         $('#editMembershipPlanForm').attr('action', `/admin/membership-plans/${planId}`);
@@ -805,8 +731,6 @@ $(document).ready(function() {
             cancelButtonText: 'Hủy'
         }).then((result) => {
             if (result.isConfirmed) {
-                showLoading('Đang xóa gói membership...');
-                
                 // Dùng AJAX để không reload trang
                 $.ajax({
                     url: `/admin/membership-plans/${planId}`,
@@ -816,7 +740,6 @@ $(document).ready(function() {
                         _token: $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        hideLoading();
                         // Xóa row khỏi bảng
                         row.fadeOut(300, function() {
                             $(this).remove();
@@ -831,7 +754,6 @@ $(document).ready(function() {
                         });
                     },
                     error: function(xhr) {
-                        hideLoading();
                         Swal.fire({
                             icon: 'error',
                             title: 'Xóa không thành công!',
@@ -844,53 +766,27 @@ $(document).ready(function() {
         });
     });
 
-    // Edit membership plan form submit - Sử dụng document delegation
-    $(document).on('submit', '#editMembershipPlanForm', function(e) {
+    // Edit membership plan form submit
+    $('#editMembershipPlanForm').on('submit', function(e) {
         e.preventDefault();
-        e.stopPropagation();
-        
-        console.log('=== EDIT FORM SUBMIT TRIGGERED ===');
         
         const form = $(this);
         const actionUrl = form.attr('action');
         
-        console.log('Form:', form);
-        console.log('Action URL:', actionUrl);
-        console.log('Form data:', form.serialize());
-        
-        // Kiểm tra action URL có hợp lệ không
-        if (!actionUrl || actionUrl === '' || actionUrl === 'undefined') {
-            console.error('Invalid action URL');
-            Swal.fire({
-                icon: 'error',
-                title: 'Lỗi!',
-                text: 'Không tìm thấy URL cập nhật. Vui lòng thử lại.'
-            });
-            return false;
-        }
-        
-        console.log('Sending AJAX request...');
-        
         $.ajax({
             url: actionUrl,
-            method: 'POST', // Sử dụng POST thay vì PUT
-            data: form.serialize() + '&_method=PUT', // Thêm _method=PUT vào data
+            method: 'PUT',
+            data: form.serialize(),
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-            beforeSend: function() {
-                console.log('AJAX beforeSend');
-                showLoading('Đang thêm gói membership...');
-            },
             success: function(response) {
-                hideLoading();
-                console.log('AJAX Success response:', response);
                 if (response.success) {
                     $('#editMembershipPlanModal').modal('hide');
                     Swal.fire({
                         icon: 'success',
                         title: 'Thành công!',
-                        text: 'Đã thêm gói membership',
+                        text: 'Đã cập nhật gói membership',
                         timer: 2000,
                         showConfirmButton: false
                     }).then(() => {
@@ -899,10 +795,6 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
-                hideLoading();
-                console.error('AJAX Error response:', xhr);
-                console.error('Status:', xhr.status);
-                console.error('Response:', xhr.responseJSON);
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi!',
@@ -910,8 +802,6 @@ $(document).ready(function() {
                 });
             }
         });
-        
-        return false;
     });
 
     // Export Excel functionality
@@ -919,8 +809,11 @@ $(document).ready(function() {
         e.preventDefault();
         
         const btn = $(this);
+        const originalText = btn.html();
+        
         // Show loading state
-        showLoading('Đang xuất file Excel...');
+        btn.html('<i class="fas fa-spinner fa-spin me-1"></i> Đang xuất...');
+        btn.prop('disabled', true);
         
         // Create a temporary link to trigger download
         const link = document.createElement('a');
@@ -930,9 +823,10 @@ $(document).ready(function() {
         link.click();
         document.body.removeChild(link);
         
-        // Show success message
+        // Show success message and restore button
         setTimeout(() => {
-            hideLoading();
+            btn.html(originalText);
+            btn.prop('disabled', false);
             
             Swal.fire({
                 icon: 'success',

@@ -4,21 +4,17 @@
 
 @section('content')
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">
-        <i class="fas fa-file-invoice me-2"></i>Chi Tiết Đơn Xét Duyệt #{{ $verification->id }}
-    </h1>
-    <a href="{{ route('admin.verifications.index') }}" class="btn btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left me-2"></i>Quay lại Danh sách
+    <h1 class="h3 mb-0 text-gray-800">Chi Tiết Đơn Xét Duyệt #{{ $verification->id }}</h1>
+    <a href="{{ route('admin.verifications.index') }}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Quay lại Danh sách
     </a>
 </div>
 
 <div class="row">
     <div class="col-lg-7">
-        <div class="card shadow mb-4 border-primary">
-            <div class="card-header bg-primary text-white py-3">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="fas fa-info-circle me-2"></i>Thông tin Đơn Xét Duyệt
-                </h6>
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Thông tin Đơn Xét Duyệt</h6>
             </div>
             <div class="card-body">
                 <p><strong>ID Đơn:</strong> {{ $verification->id }}</p>
@@ -101,68 +97,36 @@
     </div>
 
     <div class="col-lg-5">
-        <div class="card shadow mb-4 border-info">
-            <div class="card-header bg-info text-white py-3">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="fas fa-file-alt me-2"></i>Tài liệu đính kèm
-                </h6>
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Tài liệu đính kèm</h6>
             </div>
             <div class="card-body text-center">
-                @php
-                    // Ưu tiên file_url, nếu không có thì dùng file_path
-                    $fileUrl = $verification->file_url;
-                    if (empty($fileUrl) && !empty($verification->file_path)) {
-                        $fileUrl = Storage::url($verification->file_path);
-                    }
-                    
-                    // Xác định loại file
-                    $mimeType = $verification->mime_type ?? '';
-                    $isImage = Str::startsWith($mimeType, 'image/') || 
-                               preg_match('/\.(jpg|jpeg|png|gif|webp|svg)$/i', $fileUrl);
-                @endphp
-                
-                @if ($fileUrl)
-                    @if (!empty($verification->file_path))
-                        <p><strong>Tên file:</strong> {{ basename($verification->file_path) }}</p>
-                    @endif
-                    @if (!empty($mimeType))
-                        <p><strong>Loại file:</strong> {{ $mimeType }}</p>
-                    @endif
-                    
-                    @if ($isImage)
-                        <div class="mb-3" style="overflow: auto; max-height: 600px;">
-                            <img src="{{ $fileUrl }}" 
-                                 alt="Tài liệu Doanh nghiệp" 
-                                 class="img-fluid rounded shadow verification-image" 
-                                 style="max-height: 400px; max-width: 100%; cursor: zoom-in; transition: transform 0.3s ease;"
-                                 onclick="toggleImageZoom(this)"
-                                 onerror="this.onerror=null; this.src='{{ asset('images/no-image.png') }}'; this.alt='Không thể tải hình ảnh';">
-                        </div>
+                @if ($verification->file_path)
+                    <p><strong>Tên file:</strong> {{ basename($verification->file_path) }}</p>
+                    <p><strong>Loại file:</strong> {{ $verification->mime_type }}</p>
+                    @if (Str::startsWith($verification->mime_type, 'image/'))
+                        {{-- Giả định Storage::url() hoạt động đúng để tạo URL công khai --}}
+                        <img src="{{ Storage::url($verification->file_path) }}" alt="Tài liệu Doanh nghiệp" class="img-fluid rounded" style="max-height: 300px;">
                     @else
                         <i class="fas fa-file fa-5x text-secondary my-3"></i>
                     @endif
-                    
                     <div class="mt-3">
-                        <a href="{{ $fileUrl }}" target="_blank" class="btn btn-sm btn-primary">
-                            <i class="fas fa-external-link-alt"></i> Xem File gốc
+                        <a href="{{ Storage::url($verification->file_path) }}" target="_blank" class="btn btn-sm btn-primary">
+                            <i class="fas fa-download"></i> Tải/Xem File gốc
                         </a>
                     </div>
                 @else
-                    <div class="alert alert-warning" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Không có tài liệu đính kèm hoặc file đã bị xóa.
-                    </div>
+                    <p class="text-danger">Không có tài liệu đính kèm.</p>
                 @endif
             </div>
         </div>
         
         {{-- Phần thao tác duyệt/từ chối --}}
         @if ($verification->status === 'PENDING')
-        <div class="card shadow mb-4 border-warning">
-            <div class="card-header bg-warning text-dark py-3">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="fas fa-tasks me-2"></i>Thao Tác Xét Duyệt
-                </h6>
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-light">
+                <h6 class="m-0 font-weight-bold text-dark">Thao Tác Xét Duyệt</h6>
             </div>
             <div class="card-body">
                 {{-- Form Duyệt --}}
@@ -283,71 +247,5 @@
             });
         }
     });
-    
-    // Function để toggle zoom hình ảnh
-    window.toggleImageZoom = function(img) {
-        const isZoomed = img.classList.contains('zoomed');
-        
-        if (isZoomed) {
-            // Thu nhỏ về kích thước ban đầu
-            img.classList.remove('zoomed');
-            img.style.transform = 'scale(1)';
-            img.style.cursor = 'zoom-in';
-            img.style.maxHeight = '400px';
-            img.style.maxWidth = '100%';
-            img.style.position = 'relative';
-            img.style.zIndex = '1';
-            
-            // Bỏ khả năng kéo
-            img.onmousedown = null;
-            img.onmousemove = null;
-            img.onmouseup = null;
-            img.onmouseleave = null;
-        } else {
-            // Phóng to hình ảnh
-            img.classList.add('zoomed');
-            img.style.transform = 'scale(2)';
-            img.style.cursor = 'zoom-out';
-            img.style.maxHeight = 'none';
-            img.style.maxWidth = 'none';
-            img.style.position = 'relative';
-            img.style.zIndex = '10';
-            
-            // Thêm khả năng kéo hình khi zoom
-            let isDragging = false;
-            let startX, startY, scrollLeft, scrollTop;
-            const container = img.parentElement;
-            
-            img.onmousedown = function(e) {
-                isDragging = true;
-                img.style.cursor = 'grabbing';
-                startX = e.pageX - container.offsetLeft;
-                startY = e.pageY - container.offsetTop;
-                scrollLeft = container.scrollLeft;
-                scrollTop = container.scrollTop;
-            };
-            
-            img.onmousemove = function(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const x = e.pageX - container.offsetLeft;
-                const y = e.pageY - container.offsetTop;
-                const walkX = (x - startX) * 2;
-                const walkY = (y - startY) * 2;
-                container.scrollLeft = scrollLeft - walkX;
-                container.scrollTop = scrollTop - walkY;
-            };
-            
-            img.onmouseup = function() {
-                isDragging = false;
-                img.style.cursor = 'zoom-out';
-            };
-            
-            img.onmouseleave = function() {
-                isDragging = false;
-                img.style.cursor = 'zoom-out';
-            };
-        }
-    };
 </script>
 @endpush

@@ -339,45 +339,45 @@ class JobController extends Controller
         return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
     }
 
-    public function submitted_jobs(Request $request)
-    {
-        $userId = Auth::id();
+   public function submitted_jobs(Request $request)
+{
+    $userId = Auth::id();
 
-        // Lấy tất cả JobApply của user hiện tại, kèm quan hệ job, category, account, tasks
-        $query = JobApply::with([
-            'job.jobCategory',
-            'job.account.profile',
-            'job.tasks',
-            'user.profile'
-        ])->where('user_id', $userId);
+    // Lấy tất cả JobApply của user hiện tại, kèm quan hệ job, category, account, tasks
+    $query = JobApply::with([
+        'job.jobCategory',
+        'job.account.profile',
+        'job.tasks',
+        'user.profile'
+    ])->where('user_id', $userId);
 
-        if ($request->has('status') && is_array($request->status)) {
-            $query->whereIn('status', $request->status);
-        }
-
-        $applies = $query->orderBy('created_at', 'desc')->paginate(6);
-
-        // Lấy tất cả applicants khác đang làm cùng job (status = 2)
-        $jobIds = $applies->pluck('job_id')->unique();
-        $otherApplicants = JobApply::with('user.profile')
-            ->whereIn('job_id', $jobIds)
-            ->where('status', 2) // Đang làm
-            ->where('user_id', '<>', $userId) // Loại bỏ user hiện tại
-            ->get()
-            ->groupBy('job_id');
-
-        if ($request->ajax()) {
-            return response()->json([
-                'applies' => view('jobs.partials.jobs_apply_list', compact('applies', 'otherApplicants'))->render(),
-                'pagination' => view('components.pagination', [
-                    'paginator' => $applies,
-                    'elements' => $applies->links()->elements ?? []
-                ])->render(),
-            ]);
-        }
-
-        return view('jobs.submitted_jobs', compact('applies', 'otherApplicants'));
+    if ($request->has('status') && is_array($request->status)) {
+        $query->whereIn('status', $request->status);
     }
+
+    $applies = $query->orderBy('created_at', 'desc')->paginate(6);
+
+    // Lấy tất cả applicants khác đang làm cùng job (status = 2)
+    $jobIds = $applies->pluck('job_id')->unique();
+    $otherApplicants = JobApply::with('user.profile')
+        ->whereIn('job_id', $jobIds)
+        ->where('status', 2) // Đang làm
+        ->where('user_id', '<>', $userId) // Loại bỏ user hiện tại
+        ->get()
+        ->groupBy('job_id');
+
+    if ($request->ajax()) {
+        return response()->json([
+            'applies' => view('jobs.partials.jobs_apply_list', compact('applies', 'otherApplicants'))->render(),
+            'pagination' => view('components.pagination', [
+                'paginator' => $applies,
+                'elements' => $applies->links()->elements ?? []
+            ])->render(),
+        ]);
+    }
+
+    return view('jobs.submitted_jobs', compact('applies', 'otherApplicants'));
+}
 
 
     public function userTasks(Job $job)
@@ -405,5 +405,8 @@ class JobController extends Controller
 
         return view('jobs.partials.user_tasks', compact('userTasks', 'otherTasks'))->render();
     }
+
+
+
 
 }
