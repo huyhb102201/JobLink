@@ -267,20 +267,24 @@
   <div class="modal fade" id="verificationDetailModal" tabindex="-1" aria-labelledby="verificationDetailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="verificationDetailModalLabel">Chi tiết đơn xét duyệt</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="verificationDetailModalLabel">
+            <i class="fas fa-file-invoice me-2"></i>Chi tiết đơn xét duyệt
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body" id="verificationDetailContent">
+        <div class="modal-body p-4" id="verificationDetailContent">
           <!-- Content sẽ được load bằng JavaScript -->
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Đóng
+          </button>
           <button type="button" class="btn btn-success" id="modalApproveBtn" style="display:none;">
-            <i class="fas fa-check me-1"></i> Duyệt
+            <i class="fas fa-check me-1"></i>Duyệt
           </button>
           <button type="button" class="btn btn-danger" id="modalRejectBtn" style="display:none;">
-            <i class="fas fa-times me-1"></i> Từ chối
+            <i class="fas fa-times me-1"></i>Từ chối
           </button>
         </div>
       </div>
@@ -296,21 +300,54 @@ const verificationDetailsData = @json($verificationDetails);
 
 $(document).ready(function() {
     let selectedVerifications = new Set();
+    let table; // Khai báo trước để tránh lỗi
 
     function updateButtonStates() {
         const selectedCount = selectedVerifications.size;
         const isDisabled = selectedCount === 0;
+        
         $('#bulk-approve-btn').prop('disabled', isDisabled);
         $('#bulk-reject-btn').prop('disabled', isDisabled);
+        
+        // Cập nhật text hiển thị số lượng
+        if (selectedCount > 0) {
+            $('#bulk-approve-btn').html(`<i class="fas fa-check me-1"></i> Duyệt đã chọn (${selectedCount})`);
+            $('#bulk-reject-btn').html(`<i class="fas fa-times me-1"></i> Từ chối đã chọn (${selectedCount})`);
+        } else {
+            $('#bulk-approve-btn').html('<i class="fas fa-check me-1"></i> Duyệt đã chọn');
+            $('#bulk-reject-btn').html('<i class="fas fa-times me-1"></i> Từ chối đã chọn');
+        }
+    }
+    
+    function updateCheckAllState() {
+        // Kiểm tra xem table đã được khởi tạo chưa
+        if (!table) {
+            return;
+        }
+        
+        // Kiểm tra TẤT CẢ verification (trên mọi trang)
+        const totalVerifications = table.rows().count();
+        const selectedCount = selectedVerifications.size;
+        
+        if (selectedCount === 0) {
+            $('#checkAll').prop('checked', false);
+            $('#checkAll').prop('indeterminate', false);
+        } else if (selectedCount === totalVerifications) {
+            $('#checkAll').prop('checked', true);
+            $('#checkAll').prop('indeterminate', false);
+        } else {
+            $('#checkAll').prop('checked', false);
+            $('#checkAll').prop('indeterminate', true);
+        }
     }
 
     // Khởi tạo DataTables tối ưu - vừa đẹp vừa nhanh
-    const table = $('#verifications-table').DataTable({
+    table = $('#verifications-table').DataTable({
         processing: false,
         serverSide: false,
         ordering: true,
         paging: true,
-        pageLength: 25,
+        pageLength: 10,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         stateSave: true,
         searching: true,
@@ -331,6 +368,20 @@ $(document).ready(function() {
             paginate: { first: "Đầu", last: "Cuối", next: "Tiếp", previous: "Trước" }
         },
         drawCallback: function() {
+            // Giữ trạng thái checkbox khi chuyển trang
+            $('.row-checkbox').each(function() {
+                const verificationId = $(this).data('verification-id');
+                if (selectedVerifications.has(verificationId)) {
+                    $(this).prop('checked', true);
+                }
+            });
+            
+            // Cập nhật trạng thái "Chọn tất cả"
+            updateCheckAllState();
+            
+            // Cập nhật trạng thái nút (quan trọng!)
+            updateButtonStates();
+            
             bindEvents();
         }
     });
@@ -345,6 +396,7 @@ $(document).ready(function() {
                 selectedVerifications.delete(verificationId);
             }
             updateButtonStates();
+            updateCheckAllState();
         });
 
         // Approve button events
@@ -363,6 +415,7 @@ $(document).ready(function() {
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    showLoading('Đang duyệt đơn xét duyệt...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/verifications/${verificationId}/approve`
@@ -385,73 +438,85 @@ $(document).ready(function() {
                 // Show modal với dữ liệu ngay lập tức
                 $('#verificationDetailModal').modal('show');
                 $('#verificationDetailContent').html(`
-                    <div class="row">
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <h6 class="fw-bold text-primary">Thông tin doanh nghiệp</h6>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td class="fw-bold" width="40%">Tên doanh nghiệp:</td>
-                                    <td>${v.org_name}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Mã số thuế:</td>
-                                    <td>${v.tax_code || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Địa chỉ:</td>
-                                    <td>${v.address || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Số điện thoại:</td>
-                                    <td>${v.phone || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Email:</td>
-                                    <td>${v.email || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Website:</td>
-                                    <td>${v.website || 'N/A'}</td>
-                                </tr>
-                            </table>
+                            <div class="card border-primary h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="fas fa-building me-2"></i>Thông tin doanh nghiệp</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-borderless mb-0">
+                                        <tr>
+                                            <td class="fw-bold" width="40%">Tên doanh nghiệp:</td>
+                                            <td>${v.org_name}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Mã số thuế:</td>
+                                            <td>${v.tax_code || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Địa chỉ:</td>
+                                            <td>${v.address || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Số điện thoại:</td>
+                                            <td>${v.phone || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Email:</td>
+                                            <td>${v.email || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Website:</td>
+                                            <td>${v.website || 'N/A'}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <h6 class="fw-bold text-primary">Thông tin xét duyệt</h6>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td class="fw-bold" width="40%">Người nộp:</td>
-                                    <td>${v.submitted_by}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Ngày nộp:</td>
-                                    <td>${v.created_at}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Trạng thái:</td>
-                                    <td>${v.status_badge}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Ghi chú:</td>
-                                    <td>${v.note || 'Không có'}</td>
-                                </tr>
-                                ${v.reviewed_at ? `
-                                <tr>
-                                    <td class="fw-bold">Người duyệt:</td>
-                                    <td>${v.reviewed_by || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Ngày duyệt:</td>
-                                    <td>${v.reviewed_at}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold">Ghi chú duyệt:</td>
-                                    <td>${v.review_note || 'Không có'}</td>
-                                </tr>
-                                ` : ''}
-                            </table>
+                            <div class="card border-info h-100">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Thông tin xét duyệt</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-borderless mb-0">
+                                        <tr>
+                                            <td class="fw-bold" width="40%">Người nộp:</td>
+                                            <td>${v.submitted_by}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Ngày nộp:</td>
+                                            <td>${v.created_at}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Trạng thái:</td>
+                                            <td>${v.status_badge}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Ghi chú:</td>
+                                            <td>${v.note || 'Không có'}</td>
+                                        </tr>
+                                        ${v.reviewed_at ? `
+                                        <tr>
+                                            <td class="fw-bold">Người duyệt:</td>
+                                            <td>${v.reviewed_by || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Ngày duyệt:</td>
+                                            <td>${v.reviewed_at}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">Ghi chú duyệt:</td>
+                                            <td>${v.review_note || 'Không có'}</td>
+                                        </tr>
+                                        ` : ''}
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    ${v.documents_html || ''}
+                    ${v.documents_html ? `<div class="mt-4">${v.documents_html}</div>` : ''}
                 `);
                 
                 // Show/hide action buttons based on status
@@ -501,6 +566,7 @@ $(document).ready(function() {
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    showLoading('Đang từ chối đơn xét duyệt...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/verifications/${verificationId}/reject`
@@ -515,42 +581,55 @@ $(document).ready(function() {
         });
     }
 
-    // Check all functionality - chỉ chọn các checkbox không bị disabled (PENDING)
+    // Check all functionality - Chọn tất cả trên MỌI TRANG
     $('#checkAll').on('change', function() {
         const isChecked = this.checked;
-        $('.row-checkbox:not(:disabled)').each(function() {
-            this.checked = isChecked;
-            const verificationId = $(this).data('verification-id');
-            if (isChecked) {
-                selectedVerifications.add(verificationId);
-            } else {
-                selectedVerifications.delete(verificationId);
-            }
-        });
+        
+        if (isChecked) {
+            // Chọn TẤT CẢ verification (trên mọi trang)
+            selectedVerifications.clear();
+            table.rows().nodes().to$().each(function() {
+                const checkbox = $(this).find('.row-checkbox:not(:disabled)');
+                const verificationId = checkbox.data('verification-id');
+                
+                if (verificationId) {
+                    checkbox.prop('checked', true);
+                    selectedVerifications.add(verificationId);
+                }
+            });
+        } else {
+            // Bỏ chọn TẤT CẢ
+            table.rows().nodes().to$().each(function() {
+                const checkbox = $(this).find('.row-checkbox');
+                checkbox.prop('checked', false);
+            });
+            selectedVerifications.clear();
+        }
+        
         updateButtonStates();
     });
 
     // Bulk operations
-    function performBulkAction(action) {
+    function performBulkApprove() {
         if (selectedVerifications.size === 0) {
             Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một đơn xét duyệt', 'warning');
             return;
         }
 
-        const actionText = action === 'approve' ? 'duyệt' : 'từ chối';
         const verificationIds = Array.from(selectedVerifications);
 
         Swal.fire({
-            title: `Bạn có chắc chắn muốn ${actionText} ${verificationIds.length} đơn đã chọn?`,
+            title: `Bạn có chắc chắn muốn duyệt ${verificationIds.length} đơn đã chọn?`,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: `Đồng ý ${actionText}`,
+            confirmButtonText: 'Đồng ý duyệt',
             cancelButtonText: 'Hủy'
         }).then((result) => {
             if (result.isConfirmed) {
+                showLoading('Đang duyệt hàng loạt...');
                 const form = $('<form>', {
                     method: 'POST',
-                    action: `/admin/verifications/bulk-${action}`
+                    action: '/admin/verifications/bulk-approve'
                 }).append(
                     '@csrf',
                     $('<input>', { type: 'hidden', name: 'verification_ids', value: verificationIds.join(',') })
@@ -561,12 +640,57 @@ $(document).ready(function() {
         });
     }
 
+    function performBulkReject() {
+        if (selectedVerifications.size === 0) {
+            Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một đơn xét duyệt', 'warning');
+            return;
+        }
+
+        const verificationIds = Array.from(selectedVerifications);
+
+        Swal.fire({
+            title: `Từ chối ${verificationIds.length} đơn đã chọn?`,
+            text: "Vui lòng nhập lý do từ chối:",
+            input: 'textarea',
+            inputPlaceholder: 'Nhập lý do từ chối (bắt buộc)...',
+            inputAttributes: {
+                'aria-label': 'Nhập lý do từ chối',
+                'maxlength': 500
+            },
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý từ chối',
+            cancelButtonText: 'Hủy',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Bạn phải nhập lý do từ chối!'
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                showLoading('Đang từ chối hàng loạt...');
+                const form = $('<form>', {
+                    method: 'POST',
+                    action: '/admin/verifications/bulk-reject'
+                }).append(
+                    '@csrf',
+                    $('<input>', { type: 'hidden', name: 'verification_ids', value: verificationIds.join(',') }),
+                    $('<input>', { type: 'hidden', name: 'review_note', value: result.value })
+                );
+                $('body').append(form);
+                form.submit();
+            }
+        });
+    }
+
     $('#bulk-approve-btn').on('click', function() {
-        performBulkAction('approve');
+        performBulkApprove();
     });
 
     $('#bulk-reject-btn').on('click', function() {
-        performBulkAction('reject');
+        performBulkReject();
     });
 
     // Modal approve/reject buttons
@@ -585,6 +709,7 @@ $(document).ready(function() {
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    showLoading('Đang duyệt đơn xét duyệt...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/verifications/${verificationId}/approve`
@@ -622,6 +747,7 @@ $(document).ready(function() {
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    showLoading('Đang từ chối đơn xét duyệt...'); // Thêm loading cho modal reject
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/verifications/${verificationId}/reject`
@@ -639,6 +765,72 @@ $(document).ready(function() {
     // Initial bind
     bindEvents();
 });
+
+// Function để toggle zoom hình ảnh
+function toggleImageZoom(img) {
+    const isZoomed = img.classList.contains('zoomed');
+    
+    if (isZoomed) {
+        // Thu nhỏ về kích thước ban đầu
+        img.classList.remove('zoomed');
+        img.style.transform = 'scale(1)';
+        img.style.cursor = 'zoom-in';
+        img.style.maxWidth = '100%';
+        img.style.width = 'auto';
+        img.style.position = 'relative';
+        img.style.zIndex = '1';
+        
+        // Bỏ khả năng kéo
+        img.onmousedown = null;
+        img.onmousemove = null;
+        img.onmouseup = null;
+        img.onmouseleave = null;
+    } else {
+        // Phóng to hình ảnh
+        img.classList.add('zoomed');
+        img.style.transform = 'scale(1.5)';
+        img.style.cursor = 'zoom-out';
+        img.style.maxWidth = 'none';
+        img.style.width = '100%';
+        img.style.position = 'relative';
+        img.style.zIndex = '10';
+        
+        // Thêm khả năng kéo hình khi zoom
+        let isDragging = false;
+        let startX, startY, scrollLeft, scrollTop;
+        const container = img.parentElement;
+        
+        img.onmousedown = function(e) {
+            isDragging = true;
+            img.style.cursor = 'grabbing';
+            startX = e.pageX - container.offsetLeft;
+            startY = e.pageY - container.offsetTop;
+            scrollLeft = container.scrollLeft;
+            scrollTop = container.scrollTop;
+        };
+        
+        img.onmousemove = function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - container.offsetLeft;
+            const y = e.pageY - container.offsetTop;
+            const walkX = (x - startX) * 2;
+            const walkY = (y - startY) * 2;
+            container.scrollLeft = scrollLeft - walkX;
+            container.scrollTop = scrollTop - walkY;
+        };
+        
+        img.onmouseup = function() {
+            isDragging = false;
+            img.style.cursor = 'zoom-out';
+        };
+        
+        img.onmouseleave = function() {
+            isDragging = false;
+            img.style.cursor = 'zoom-out';
+        };
+    }
+}
 </script>
 
 @if(session('success'))
