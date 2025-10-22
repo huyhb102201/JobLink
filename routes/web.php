@@ -47,6 +47,10 @@ use App\Http\Controllers\ConnectedServicesController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ProfileAiController;
 
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ReviewController;
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
         ->name('profile.about.ai');
@@ -93,6 +97,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
+    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.portfolios');
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
@@ -303,7 +308,8 @@ Route::get('/settings/upgrade', [UpgradeController::class, 'show'])->name('setti
 Route::post('/settings/upgrade', [UpgradeController::class, 'upgrade'])->name('settings.upgrade.post');
 
 Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn() => view('admin.dashboard'))->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/stats', [DashboardController::class, 'getStats'])->name('dashboard.stats');
 
     // Routes quản lý tài khoản
     Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
@@ -312,41 +318,59 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy');
     Route::delete('/accounts', [AccountController::class, 'destroyMultiple'])->name('accounts.destroy-multiple');
     Route::post('/accounts/update-status', [AccountController::class, 'updateStatusMultiple'])->name('accounts.update-status-multiple');
+    Route::post('/accounts/update-status-all', [AccountController::class, 'updateStatusAll'])->name('accounts.update-status-all');
 
     // Routes quản lý thanh toán
     Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
     Route::get('/payments/{id}', [AdminPaymentController::class, 'show'])->name('payments.show');
     Route::delete('/payments/{id}', [AdminPaymentController::class, 'destroy'])->name('payments.destroy');
-    Route::post('/payments/delete-multiple', [AdminPaymentController::class, 'destroyMultiple'])->name('payments.destroy-multiple');
+
+    // Routes quản lý thanh toán job
+    Route::get('/job-payments', [AdminJobPaymentController::class, 'index'])->name('job-payments.index');
+    Route::get('/job-payments/{id}', [AdminJobPaymentController::class, 'show'])->name('job-payments.show');
+    Route::patch('/job-payments/{id}', [AdminJobPaymentController::class, 'updateStatus'])->name('job-payments.update');
+    Route::delete('/job-payments/{id}', [AdminJobPaymentController::class, 'destroy'])->name('job-payments.destroy');
+
+    // Routes quản lý lịch sử hoạt động admin
+    Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
+    Route::get('/logs/{id}', [AdminLogController::class, 'show'])->name('logs.show');
+
+    // Routes cài đặt hệ thống
+    Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings/clear-cache', [AdminSettingsController::class, 'clearCache'])->name('settings.clear-cache');
+    Route::post('/settings/optimize', [AdminSettingsController::class, 'optimizeApp'])->name('settings.optimize');
+    Route::post('/settings/clear-logs', [AdminSettingsController::class, 'clearLogs'])->name('settings.clear-logs');
 
     // ==========================================================
-    // CÁC ROUTE MỚI CHO CHỨC NĂNG DUYỆT BÀI ĐĂNG
-    // ==========================================================
     Route::get('/jobs/pending', [AdminJobController::class, 'pendingJobs'])->name('jobs.pending');
+    Route::get('/jobs/history', [AdminJobController::class, 'history'])->name('jobs.history');
     Route::get('/jobs/{job}/details', [AdminJobController::class, 'getJobDetails'])->name('jobs.details');
     Route::post('/jobs/{job}/approve', [AdminJobController::class, 'approve'])->name('jobs.approve');
     Route::post('/jobs/{job}/reject', [AdminJobController::class, 'reject'])->name('jobs.reject');
     // THÊM ROUTE DUYỆT/TỪ CHỐI HÀNG LOẠT
     Route::post('/jobs/batch-approve', [AdminJobController::class, 'batchApprove'])->name('jobs.batch-approve');
     Route::post('/jobs/batch-reject', [AdminJobController::class, 'batchReject'])->name('jobs.batch-reject');
+    // THÊM ROUTE RESET JOBS
+    Route::post('/jobs/reset-all', [AdminJobController::class, 'resetAllJobs'])->name('jobs.reset-all');
     // ==========================================================
 
     // THÊM ROUTES QUẢN LÝ LOẠI TÀI KHOẢN
     Route::post('/account-types', [AccountController::class, 'storeAccountType'])->name('account-types.store');
     Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
+    Route::put('/account-types/{id}', [AccountController::class, 'updateAccountType'])->name('account-types.update');
     Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
-
+    
     // THÊM ROUTE EXPORT PAYMENTS
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
-
+    
     // TEST ROUTE
-    Route::get('/test-simple', function () {
+    Route::get('/test-simple', function() {
         return 'Server hoạt động bình thường!';
     });
-
-
-    Route::get('/test-accounts', function () {
+    
+    
+    Route::get('/test-accounts', function() {
         $start = microtime(true);
         $accounts = App\Models\Account::limit(5)->get();
         $end = microtime(true);
@@ -363,7 +387,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
     Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
     Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
-
+    
     // ==========================================================
     // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
     // ==========================================================
@@ -372,6 +396,28 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::get('/verifications/{verification}/details', [AdminVerificationController::class, 'getDetails'])->name('verifications.details');
     Route::post('/verifications/{verification}/approve', [AdminVerificationController::class, 'approve'])->name('verifications.approve');
     Route::post('/verifications/{verification}/reject', [AdminVerificationController::class, 'reject'])->name('verifications.reject');
+    // Bulk operations
+    Route::post('/verifications/bulk-approve', [AdminVerificationController::class, 'bulkApprove'])->name('verifications.bulk-approve');
+    Route::post('/verifications/bulk-reject', [AdminVerificationController::class, 'bulkReject'])->name('verifications.bulk-reject');
+    // ==========================================================
+    
+    // ==========================================================
+    // ROUTES QUẢN LÝ DANH MỤC
+    // ==========================================================
+    Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+    Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('categories.show');
+    Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+    // ==========================================================
+    
+    // ==========================================================
+    // ROUTES QUẢN LÝ ĐÁNH GIÁ
+    // ==========================================================
+    Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::get('/reviews/{id}', [ReviewController::class, 'show'])->name('reviews.show');
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+    Route::post('/reviews/destroy-multiple', [ReviewController::class, 'destroyMultiple'])->name('reviews.destroy-multiple');
     // ==========================================================
 });
 
@@ -450,7 +496,6 @@ Route::get('/settings/billing', [BillingController::class, 'index'])->name('sett
 Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
 Route::delete('/settings/billing/card', [BillingController::class, 'deleteCard'])->name('settings.billing.deleteCard');
 Route::get('/api/momo/bankcodes', [BillingController::class, 'bankcodes'])->name('momo.bankcodes');
-use App\Http\Controllers\ReviewController;
 
 Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])
     ->name('reviews.store');
