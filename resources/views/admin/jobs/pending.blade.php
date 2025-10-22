@@ -215,6 +215,22 @@
         </div>
     </div>
 
+    <div class="col-xl col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Job riêng</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($statistics['other_jobs']) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-tasks fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="card shadow mb-4">
@@ -300,91 +316,53 @@
 
 <!-- Modal xem chi tiết job -->
 <div class="modal fade" id="jobDetailModal" tabindex="-1" aria-labelledby="jobDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="jobDetailModalLabel">
-                    <i class="fas fa-briefcase me-2"></i>Chi tiết công việc
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title" id="jobDetailModalLabel">Chi tiết công việc</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4" id="jobDetailContent">
+            <div class="modal-body" id="jobDetailContent">
                 <!-- Content sẽ được load bằng JavaScript -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>Đóng
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
                 <button type="button" class="btn btn-success" id="modalApproveBtn">
-                    <i class="fas fa-check me-1"></i>Duyệt
+                    <i class="fas fa-check me-1"></i> Duyệt
                 </button>
                 <button type="button" class="btn btn-danger" id="modalRejectBtn">
-                    <i class="fas fa-ban me-1"></i>Từ chối
+                    <i class="fas fa-times me-1"></i> Từ chối
                 </button>
             </div>
         </div>
     </div>
 </div>
-
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// Version: 2025-10-16 - Preload job details for instant modal display
+// Preload job details data
 const jobDetailsData = @json($jobDetails);
 
 $(document).ready(function() {
     let selectedJobs = new Set();
     let columnStates = {}; // Lưu trạng thái sort của từng cột
-    let table; // Khai báo trước để tránh lỗi
 
     function updateButtonStates() {
-        const hasSelection = selectedJobs.size > 0;
-        const count = selectedJobs.size;
-        
-        $('#bulk-approve-btn').prop('disabled', !hasSelection);
-        $('#bulk-reject-btn').prop('disabled', !hasSelection);
-        
-        // Cập nhật text hiển thị số lượng
-        if (count > 0) {
-            $('#bulk-approve-btn').html(`<i class="fas fa-check me-1"></i> Duyệt hàng loạt (${count})`);
-            $('#bulk-reject-btn').html(`<i class="fas fa-times me-1"></i> Từ chối hàng loạt (${count})`);
-        } else {
-            $('#bulk-approve-btn').html('<i class="fas fa-check me-1"></i> Duyệt hàng loạt');
-            $('#bulk-reject-btn').html('<i class="fas fa-times me-1"></i> Từ chối hàng loạt');
-        }
-    }
-    
-    function updateCheckAllState() {
-        // Kiểm tra xem table đã được khởi tạo chưa
-        if (!table) {
-            return;
-        }
-        
-        // Kiểm tra TẤT CẢ job (trên mọi trang)
-        const totalJobs = table.rows().count();
         const selectedCount = selectedJobs.size;
-        
-        if (selectedCount === 0) {
-            $('#checkAll').prop('checked', false);
-            $('#checkAll').prop('indeterminate', false);
-        } else if (selectedCount === totalJobs) {
-            $('#checkAll').prop('checked', true);
-            $('#checkAll').prop('indeterminate', false);
-        } else {
-            $('#checkAll').prop('checked', false);
-            $('#checkAll').prop('indeterminate', true);
-        }
+        const isDisabled = selectedCount === 0;
+        $('#bulk-approve-btn').prop('disabled', isDisabled);
+        $('#bulk-reject-btn').prop('disabled', isDisabled);
     }
 
     // Khởi tạo DataTables với 3-state sorting
-    table = $('#pending-jobs-table').DataTable({
+    const table = $('#pending-jobs-table').DataTable({
         processing: false,
         serverSide: false,
         ordering: true,
         order: [], // Không sort mặc định
-        pageLength: 10,
+        pageLength: 25,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         stateSave: true,
         searchDelay: 0,
@@ -402,54 +380,9 @@ $(document).ready(function() {
             paginate: { first: "Đầu", last: "Cuối", next: "Tiếp", previous: "Trước" }
         },
         drawCallback: function() {
-            // Giữ trạng thái checkbox khi chuyển trang
-            $('.row-checkbox').each(function() {
-                const jobId = $(this).data('job-id');
-                if (selectedJobs.has(jobId)) {
-                    $(this).prop('checked', true);
-                }
-            });
-            
-            // Cập nhật trạng thái "Chọn tất cả"
-            updateCheckAllState();
-            
-            // Cập nhật trạng thái nút (quan trọng!)
-            updateButtonStates();
-            
             bindEvents();
         }
     });
-
-    // Check all functionality - Chọn tất cả trên MỌI TRANG
-    $('#checkAll').on('change', function() {
-        const isChecked = this.checked;
-        
-        if (isChecked) {
-            // Chọn TẤT CẢ job (trên mọi trang)
-            selectedJobs.clear();
-            table.rows().nodes().to$().each(function() {
-                const checkbox = $(this).find('.row-checkbox');
-                const jobId = checkbox.data('job-id');
-                
-                if (jobId) {
-                    checkbox.prop('checked', true);
-                    selectedJobs.add(jobId);
-                }
-            });
-        } else {
-            // Bỏ chọn TẤT CẢ
-            table.rows().nodes().to$().each(function() {
-                const checkbox = $(this).find('.row-checkbox');
-                checkbox.prop('checked', false);
-            });
-            selectedJobs.clear();
-        }
-        
-        updateButtonStates();
-    });
-
-    // Initial bind
-    bindEvents();
 
     // Custom 3-state sorting
     $('#pending-jobs-table thead th').on('click', function() {
@@ -498,13 +431,10 @@ $(document).ready(function() {
             const jobId = $(this).data('job-id');
             if (this.checked) {
                 selectedJobs.add(jobId);
-                console.log('Added job:', jobId, '| Total:', selectedJobs.size);
             } else {
                 selectedJobs.delete(jobId);
-                console.log('Removed job:', jobId, '| Total:', selectedJobs.size);
             }
             updateButtonStates();
-            updateCheckAllState();
         });
 
         // Approve button events
@@ -514,7 +444,7 @@ $(document).ready(function() {
             
             Swal.fire({
                 title: 'Duyệt bài đăng?',
-                text: "Bạn chắc chắn muốn duyệt bài đăng này?",
+                text: "Bạn có chắc chắn muốn duyệt bài đăng này?",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#28a745',
@@ -523,7 +453,6 @@ $(document).ready(function() {
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    showLoading('Đang duyệt bài đăng...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/jobs/${jobId}/approve`
@@ -541,34 +470,19 @@ $(document).ready(function() {
             
             Swal.fire({
                 title: 'Từ chối bài đăng?',
-                text: "Vui lòng nhập lý do từ chối:",
-                input: 'textarea',
-                inputPlaceholder: 'Nhập lý do từ chối (bắt buộc)...',
-                inputAttributes: {
-                    'aria-label': 'Nhập lý do từ chối',
-                    'maxlength': 500
-                },
+                text: "Bạn có chắc chắn muốn từ chối bài đăng này?",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Đồng ý từ chối',
-                cancelButtonText: 'Hủy',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Bạn phải nhập lý do từ chối!'
-                    }
-                }
+                cancelButtonText: 'Hủy'
             }).then((result) => {
-                if (result.isConfirmed && result.value) {
-                    showLoading('Đang từ chối bài đăng...');
+                if (result.isConfirmed) {
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/jobs/${jobId}/reject`
-                    }).append(
-                        '@csrf',
-                        $('<input>', { type: 'hidden', name: 'reject_reason', value: result.value })
-                    );
+                    }).append('@csrf');
                     $('body').append(form);
                     form.submit();
                 }
@@ -580,130 +494,119 @@ $(document).ready(function() {
             e.preventDefault();
             const jobId = $(this).data('job-id');
             
-            // Show job detail instantly from preloaded data
-            showJobDetailFromPreload(jobId);
+            // Lấy dữ liệu từ preloaded data
+            const job = jobDetailsData[jobId];
+            
+            if (job) {
+                // Show modal với dữ liệu ngay lập tức
+                $('#jobDetailModal').modal('show');
+                $('#jobDetailContent').html(`
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="fw-bold text-primary">Thông tin công việc</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold" width="30%">Tiêu đề:</td>
+                                    <td>${job.title}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Mô tả:</td>
+                                    <td>${job.description}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Ngân sách:</td>
+                                    <td>${job.budget}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Loại thanh toán:</td>
+                                    <td>${job.payment_type}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Deadline:</td>
+                                    <td>${job.deadline}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Danh mục:</td>
+                                    <td>${job.category_name}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="fw-bold text-primary">Thông tin người đăng</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Tên:</td>
+                                    <td>${job.client_name}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Email:</td>
+                                    <td>${job.client_email}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Ngày đăng:</td>
+                                    <td>${job.created_at}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Trạng thái:</td>
+                                    <td><span class="badge bg-warning">${job.status}</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                `);
+                
+                // Set job ID for modal buttons
+                $('#modalApproveBtn').data('job-id', jobId);
+                $('#modalRejectBtn').data('job-id', jobId);
+            } else {
+                // Fallback nếu không tìm thấy dữ liệu
+                $('#jobDetailModal').modal('show');
+                $('#jobDetailContent').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Không thể tải thông tin chi tiết công việc
+                    </div>
+                `);
+            }
         });
     }
 
-    // Function to show job detail from preloaded data
-    function showJobDetailFromPreload(jobId) {
-        const jobDetail = jobDetailsData.find(job => job.job_id == jobId);
-        
-        if (!jobDetail) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Lỗi!',
-                text: 'Không tìm thấy thông tin công việc'
-            });
-            return;
-        }
-        
-        // Build HTML content
-        let html = `
-            <div class="row">
-                <div class="col-md-12">
-                    <h4 class="mb-3">${jobDetail.title}</h4>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Mô tả công việc:</label>
-                        <textarea class="form-control" rows="8" readonly style="resize: none; background-color: #f8f9fa;">${jobDetail.description || 'Không có mô tả'}</textarea>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Ngân sách:</label>
-                                <input type="text" class="form-control" value="${jobDetail.budget ? '$' + new Intl.NumberFormat().format(jobDetail.budget) : 'Thỏa thuận'}" readonly>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Thời hạn:</label>
-                                <input type="text" class="form-control" value="${jobDetail.deadline || 'Không có'}" readonly>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    ${jobDetail.requirements ? `
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Yêu cầu:</label>
-                        <textarea class="form-control" rows="5" readonly style="resize: none; background-color: #f8f9fa;">${jobDetail.requirements}</textarea>
-                    </div>
-                    ` : ''}
-                    
-                    ${jobDetail.skills && jobDetail.skills.length > 0 ? `
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Kỹ năng yêu cầu:</label>
-                        <div class="border rounded p-2" style="background-color: #f8f9fa; min-height: 50px;">
-                            ${jobDetail.skills.map(skill => `<span class="badge bg-primary me-1 mb-1">${skill.skill_name}</span>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="card border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h6 class="mb-0">Thông tin chi tiết</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Người đăng:</label>
-                                <input type="text" class="form-control" value="${jobDetail.client_name || 'N/A'}" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Email:</label>
-                                <input type="text" class="form-control" value="${jobDetail.client_email || 'N/A'}" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Ngày đăng:</label>
-                                <input type="text" class="form-control" value="${jobDetail.created_at}" readonly>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Danh mục:</label>
-                                <input type="text" class="form-control" value="${jobDetail.category_name || 'Không có'}" readonly>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Update modal content
-        $('#jobDetailContent').html(html);
-        
-        // Set job ID to modal buttons
-        $('#modalApproveBtn').data('job-id', jobId);
-        $('#modalRejectBtn').data('job-id', jobId);
-        
-        // Show modal
-        $('#jobDetailModal').modal('show');
-    }
+    // Check all functionality
+    $('#checkAll').on('change', function() {
+        const isChecked = this.checked;
+        $('.row-checkbox').each(function() {
+            this.checked = isChecked;
+            const jobId = $(this).data('job-id');
+            if (isChecked) {
+                selectedJobs.add(jobId);
+            } else {
+                selectedJobs.delete(jobId);
+            }
+        });
+        updateButtonStates();
+    });
 
     // Bulk operations
-    function performBulkApprove() {
+    function performBulkAction(action) {
         if (selectedJobs.size === 0) {
             Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một bài đăng', 'warning');
             return;
         }
 
+        const actionText = action === 'approve' ? 'duyệt' : 'từ chối';
         const jobIds = Array.from(selectedJobs);
 
         Swal.fire({
-            title: `Bạn có chắc chắn muốn duyệt ${jobIds.length} bài đăng đã chọn?`,
+            title: `Bạn có chắc chắn muốn ${actionText} ${jobIds.length} bài đăng đã chọn?`,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Đồng ý duyệt',
+            confirmButtonText: `Đồng ý ${actionText}`,
             cancelButtonText: 'Hủy'
         }).then((result) => {
             if (result.isConfirmed) {
-                showLoading('Đang duyệt hàng loạt...');
                 const form = $('<form>', {
                     method: 'POST',
-                    action: '/admin/jobs/batch-approve'
+                    action: `/admin/jobs/batch-${action}`
                 }).append(
                     '@csrf',
                     $('<input>', { type: 'hidden', name: 'job_ids', value: jobIds.join(',') })
@@ -714,56 +617,12 @@ $(document).ready(function() {
         });
     }
 
-    function performBulkReject() {
-        if (selectedJobs.size === 0) {
-            Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một bài đăng', 'warning');
-            return;
-        }
-
-        const jobIds = Array.from(selectedJobs);
-
-        Swal.fire({
-            title: `Từ chối ${jobIds.length} bài đăng đã chọn?`,
-            text: "Vui lòng nhập lý do từ chối:",
-            input: 'textarea',
-            inputPlaceholder: 'Nhập lý do từ chối (bắt buộc)...',
-            inputAttributes: {
-                'aria-label': 'Nhập lý do từ chối',
-                'maxlength': 500
-            },
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Đồng ý từ chối',
-            cancelButtonText: 'Hủy',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Bạn phải nhập lý do từ chối!'
-                }
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const form = $('<form>', {
-                    method: 'POST',
-                    action: '/admin/jobs/batch-reject'
-                }).append(
-                    '@csrf',
-                    $('<input>', { type: 'hidden', name: 'job_ids', value: jobIds.join(',') }),
-                    $('<input>', { type: 'hidden', name: 'reject_reason', value: result.value || '' })
-                );
-                $('body').append(form);
-                form.submit();
-            }
-        });
-    }
-
     $('#bulk-approve-btn').on('click', function() {
-        performBulkApprove();
+        performBulkAction('approve');
     });
 
     $('#bulk-reject-btn').on('click', function() {
-        performBulkReject();
+        performBulkAction('reject');
     });
 
     // Modal approve/reject buttons
@@ -781,7 +640,6 @@ $(document).ready(function() {
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    showLoading('Đang duyệt bài đăng...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/jobs/${jobId}/approve`
@@ -796,52 +654,30 @@ $(document).ready(function() {
     $('#modalRejectBtn').on('click', function() {
         const jobId = $(this).data('job-id');
         if (jobId) {
-            // Đóng modal trước khi hiện SweetAlert
-            const modal = bootstrap.Modal.getInstance(document.getElementById('jobDetailModal'));
-            if (modal) {
-                modal.hide();
-            }
-            
-            // Đợi modal đóng xong rồi mới hiện SweetAlert
-            setTimeout(() => {
-                Swal.fire({
-                    title: 'Từ chối bài đăng?',
-                    text: "Vui lòng nhập lý do từ chối:",
-                    input: 'textarea',
-                    inputPlaceholder: 'Nhập lý do từ chối (bắt buộc)...',
-                    inputAttributes: {
-                        'aria-label': 'Nhập lý do từ chối',
-                        'maxlength': 500
-                    },
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Đồng ý từ chối',
-                    cancelButtonText: 'Hủy',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Bạn phải nhập lý do từ chối!'
-                        }
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed && result.value) {
-                        showLoading('Đang từ chối bài đăng...');
-                        const form = $('<form>', {
-                            method: 'POST',
-                            action: `/admin/jobs/${jobId}/reject`
-                        }).append(
-                            '@csrf',
-                            $('<input>', { type: 'hidden', name: 'reject_reason', value: result.value })
-                        );
-                        $('body').append(form);
-                        form.submit();
-                    }
-                });
-            }, 300); // Đợi 300ms để modal đóng hoàn toàn
+            Swal.fire({
+                title: 'Từ chối bài đăng?',
+                text: "Bạn có chắc chắn muốn từ chối bài đăng này?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Đồng ý từ chối',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = $('<form>', {
+                        method: 'POST',
+                        action: `/admin/jobs/${jobId}/reject`
+                    }).append('@csrf');
+                    $('body').append(form);
+                    form.submit();
+                }
+            });
         }
     });
 
+    // Initial bind
+    bindEvents();
 });
 </script>
 
