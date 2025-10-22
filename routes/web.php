@@ -497,7 +497,9 @@ Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])
 Route::delete('/settings/billing/card', [BillingController::class, 'deleteCard'])->name('settings.billing.deleteCard');
 Route::get('/api/momo/bankcodes', [BillingController::class, 'bankcodes'])->name('momo.bankcodes');
 
-Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])
-    ->name('reviews.store');
-        Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
-        ->name('profile.about.ai');
+Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
+Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
+Route::post('/profiles/{profile:profile_id}/skills',[PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+
