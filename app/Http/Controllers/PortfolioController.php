@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\File as FileRule;
 use Cloudinary\Api\Upload\UploadApi;
 use App\Models\Review;
+use App\Models\Skill;
 class PortfolioController extends Controller
 {
     public function index()
@@ -22,84 +23,96 @@ class PortfolioController extends Controller
 
 
 
-   public function show($username)
-{
-    $profile = Profile::with('account')
-        ->where('username', $username)
-        ->firstOrFail();
+    public function show($username)
+    {
+        $profile = Profile::with('account')
+            ->where('username', $username)
+            ->firstOrFail();
 
-    $account = $profile->account;
+        $account = $profile->account;
 
-    // Jobs
-    $jobs = $account->jobs()
-        ->whereNotIn('status', ['pending', 'cancelled'])
-        ->latest()
-        ->get();
+        // Jobs
+        $jobs = $account->jobs()
+            ->whereNotIn('status', ['pending', 'cancelled'])
+            ->latest()
+            ->get();
 
-    $stats = [
-        'total_jobs'      => $jobs->count(),
-        'completed_jobs'  => $jobs->where('status', 'completed')->count(),
-        'ongoing_jobs'    => $jobs->where('status', 'ongoing')->count(),
-    ];
+        $stats = [
+            'total_jobs' => $jobs->count(),
+            'completed_jobs' => $jobs->where('status', 'completed')->count(),
+            'ongoing_jobs' => $jobs->where('status', 'ongoing')->count(),
+        ];
 
-    // Skills (giữ nguyên logic demo)
-    $skillIds = collect($profile->skill_list ?? [])->map(fn($v)=>(int)$v)->filter()->unique()->values()->all();
-    $skills = collect();
-    if ($skillIds) {
-        $order  = implode(',', $skillIds);
-        $skills = \App\Models\Skill::whereIn('skill_id', $skillIds)
-            ->orderByRaw("FIELD(skill_id, $order)")
-            ->get(['skill_id','name'])
-            ->map(fn($s)=>[
-                'name'    => $s->name,
-                'rating'  => rand(3,5),
-                'endorse' => rand(5,50),
-                'level'   => ['Beginner','Intermediate','Advanced','Expert'][rand(1,3)],
-            ]);
+        // Skills (giữ nguyên logic demo)
+        $skillIds = collect($profile->skill_list ?? [])->map(fn($v) => (int) $v)->filter()->unique()->values()->all();
+        $skills = collect();
+        if ($skillIds) {
+            $order = implode(',', $skillIds);
+            $skills = \App\Models\Skill::whereIn('skill_id', $skillIds)
+                ->orderByRaw("FIELD(skill_id, $order)")
+                ->get(['skill_id', 'name'])
+                ->map(fn($s) => [
+                    'name' => $s->name,
+                    'rating' => rand(3, 5),
+                    'endorse' => rand(5, 50),
+                    'level' => ['Beginner', 'Intermediate', 'Advanced', 'Expert'][rand(1, 3)],
+                ]);
+        }
+
+        // Reviews (reviewee_id là profile_id)
+        $reviews = Review::where('reviewee_id', $profile->profile_id)
+            ->where('isDeleted', 0)
+            ->with(['reviewerProfile:profile_id,fullname,username'])
+            ->latest()
+            ->get();
+
+        $avgRating = round((float) $reviews->avg('rating'), 1);
+        $reviewCount = $reviews->count();
+
+        /* ===================== ORGS THEO account_id ===================== */
+        // DN user sở hữu
+        $ownedOrgs = \App\Models\Org::with('owner')
+            ->withCount('members')
+            ->where('owner_account_id', $account->account_id)
+            ->get()
+            ->map(function ($o) {
+                $o->via_role = 'OWNER';
+                $o->member_status = 'ACTIVE';
+                return $o;
+            });
+
+        // DN user tham gia (qua org_members) — lấy cả role + status
+        $memberOrgs = \App\Models\Org::query()
+            ->with('owner')
+            ->withCount('members')
+            ->join('org_members as m', 'm.org_id', '=', 'orgs.org_id')
+            ->where('m.account_id', $account->account_id)
+            // ->where('m.status', 'ACTIVE') // bật nếu chỉ muốn DN đang active
+            ->select('orgs.*', 'm.role as via_role', 'm.status as member_status')
+            ->get();
+
+        // Gộp & loại trùng
+        $orgs = $ownedOrgs->concat($memberOrgs)->unique('org_id')->values();
+        $allSkills = \App\Models\Skill::orderBy('name')->get(['skill_id', 'name']);
+        $selectedIds = collect(preg_split('/\s*,\s*/', (string) ($profile->skill ?? ''), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn($v) => (int) $v)
+            ->filter()
+            ->values()
+            ->all();
+        return view('portfolios.index', compact(
+            'profile',
+            'allSkills',
+            'selectedIds',
+            'account',
+            'jobs',
+            'stats',
+            'skills',
+            'reviews',
+            'avgRating',
+            'reviewCount',
+            'orgs' // <<=== TRUYỀN RA VIEW
+        ));
     }
-
-    // Reviews (reviewee_id là profile_id)
-    $reviews = Review::where('reviewee_id', $profile->profile_id)
-        ->with(['reviewerProfile:profile_id,fullname,username'])
-        ->latest()
-        ->get();
-
-    $avgRating   = round((float) $reviews->avg('rating'), 1);
-    $reviewCount = $reviews->count();
-
-    /* ===================== ORGS THEO account_id ===================== */
-    // DN user sở hữu
-    $ownedOrgs = \App\Models\Org::with('owner')
-        ->withCount('members')
-        ->where('owner_account_id', $account->account_id)
-        ->get()
-        ->map(function ($o) {
-            $o->via_role      = 'OWNER';
-            $o->member_status = 'ACTIVE';
-            return $o;
-        });
-
-    // DN user tham gia (qua org_members) — lấy cả role + status
-    $memberOrgs = \App\Models\Org::query()
-        ->with('owner')
-        ->withCount('members')
-        ->join('org_members as m', 'm.org_id', '=', 'orgs.org_id')
-        ->where('m.account_id', $account->account_id)
-        // ->where('m.status', 'ACTIVE') // bật nếu chỉ muốn DN đang active
-        ->select('orgs.*', 'm.role as via_role', 'm.status as member_status')
-        ->get();
-
-    // Gộp & loại trùng
-    $orgs = $ownedOrgs->concat($memberOrgs)->unique('org_id')->values();
-
-    return view('portfolios.index', compact(
-        'profile', 'account',
-        'jobs', 'stats',
-        'skills',
-        'reviews', 'avgRating', 'reviewCount',
-        'orgs' // <<=== TRUYỀN RA VIEW
-    ));
-}
 
 
 
@@ -232,6 +245,46 @@ class PortfolioController extends Controller
 
             return back()->withErrors(['location' => 'Có lỗi xảy ra khi cập nhật địa chỉ.']);
         }
+    }
+
+    public function updateSkills(Profile $profile, Request $request)
+    {
+        // Chỉ chủ sở hữu profile mới được sửa
+        abort_unless(Auth::id() === $profile->account_id, 403);
+
+        // skills[] có thể là số (skill_id) hoặc chuỗi (tên mới)
+        $tokens = $request->input('skills', []);
+
+        $ids = [];
+        foreach ($tokens as $t) {
+            // nếu là id số -> dùng luôn
+            if (ctype_digit((string)$t)) {
+                $ids[] = (int)$t;
+                continue;
+            }
+            // nếu là tên -> tạo mới nếu chưa có
+            $name = trim((string)$t);
+            if ($name === '') continue;
+            $skill = Skill::firstOrCreate(['name' => $name]);
+            $ids[] = $skill->skill_id;
+        }
+
+        // chuẩn hóa + giới hạn tối đa (vd 20)
+        $ids = collect($ids)->map(fn($v)=>(int)$v)->filter()->unique()->take(20)->values()->all();
+
+        // lưu lại về CSV "14,6,10"
+        $profile->skill = implode(',', $ids);
+        $profile->save();
+
+        // trả về để UI vẽ lại
+        $skills = Skill::whereIn('skill_id', $ids)
+            ->orderBy('name')->get(['skill_id','name']);
+
+        return response()->json([
+            'ok'      => true,
+            'message' => 'Đã cập nhật kỹ năng.',
+            'skills'  => $skills,
+        ]);
     }
 
 }

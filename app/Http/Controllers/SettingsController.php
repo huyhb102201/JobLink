@@ -75,30 +75,32 @@ class SettingsController extends Controller
     }
     // updates
     public function updateMyInfo(Request $request)
-    {
-        $user = $request->user()->loadMissing('profile');
+{
+    $user = $request->user()->loadMissing('profile');
 
-        $data = $request->validate([
-            'fullname' => 'required|string|max:255',
-            'username' => 'required|string|max:255',
-            'description' => 'nullable|string|max:255',
-            'skill' => 'nullable|string|max:1000',
-            // KHÔNG có 'email'
-        ]);
+    $data = $request->validate([
+        'fullname'    => ['required','string','max:255'],
+        'username'    => ['required','string','max:255'],
+        // mô tả dài -> dùng TEXT
+        'description' => ['nullable','string','max:5000'],
+    ]);
 
-        $profile = $user->profile()->firstOrCreate(['account_id' => $user->account_id]);
+    $profile = $user->profile()->firstOrCreate(['account_id' => $user->account_id]);
 
-        $profile->fill([
-            'fullname' => $data['fullname'],
-            'username' => $data['username'],
-            'description' => $data['description'] ?? null,
-            'skill' => $data['skill'] ?? null,
-            // KHÔNG set 'email'
-        ])->save();
-
-        return back()->with('ok', 'Đã cập nhật thông tin.');
+    // Nếu bạn cho phép HTML mô tả, nhớ sanitize:
+    $desc = $data['description'] ?? null;
+    if (function_exists('clean')) {
+        $desc = clean($desc, 'user_profile'); // preset whitelist của bạn
     }
 
+    $profile->fill([
+        'fullname'    => $data['fullname'],
+        'username'    => $data['username'],
+        'description' => $desc,
+    ])->save();
+
+    return back()->with('ok','Đã cập nhật thông tin.');
+}
 
 public function updateSecurity(Request $request)
 {

@@ -416,5 +416,6 @@ use App\Http\Controllers\ReviewController;
 
 Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])
     ->name('reviews.store');
-        Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
-        ->name('profile.about.ai');
+Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
+Route::post('/profiles/{profile:profile_id}/skills',[PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
+Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
