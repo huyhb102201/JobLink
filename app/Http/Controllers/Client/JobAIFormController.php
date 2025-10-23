@@ -44,7 +44,7 @@ Hãy đọc yêu cầu của người dùng và TRẢ VỀ DUY NHẤT MỘT Đ�
   "quantity": "integer",            // Số lượng freelancer cần tuyển
   "total_budget": "string",         // Nếu người dùng nhập giá tổng (VD: 2 người giá 50000) → total_budget = 50000, budget = total_budget / quantity
   "deadline": "string",             // Ngày kết thúc (mặc định = hôm nay + 7 ngày, định dạng YYYY-MM-DD)
-  "description": "string"           // Mô tả Markdown: ## Mục tiêu, ## Phạm vi, ## Kỹ năng, ## Thời gian & Ngân sách, ## Cách nộp đề xuất
+  "description": "string"           // Mô tả Markdown: ## Mục tiêu, ## Phạm vi, ## Kỹ năng, ## Thời gian & Ngân sách, ## Cách nộp đề xuất. Ngân sách này nếu 2 người giá 50000 thì ngân sách sẽ là 25000/ nhân viên, chia đều ra
 }
 
 Các danh mục hợp lệ:
@@ -83,8 +83,8 @@ PROMPT;
                 $json['budget'] = round($json['total_budget'] / $json['quantity'], 2);
             } else {
                 // Ngược lại, coi budget là mỗi người
-                $json['budget'] = (float) ($json['budget'] ?? 0);
-                $json['total_budget'] = (float) ($json['total_budget'] ?? ($json['budget'] * $json['quantity']));
+                $json['total_budget'] = (float) $json['budget'];
+                $json['budget'] = round($json['total_budget'] / $json['quantity'], 2);
             }
 
 
