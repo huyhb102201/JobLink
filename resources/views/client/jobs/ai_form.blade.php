@@ -64,14 +64,14 @@
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">Tổng ngân sách (USD)</label>
-              <input name="total_budget" id="f_budget_total" class="form-control" placeholder="Tự động tính toán" readonly>
+              <input name="total_budget" id="f_budget_total" class="form-control" placeholder="Tự động tính toán" >
             </div>
           </div>
 
           <div class="row g-3 mt-1">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Ngân sách mỗi freelancer (USD)</label>
-              <input name="budget" id="f_budget" class="form-control" placeholder="VD: 500">
+              <input name="budget" id="f_budget" class="form-control" placeholder="VD: 500" readonly>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Số lượng tuyển *</label>
@@ -110,7 +110,6 @@
 </div>
 </main>
 @endsection
-
 @push('scripts')
 <script>
 const btn = document.getElementById('btnBuild');
@@ -140,18 +139,23 @@ btn.addEventListener('click', async () => {
 
     const d = data.data || {};
 
-    // ✅ điền form an toàn
-    document.getElementById('f_title').value = d.title || '';
-    document.getElementById('f_category_id').value = d.category_id || '';
-    document.getElementById('f_category').value = d.category_name || d.category || '';
-    document.getElementById('f_budget').value = d.budget || '';           // mỗi freelancer
-    document.getElementById('f_quantity').value = d.quantity || 1;
-    document.getElementById('f_budget_total').value = d.total_budget || (d.budget * d.quantity) || ''; // tổng
-    document.getElementById('f_payment').value = (d.payment_type === 'hourly' ? 'hourly' : 'fixed');
-    document.getElementById('f_deadline').value = d.deadline || '';
-    document.getElementById('f_description').value = d.description || (d._raw ?? '');
+    // --- Điền form ---
+    setVal('f_title', d.title || '');
+    setVal('f_category_id', d.category_id || '');
+    setVal('f_category', d.category_name || d.category || '');
+    setVal('f_payment', (d.payment_type === 'hourly' ? 'hourly' : 'fixed'));
+    setVal('f_quantity', d.quantity || 1);
+    setVal('f_budget_total', d.total_budget ?? '');
+    setVal('f_budget', d.budget ?? '');   // sẽ bị tính lại ngay bên dưới
+    setVal('f_deadline', d.deadline || '');
+    setVal('f_description', d.description || (d._raw ?? ''));
 
-    updateTotalBudget();
+    // --- Chuẩn hoá theo luật: budget = total / quantity (vì budget readonly) ---
+    normalizeBudgetFromTotal();
+
+    // --- Gắn listener: khi sửa Tổng hoặc Số lượng -> cập nhật Đơn giá ---
+    hookupRecalcPerFromTotal();
+
     statusEl.textContent = '✅ Đã tạo xong! Kiểm tra lại và bấm Đăng job.';
   } catch (e) {
     console.error(e);
@@ -163,17 +167,42 @@ btn.addEventListener('click', async () => {
   }
 });
 
-// ✅ Tự động tính tổng ngân sách = mỗi freelancer × số lượng
-function updateTotalBudget() {
-  const per = parseFloat(document.getElementById('f_budget').value) || 0;
-  const quantity = parseInt(document.getElementById('f_quantity').value) || 1;
-  const total = per * quantity;
-  document.getElementById('f_budget_total').value = total > 0 ? total.toFixed(2) : '';
+/* ================= Helpers ================= */
+
+function toNum(v) {
+  const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+function setVal(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.value = v;
+}
+function getEl(id){ return document.getElementById(id); }
+
+// Tính đơn giá = tổng / số lượng
+function normalizeBudgetFromTotal() {
+  const total = toNum(getEl('f_budget_total').value);
+  const qty   = Math.max(1, parseInt(getEl('f_quantity').value || 1));
+  const per   = qty > 0 ? total / qty : 0;
+  setVal('f_budget', per > 0 ? per.toFixed(2) : '');
 }
 
-['f_budget', 'f_quantity'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', updateTotalBudget);
-});
+// Lắng nghe thay đổi để luôn cập nhật đơn giá từ tổng
+function hookupRecalcPerFromTotal() {
+  const totalEl = getEl('f_budget_total');
+  const qtyEl   = getEl('f_quantity');
+
+  const recalc = () => {
+    normalizeBudgetFromTotal();
+  };
+
+  // Gỡ listener cũ (nếu có) rồi gắn lại để tránh nhân đôi
+  totalEl.removeEventListener?.('input', recalc);
+  qtyEl.removeEventListener?.('input', recalc);
+
+  totalEl.addEventListener('input', recalc);
+  qtyEl.addEventListener('input', recalc);
+}
 </script>
 @endpush
+
