@@ -239,7 +239,7 @@ class BillingController extends Controller
    public function withdraw(Request $request)
 {
     $data = $request->validate([
-        'amount'            => 'required|integer|min:10000', // VND
+        'amount'            => 'required|integer|min:10000',
         'to_account_number' => 'required|string|max:50',
     ]);
 
@@ -251,43 +251,56 @@ class BillingController extends Controller
 
     try {
         $result = DB::transaction(function () use ($userId, $data, $user) {
+
+            // Lấy thông tin thẻ để biết tên ngân hàng
+            $card = DB::table('bank_accounts')
+                ->where('account_id', $userId)
+                ->where('account_number', $data['to_account_number'])
+                ->first();
+
+            $bankName  = $card->bank_name  ?? null;
+            $bankShort = $card->bank_short ?? null;
+            $bankCode  = $card->bank_code  ?? null;
+
+            // Khóa & kiểm tra số dư
             $account = DB::table('accounts')
                 ->where('account_id', $userId)
                 ->lockForUpdate()
                 ->first();
 
-            if (!$account) {
-                abort(404, 'Không tìm thấy tài khoản.');
-            }
+            if (!$account) abort(404, 'Không tìm thấy tài khoản.');
 
             $balance = (int) ($account->balance_cents ?? 0);
             $amount  = (int) $data['amount'];
+            $fee     = (int) round($amount * 0.10); // 10%
 
-            // ✅ Tính phí 10%
-            $fee = (int) round($amount * 0.10); // làm tròn đến đồng gần nhất
-
-            if ($amount + $fee > $balance) {
-                abort(422, 'Số dư không đủ để rút (đã bao gồm phí 10%).');
+            // Với quy ước: phí trừ vào TIỀN NHẬN, số dư chỉ trừ amount
+            if ($amount + 0 > $balance) {
+                abort(422, 'Số dư không đủ để rút.');
             }
 
-            $newBalance = $balance - ($amount);
+            $newBalance = $balance - $amount;
 
             DB::table('accounts')
                 ->where('account_id', $userId)
                 ->update(['balance_cents' => $newBalance]);
 
+            // Ghi log rút tiền + tên ngân hàng
             $withdrawId = DB::table('withdrawal_logs')->insertGetId([
                 'account_id'          => $userId,
                 'bank_account_number' => $data['to_account_number'],
-                'amount_cents'        => $amount,
-                'fee_cents'           => $fee,
+                'bank_name'           => $bankName,   // 👈 lưu tên ngân hàng
+                'bank_short'          => $bankShort,  // (tuỳ chọn)
+                'bank_code'           => $bankCode,   // (tuỳ chọn)
+                'amount_cents'        => $amount,     // số tiền user yêu cầu
+                'fee_cents'           => $fee,        // 10%
                 'currency'            => 'VND',
                 'status'              => 'processing',
                 'note'                => 'Yêu cầu rút tiền (phí 10%)',
                 'meta'                => json_encode([
-                    'by'   => $user->email ?? $user->name ?? 'user',
-                    'ip'   => request()->ip(),
-                    'ua'   => substr((string)request()->userAgent(), 0, 190),
+                    'by' => $user->email ?? $user->name ?? 'user',
+                    'ip' => request()->ip(),
+                    'ua' => substr((string)request()->userAgent(), 0, 190),
                 ], JSON_UNESCAPED_UNICODE),
                 'created_at'          => now(),
                 'updated_at'          => now(),
@@ -307,11 +320,10 @@ class BillingController extends Controller
 
     } catch (\Throwable $e) {
         $code = ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException)
-            ? $e->getStatusCode()
-            : 500;
-
+            ? $e->getStatusCode() : 500;
         return response()->json(['message' => $e->getMessage()], $code);
     }
 }
+
 
 }
