@@ -73,19 +73,44 @@ PROMPT;
         try {
             $json = $gemini->generate($prompt);
 
-            // ✅ Chuẩn hoá dữ liệu
-            $json['quantity'] = max(1, (int) ($json['quantity'] ?? 1));
-            $json['budget'] = (float) ($json['budget'] ?? 0);
-            // Nếu AI không phân biệt rõ, ta tự suy luận lại: 
-// Nếu budget > 0 và quantity > 1 mà total_budget rỗng → coi budget là tổng, chia ngược cho mỗi người
-            if (empty($json['total_budget']) && !empty($json['budget']) && $json['quantity'] > 1) {
-                $json['total_budget'] = (float) $json['budget'];
-                $json['budget'] = round($json['total_budget'] / $json['quantity'], 2);
-            } else {
-                // Ngược lại, coi budget là mỗi người
-                $json['total_budget'] = (float) $json['budget'];
-                $json['budget'] = round($json['total_budget'] / $json['quantity'], 2);
+            // ✅ Chuẩn hoá dữ liệu ngân sách theo luật: "1 con số + quantity > 1" => đó là TỔNG
+            $json['quantity'] = $qty = max(1, (int) ($json['quantity'] ?? 1));
+
+            $budget = (float) ($json['budget'] ?? 0);        // đơn giá (có thể AI hiểu sai)
+            $total = (float) ($json['total_budget'] ?? 0);  // tổng (có thể bỏ trống)
+            $eps = 1e-6;
+
+            if ($qty > 1) {
+                if ($total <= 0 && $budget > 0) {
+                    // Chỉ có 1 số -> coi là TỔNG rồi chia đều
+                    $total = $budget;
+                    $budget = $total / $qty;
+                } elseif ($total > 0 && $budget <= 0) {
+                    // Có tổng, chưa có đơn giá -> chia đều
+                    $budget = $total / $qty;
+                } elseif ($total > 0 && $budget > 0) {
+                    // Có cả hai -> kiểm tra
+                    if (abs($total - $budget) < $eps) {
+                        // total == budget (AI nhầm) -> budget đang là TỔNG
+                        $total = $budget;
+                        $budget = $total / $qty;
+                    } elseif (abs($total - ($budget * $qty)) <= $eps) {
+                        // Hợp lý rồi, giữ nguyên
+                    } else {
+                        // Mặc định: coi budget là đơn giá, tính lại tổng
+                        $total = $budget * $qty;
+                    }
+                }
+            } else { // qty == 1
+                if ($total <= 0 && $budget > 0)
+                    $total = $budget;
+                if ($budget <= 0 && $total > 0)
+                    $budget = $total;
             }
+
+            $json['budget'] = round($budget, 2);
+            $json['total_budget'] = round($total, 2);
+
 
 
             // ✅ Deadline: nếu trống hoặc sai → +7 ngày
