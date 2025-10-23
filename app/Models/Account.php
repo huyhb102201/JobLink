@@ -26,6 +26,7 @@ class Account extends Authenticatable implements MustVerifyEmail
         'email_verify_token',
         'password',
         'status',
+        'balance_cents',
         'last_login_at',
         'email_verified_at',
         'oauth_access_token',

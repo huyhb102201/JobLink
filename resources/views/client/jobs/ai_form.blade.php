@@ -27,58 +27,71 @@
       </div>
     </div>
 
-    {{-- Form đăng job (được AI điền sẵn) --}}
+    {{-- Form đăng job --}}
     <div class="col-12">
-      <form id="jobForm" method="POST" action="{{ route('client.jobs.ai.submit') }}" class="card border-0 shadow rounded-4">
-  @csrf
-  <div class="card-header bg-primary text-white rounded-top-4">
-    <strong><i class="bi bi-briefcase-fill me-2"></i>Form đăng job</strong>
-  </div>
-  <div class="card-body p-4">
+      <form id="jobForm" method="POST" action="{{ route('client.jobs.ai.submit') }}"
+        class="card border-0 shadow rounded-4">
+        @csrf
+        <div class="card-header bg-primary text-white rounded-top-4">
+          <strong><i class="bi bi-briefcase-fill me-2"></i>Form đăng job</strong>
+        </div>
+        <div class="card-body p-4">
 
-    <div class="mb-3">
-      <label class="form-label fw-semibold">Tiêu đề *</label>
-      <input name="title" id="f_title" class="form-control form-control-lg" placeholder="Tiêu đề ngắn gọn">
-    </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tiêu đề *</label>
+            <input name="title" id="f_title" class="form-control form-control-lg" placeholder="Tiêu đề ngắn gọn">
+          </div>
 
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Danh mục *</label>
-        <input name="category" id="f_category" class="form-control" placeholder="VD: Web Development">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Ngân sách</label>
-        <input name="budget" id="f_budget" class="form-control" placeholder="$300 hoặc $15-20/h">
-      </div>
-    </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Danh mục *</label>
+              <input type="hidden" name="category_id" id="f_category_id">
+              <input name="category" id="f_category" class="form-control" placeholder="VD: Web Development" readonly>
+            </div>
 
-    <div class="row g-3 mt-1">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Hình thức thanh toán *</label>
-        <select name="payment_type" id="f_payment" class="form-select">
-          <option value="fixed">Trọn gói (Fixed)</option>
-          <option value="hourly">Theo giờ (Hourly)</option>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Deadline</label>
-        <input name="deadline" id="f_deadline" class="form-control" placeholder="VD: 2 tuần hoặc 2025-11-30">
-      </div>
-    </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tổng ngân sách (USD)</label>
+              <input name="total_budget" id="f_budget_total" class="form-control" placeholder="Tự động tính toán" readonly>
+            </div>
+          </div>
 
-    <div class="mt-3">
-      <label class="form-label fw-semibold">Mô tả *</label>
-      <textarea name="description" id="f_description" rows="8" class="form-control"
-        placeholder="AI sẽ điền mô tả có cấu trúc. Bạn có thể chỉnh lại."></textarea>
-    </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Ngân sách mỗi freelancer (USD)</label>
+              <input name="budget" id="f_budget" class="form-control" placeholder="VD: 500">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Số lượng tuyển *</label>
+              <input name="quantity" id="f_quantity" type="number" class="form-control" min="1" value="1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Hình thức thanh toán *</label>
+              <select name="payment_type" id="f_payment" class="form-select">
+                <option value="fixed">Trọn gói (Fixed)</option>
+                <option value="hourly">Theo giờ (Hourly)</option>
+              </select>
+            </div>
+          </div>
 
-    <div class="d-flex justify-content-end mt-4">
-      <button class="btn btn-primary px-4"><i class="bi bi-send-fill"></i> Đăng job</button>
-    </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Deadline</label>
+              <input name="deadline" id="f_deadline" class="form-control" placeholder="VD: 2025-11-30 hoặc +2 tuần">
+            </div>
+          </div>
 
-  </div>
-</form>
+          <div class="mt-3">
+            <label class="form-label fw-semibold">Mô tả *</label>
+            <textarea name="description" id="f_description" rows="8" class="form-control"
+              placeholder="AI sẽ điền mô tả có cấu trúc. Bạn có thể chỉnh lại."></textarea>
+          </div>
 
+          <div class="d-flex justify-content-end mt-4">
+            <button class="btn btn-primary px-4"><i class="bi bi-send-fill"></i> Đăng job</button>
+          </div>
+
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -112,16 +125,20 @@ btn.addEventListener('click', async () => {
     if (!data.ok) throw new Error(data.error || 'Lỗi AI');
 
     const d = data.data || {};
-    // điền form an toàn
-    document.getElementById('f_title').value       = d.title || '';
-    document.getElementById('f_category').value    = d.category || '';
-    document.getElementById('f_budget').value      = d.budget || '';
-    document.getElementById('f_payment').value     = (d.payment_type === 'hourly' ? 'hourly' : 'fixed');
-    document.getElementById('f_deadline').value    = d.deadline || '';
+
+    // ✅ điền form an toàn
+    document.getElementById('f_title').value = d.title || '';
+    document.getElementById('f_category_id').value = d.category_id || '';
+    document.getElementById('f_category').value = d.category_name || d.category || '';
+    document.getElementById('f_budget').value = d.budget || '';           // mỗi freelancer
+    document.getElementById('f_quantity').value = d.quantity || 1;
+    document.getElementById('f_budget_total').value = d.total_budget || (d.budget * d.quantity) || ''; // tổng
+    document.getElementById('f_payment').value = (d.payment_type === 'hourly' ? 'hourly' : 'fixed');
+    document.getElementById('f_deadline').value = d.deadline || '';
     document.getElementById('f_description').value = d.description || (d._raw ?? '');
 
-
-    statusEl.textContent = 'Đã tạo xong! Kiểm tra lại và bấm Đăng job.';
+    updateTotalBudget();
+    statusEl.textContent = '✅ Đã tạo xong! Kiểm tra lại và bấm Đăng job.';
   } catch (e) {
     console.error(e);
     alert('Không tạo được. Thử mô tả rõ hơn hoặc thử lại sau.');
@@ -130,6 +147,19 @@ btn.addEventListener('click', async () => {
     btn.disabled = false;
     btn.innerHTML = old;
   }
+});
+
+// ✅ Tự động tính tổng ngân sách = mỗi freelancer × số lượng
+function updateTotalBudget() {
+  const per = parseFloat(document.getElementById('f_budget').value) || 0;
+  const quantity = parseInt(document.getElementById('f_quantity').value) || 1;
+  const total = per * quantity;
+  document.getElementById('f_budget_total').value = total > 0 ? total.toFixed(2) : '';
+}
+
+['f_budget', 'f_quantity'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', updateTotalBudget);
 });
 </script>
 @endpush

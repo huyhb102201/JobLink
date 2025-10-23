@@ -106,50 +106,68 @@ class JobWizardController extends Controller
         return redirect()->route('client.jobs.wizard.step', $n + 1);
     }
 
-    public function submit(Request $r)
-    {
-        $d = $this->data();
+   public function submit(Request $r)
+{
+    $d = $this->data();
 
-        $user = $r->user()->loadMissing('type');                 // Account hiện tại + AccountType
-        $autoApprove = (bool) optional($user->type)->auto_approve_job_posts;
-        $status = $autoApprove ? 'open' : 'pending';
+    // Lấy & chuẩn hóa số liệu từ session
+    $qty   = (int) ($d['quantity'] ?? 1);
+    if ($qty < 1) $qty = 1;
 
-        DB::beginTransaction();
-        try {
-            // 1) Tạo JOB (mô tả cơ bản)
-            $job = Job::create([
-                'account_id' => $user->account_id,            // hoặc Auth::id() nếu guard trả về account_id
-                'title' => $d['title'],
-                'description' => $d['description'],            // plain text
-                'category_id' => $d['category_id'] ?? null,
-                'budget' => $d['budget'] ?? null,
-                'payment_type' => $d['payment_type'],
-                'deadline' => $d['deadline'] ?? null,
-                'status' => $status,                      // <-- quyết định ở đây
+    $per   = (int) ($d['budget'] ?? 0); // ngân sách mỗi freelancer
+    $total = (int) ($d['total_budget'] ?? ($per * $qty)); // tổng ngân sách
+
+    // Nếu tổng có mà per chưa có, tính ngược lại để nhất quán
+    if ($total > 0 && $per === 0 && $qty > 0) {
+        $per = (int) floor($total / $qty);
+    }
+
+    $user = $r->user()->loadMissing('type');
+    $autoApprove = (bool) optional($user->type)->auto_approve_job_posts;
+    $status = $autoApprove ? 'open' : 'pending';
+
+    DB::beginTransaction();
+    try {
+        // 1) Tạo JOB (mô tả cơ bản)
+        $job = Job::create([
+            'account_id'   => $user->account_id,
+            'title'        => $d['title'],
+            'description'  => $d['description'],
+            'category_id'  => $d['category_id'] ?? null,
+            'payment_type' => $d['payment_type'],
+
+            // 🔽 mới thêm
+            'quantity'     => $qty,    // số lượng tuyển
+            'budget'       => $per,    // ngân sách mỗi freelancer
+            'total_budget' => $total,  // tổng ngân sách
+
+            'deadline'     => $d['deadline'] ?? null,
+            'status'       => $status,
+        ]);
+
+        // 2) Tạo JOB_DETAIL (nội dung định dạng)
+        if (!empty($d['content'])) {
+            $job->jobDetails()->create([
+                'content'    => $d['content'],
+                'notes'      => $d['notes'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
-
-            // 2) Tạo JOB_DETAIL (nội dung định dạng)
-            if (!empty($d['content'])) {
-                $job->jobDetails()->create([
-                    'content' => $d['content'],              // HTML từ editor
-                    'notes' => $d['notes'] ?? null,
-                    'created_at' => now(),                      // vì $timestamps=false trong model
-                    'updated_at' => now(),
-                ]);
-            }
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return back()->withErrors(['msg' => 'Không thể tạo job: ' . $e->getMessage()]);
         }
 
-        session()->forget($this->bag);
-
-        return redirect()
-            ->route('client.jobs.mine')
-            ->with('success', $autoApprove
-                ? 'Đăng job thành công!'
-                : 'Đã gửi job, đang chờ xét duyệt.');
+        DB::commit();
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        return back()->withErrors(['msg' => 'Không thể tạo job: ' . $e->getMessage()]);
     }
+
+    session()->forget($this->bag);
+
+    return redirect()
+        ->route('client.jobs.mine')
+        ->with('success', $autoApprove
+            ? 'Đăng job thành công!'
+            : 'Đã gửi job, đang chờ xét duyệt.');
+}
+
 }
