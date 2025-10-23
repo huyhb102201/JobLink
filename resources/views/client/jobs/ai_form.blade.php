@@ -40,64 +40,76 @@
       </div>
     </div>
 
-    {{-- Form đăng job (được AI điền sẵn) --}}
+    {{-- Form đăng job --}}
     <div class="col-12">
-      <form id="jobForm" method="POST" action="{{ route('client.jobs.ai.submit') }}" class="card border-0 shadow rounded-4">
-  @csrf
-  <div class="card-header bg-primary text-white rounded-top-4">
-    <strong><i class="bi bi-briefcase-fill me-2"></i>Form đăng job</strong>
-  </div>
-  <div class="card-body p-4">
+      <form id="jobForm" method="POST" action="{{ route('client.jobs.ai.submit') }}"
+        class="card border-0 shadow rounded-4">
+        @csrf
+        <div class="card-header bg-primary text-white rounded-top-4">
+          <strong><i class="bi bi-briefcase-fill me-2"></i>Form đăng job</strong>
+        </div>
+        <div class="card-body p-4">
 
-    <div class="mb-3">
-      <label class="form-label fw-semibold">Tiêu đề *</label>
-      <input name="title" id="f_title" class="form-control form-control-lg" placeholder="Tiêu đề ngắn gọn">
-    </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tiêu đề *</label>
+            <input name="title" id="f_title" class="form-control form-control-lg" placeholder="Tiêu đề ngắn gọn">
+          </div>
 
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Danh mục *</label>
-        <input name="category" id="f_category" class="form-control" placeholder="VD: Web Development">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Ngân sách</label>
-        <input name="budget" id="f_budget" class="form-control" placeholder="$300 hoặc $15-20/h">
-      </div>
-    </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Danh mục *</label>
+              <input type="hidden" name="category_id" id="f_category_id">
+              <input name="category" id="f_category" class="form-control" placeholder="VD: Web Development" readonly>
+            </div>
 
-    <div class="row g-3 mt-1">
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Hình thức thanh toán *</label>
-        <select name="payment_type" id="f_payment" class="form-select">
-          <option value="fixed">Trọn gói (Fixed)</option>
-          <option value="hourly">Theo giờ (Hourly)</option>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label fw-semibold">Deadline</label>
-        <input name="deadline" id="f_deadline" class="form-control" placeholder="VD: 2 tuần hoặc 2025-11-30">
-      </div>
-    </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tổng ngân sách (USD)</label>
+              <input name="total_budget" id="f_budget_total" class="form-control" placeholder="Tự động tính toán" >
+            </div>
+          </div>
 
-    <div class="mt-3">
-      <label class="form-label fw-semibold">Mô tả *</label>
-      <textarea name="description" id="f_description" rows="8" class="form-control"
-        placeholder="AI sẽ điền mô tả có cấu trúc. Bạn có thể chỉnh lại."></textarea>
-    </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Ngân sách mỗi freelancer (USD)</label>
+              <input name="budget" id="f_budget" class="form-control" placeholder="VD: 500" readonly>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Số lượng tuyển *</label>
+              <input name="quantity" id="f_quantity" type="number" class="form-control" min="1" value="1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Hình thức thanh toán *</label>
+              <select name="payment_type" id="f_payment" class="form-select">
+                <option value="fixed">Trọn gói (Fixed)</option>
+                <option value="hourly">Theo giờ (Hourly)</option>
+              </select>
+            </div>
+          </div>
 
-    <div class="d-flex justify-content-end mt-4">
-      <button class="btn btn-primary px-4"><i class="bi bi-send-fill"></i> Đăng job</button>
-    </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Deadline</label>
+              <input name="deadline" id="f_deadline" class="form-control" placeholder="VD: 2025-11-30 hoặc +2 tuần">
+            </div>
+          </div>
 
-  </div>
-</form>
+          <div class="mt-3">
+            <label class="form-label fw-semibold">Mô tả *</label>
+            <textarea name="description" id="f_description" rows="8" class="form-control"
+              placeholder="AI sẽ điền mô tả có cấu trúc. Bạn có thể chỉnh lại."></textarea>
+          </div>
 
+          <div class="d-flex justify-content-end mt-4">
+            <button class="btn btn-primary px-4"><i class="bi bi-send-fill"></i> Đăng job</button>
+          </div>
+
+        </div>
+      </form>
     </div>
   </div>
 </div>
 </main>
 @endsection
-
 @push('scripts')
 <script>
 const btn = document.getElementById('btnBuild');
@@ -126,16 +138,25 @@ btn.addEventListener('click', async () => {
     if (!data.ok) throw new Error(data.error || 'Lỗi AI');
 
     const d = data.data || {};
-    // điền form an toàn
-    document.getElementById('f_title').value       = d.title || '';
-    document.getElementById('f_category').value    = d.category || '';
-    document.getElementById('f_budget').value      = d.budget || '';
-    document.getElementById('f_payment').value     = (d.payment_type === 'hourly' ? 'hourly' : 'fixed');
-    document.getElementById('f_deadline').value    = d.deadline || '';
-    document.getElementById('f_description').value = d.description || (d._raw ?? '');
 
+    // --- Điền form ---
+    setVal('f_title', d.title || '');
+    setVal('f_category_id', d.category_id || '');
+    setVal('f_category', d.category_name || d.category || '');
+    setVal('f_payment', (d.payment_type === 'hourly' ? 'hourly' : 'fixed'));
+    setVal('f_quantity', d.quantity || 1);
+    setVal('f_budget_total', d.total_budget ?? '');
+    setVal('f_budget', d.budget ?? '');   // sẽ bị tính lại ngay bên dưới
+    setVal('f_deadline', d.deadline || '');
+    setVal('f_description', d.description || (d._raw ?? ''));
 
-    statusEl.textContent = 'Đã tạo xong! Kiểm tra lại và bấm Đăng job.';
+    // --- Chuẩn hoá theo luật: budget = total / quantity (vì budget readonly) ---
+    normalizeBudgetFromTotal();
+
+    // --- Gắn listener: khi sửa Tổng hoặc Số lượng -> cập nhật Đơn giá ---
+    hookupRecalcPerFromTotal();
+
+    statusEl.textContent = '✅ Đã tạo xong! Kiểm tra lại và bấm Đăng job.';
   } catch (e) {
     console.error(e);
     alert('Không tạo được. Thử mô tả rõ hơn hoặc thử lại sau.');
@@ -145,5 +166,43 @@ btn.addEventListener('click', async () => {
     btn.innerHTML = old;
   }
 });
+
+/* ================= Helpers ================= */
+
+function toNum(v) {
+  const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+function setVal(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.value = v;
+}
+function getEl(id){ return document.getElementById(id); }
+
+// Tính đơn giá = tổng / số lượng
+function normalizeBudgetFromTotal() {
+  const total = toNum(getEl('f_budget_total').value);
+  const qty   = Math.max(1, parseInt(getEl('f_quantity').value || 1));
+  const per   = qty > 0 ? total / qty : 0;
+  setVal('f_budget', per > 0 ? per.toFixed(2) : '');
+}
+
+// Lắng nghe thay đổi để luôn cập nhật đơn giá từ tổng
+function hookupRecalcPerFromTotal() {
+  const totalEl = getEl('f_budget_total');
+  const qtyEl   = getEl('f_quantity');
+
+  const recalc = () => {
+    normalizeBudgetFromTotal();
+  };
+
+  // Gỡ listener cũ (nếu có) rồi gắn lại để tránh nhân đôi
+  totalEl.removeEventListener?.('input', recalc);
+  qtyEl.removeEventListener?.('input', recalc);
+
+  totalEl.addEventListener('input', recalc);
+  qtyEl.addEventListener('input', recalc);
+}
 </script>
 @endpush
+

@@ -46,7 +46,7 @@ use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\ConnectedServicesController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ProfileAiController;
-
+use App\Http\Controllers\JobCompletionController;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
         ->name('profile.about.ai');
@@ -460,4 +460,17 @@ Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
 Route::post('/profiles/{profile:profile_id}/skills', [PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+
+Route::post('/client/tasks', [\App\Http\Controllers\TaskController::class, 'store'])
+    ->name('client.tasks.store')->middleware('auth');
+Route::patch('/client/jobs/{job}/complete', [JobCompletionController::class, 'complete'])
+    ->name('client.jobs.complete')
+    ->middleware(['auth']);
+
+Route::patch('/client/tasks/extend', [\App\Http\Controllers\TaskController::class, 'extendDueDate'])
+    ->name('client.tasks.extend')
+    ->middleware(['auth']);
+Route::post('/settings/billing/withdraw', [BillingController::class, 'withdraw'])
+    ->name('settings.billing.withdraw')
+    ->middleware('auth');
 
