@@ -93,15 +93,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
+    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.username');
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
+Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
 
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
+
     Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
         ->name('header.summary');
     Route::get('/notifications/header-data', [NotificationController::class, 'headerData'])
@@ -441,10 +444,10 @@ Route::view('/terms', 'legal.terms')->name('legal.terms');
 Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
 
 Route::post('/profile/avatar', [PortfolioController::class, 'upload'])
-        ->name('profile.avatar.upload');
+    ->name('profile.avatar.upload');
 
 Route::patch('/portfolios/location', [PortfolioController::class, 'updateLocation'])
-        ->name('portfolios.location.update');
+    ->name('portfolios.location.update');
 
 Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
 Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
@@ -455,6 +458,6 @@ use App\Http\Controllers\ReviewController;
 Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
-Route::post('/profiles/{profile:profile_id}/skills',[PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
+Route::post('/profiles/{profile:profile_id}/skills', [PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 

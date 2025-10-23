@@ -109,8 +109,6 @@
           </li>
         @endauth
 
-
-
         <li class="nav-item">
           <a class="nav-link {{ request()->is('orgs*') ? 'active fw-semibold' : '' }}" href="{{ url('/orgs') }}">
             Doanh nghiệp
@@ -276,7 +274,7 @@
                 const isUnread = (box.unread || 0) > 0;
                 return `
           <li class="${isUnread ? 'unread' : ''}">
-            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat?box=${box.id}">
+            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/chat">
               <img src="${box.avatar}" width="42" height="42" class="rounded-circle border" alt="avatar">
               <div class="flex-grow-1">
                 <div class="d-flex justify-content-between align-items-center">
@@ -349,9 +347,6 @@
             });
           });
         </script>
-
-
-
 
         <!-- Search -->
         <li class="nav-item position-relative">
