@@ -241,5 +241,4 @@
                 }
             }
         </style>
-        >>>>>>> origin/test
 @endsection
