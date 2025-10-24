@@ -12,7 +12,7 @@
           use Illuminate\Support\Facades\DB;
 
           $acct = ($account ?? auth()->user()?->loadMissing('type'));
-
+          $isClient = (($acct?->type?->code) === 'CLIENT');
           // BUSS hoặc là thành viên tổ chức (đang ACTIVE)
           $isBusiness = (($acct?->type?->code) === 'BUSS')
             || ($acct?->account_id
@@ -32,6 +32,15 @@
               class="nav-link @if(request()->routeIs('settings.company')) active @endif">
               Doanh nghiệp của tôi
             </a>
+          @elseif ($isClient)
+            {{-- ⚠️ Gói Client: hiển thị mờ + nút nâng cấp --}}
+            <a href="{{ url('/settings/upgrade') }}"
+              class="nav-link disabled-link d-flex align-items-center justify-content-between"
+              title="Nâng cấp gói Business để sử dụng mục này">
+              <span> Doanh nghiệp của tôi</span>
+              <span class="badge upgrade-badge ms-2">Nâng cấp</span>
+            </a>
+
           @endif
           <a href="{{ route('settings.billing') }}"
             class="nav-link @if(request()->routeIs('settings.billing')) active @endif">
@@ -103,6 +112,28 @@
       /* nền trắng giữ đơn giản */
       color: #000;
     }
+    .disabled-link {
+  opacity: 0.65;
+  pointer-events: auto;
+  transition: 0.2s;
+  color: #6c757d !important;
+}
+.disabled-link:hover {
+  opacity: 0.9;
+  background: #fff8e1;
+  color: #000 !important;
+}
+
+.upgrade-badge {
+  background: linear-gradient(135deg,#facc15 0%,#fbbf24 45%,#f59e0b 100%);
+  color: #000;
+  font-weight: 600;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+
   </style>
 
 @endsection

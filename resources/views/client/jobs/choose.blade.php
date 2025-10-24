@@ -158,32 +158,81 @@
                 </div>
 
                 {{-- Nhờ AI viết hộ --}}
-                <div class="col-md-6">
-                    <div class="option-card h-100">
-                        <div class="p-4 p-lg-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <span class="option-icon success"><i class="bi bi-stars"></i></span>
-                                <div class="ms-3">
-                                    <h5 class="mb-1">Nhờ AI viết hộ</h5>
-                                    <div class="text-muted small">Dán mô tả thô, AI tự tạo bản nháp & điền sẵn form.</div>
-                                </div>
-                            </div>
+               {{-- Nhờ AI viết hộ --}}
+<div class="col-md-6">
+  <div class="option-card h-100">
+    <div class="p-4 p-lg-4">
+      <div class="d-flex align-items-center mb-3">
+        <span class="option-icon success"><i class="bi bi-stars"></i></span>
+        <div class="ms-3">
+          <h5 class="mb-1">Nhờ AI viết hộ</h5>
+          <div class="text-muted small">Dán mô tả thô, AI tự tạo bản nháp & điền sẵn form.</div>
+        </div>
+      </div>
 
-                            <ul class="feature-list mb-4">
-                                <li><i class="bi bi-check2-circle"></i> Nhanh, gợi ý cấu trúc chuẩn</li>
-                                <li><i class="bi bi-check2-circle"></i> Vẫn chỉnh sửa thoải mái trước khi đăng</li>
-                            </ul>
+      <ul class="feature-list mb-4">
+        <li><i class="bi bi-check2-circle"></i> Nhanh, gợi ý cấu trúc chuẩn</li>
+        <li><i class="bi bi-check2-circle"></i> Vẫn chỉnh sửa thoải mái trước khi đăng</li>
+      </ul>
 
-                            <a class="btn btn-success w-100 py-2" href="{{ route('client.jobs.ai_form') }}">
-                                <i class="bi bi-magic me-1"></i> Dùng AI tạo form
-                            </a>
-                            <div class="small text-muted mt-2">Mẹo: nhập vài ràng buộc (tech stack, deadline, ngân sách) để
-                                AI điền chính xác hơn.</div>
-                        </div>
-                    </div>
-                </div>
+      @php
+        $user = Auth::user();
+        $isClient = $user && optional($user->type)->code === 'CLIENT';
+      @endphp
+
+      @if($isClient)
+        {{-- Nếu là Client: đổi nút sang Nâng cấp --}}
+        <a href="{{ url('/settings/upgrade') }}" class="btn btn-warning w-100 fw-semibold py-2 text-dark shadow-sm">
+          <i class="bi bi-rocket-takeoff-fill me-1"></i> Nâng cấp ngay
+        </a>
+        <div class="small text-muted mt-2">Tính năng AI chỉ dành cho gói cao hơn.</div>
+      @else
+        {{-- Nếu không phải Client: nút dùng AI --}}
+        <a class="btn btn-success w-100 py-2" href="{{ route('client.jobs.ai_form') }}">
+          <i class="bi bi-magic me-1"></i> Dùng AI tạo form
+        </a>
+        <div class="small text-muted mt-2">
+          Mẹo: nhập vài ràng buộc (tech stack, deadline, ngân sách) để AI điền chính xác hơn.
+        </div>
+      @endif
+    </div>
+  </div>
+</div>
+
             </div>
 
         </div>
     </div>
+    <style>
+        /* Hiệu ứng overlay khoá tính năng */
+        .locked-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(6px);
+            border-radius: 18px;
+            z-index: 5;
+            transition: all .25s ease;
+        }
+
+        .locked-overlay:hover {
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .locked-overlay i {
+            animation: float 1.8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
+        }
+    </style>
 @endsection
