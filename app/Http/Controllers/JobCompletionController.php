@@ -98,6 +98,15 @@ public function complete(Request $request, Job $job)
                 ]);
             }
         }
+        $acceptedIds = $accepted->pluck('account_id')->all();
+        DB::table('job_apply')
+            ->where('job_id', $job->job_id)
+            ->whereIn('user_id', $acceptedIds)   // cột user_id đang lưu account_id
+            ->where('status', 2)
+            ->update([
+                'status'     => 3,
+                'updated_at' => now(),
+            ]);
 
         // 6) Cập nhật job
         $job->status = 'completed';
