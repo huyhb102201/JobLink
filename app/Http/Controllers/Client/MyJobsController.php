@@ -10,6 +10,11 @@ use App\Models\JobApply;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\Skill;
+use App\Models\Notification;
+use App\Services\NotificationService;
+use App\Events\CommentNotificationBroadcasted;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 class MyJobsController extends Controller
 {
     public function index(\Illuminate\Http\Request $r)
@@ -55,6 +60,7 @@ class MyJobsController extends Controller
     public function update(Request $request, int $job_id, int $user_id)
     {
         $ownerId = $request->user()->account_id;
+        
 
         $job = \App\Models\Job::whereKey($job_id)->firstOrFail();
         abort_unless($job->account_id === $ownerId, 403);
@@ -101,7 +107,28 @@ class MyJobsController extends Controller
                 }
             }
         });
+         $notification = app(NotificationService::class)->create(
+                    userId: $user_id,
+                    type: Notification::TYPE_NOTIFICATION,
+                    title: 'Có người vừa duyệt đơn ứng tuyển của bạn',
+                    body: "Bạn vừa được duyệt đơn vào công việc: \"{$job->title}\"",
+                    meta: [
+                        'job_id' => $job->job_id,
+                        'applicant_id' => $ownerId,
+                    ],
+                    actorId: $ownerId,
+                    severity: 'medium'
+                );
 
+                // Broadcast realtime
+                try {
+                    broadcast(new CommentNotificationBroadcasted($notification, $user_id))->toOthers();
+                    Cache::forget("header_json_{$user_id}");
+                } catch (\Exception $e) {
+                    Log::error('Broadcast ứng tuyển thất bại', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
         return back()->with('success', 'Đã xác nhận Ứng viên.');
     }
 

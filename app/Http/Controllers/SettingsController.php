@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Job;
 use App\Models\JobApply;
 use App\Models\Account;
+use Illuminate\Support\Facades\Validator;
 class SettingsController extends Controller
 {
     // helper: load user + relations dùng chung
@@ -104,28 +105,45 @@ class SettingsController extends Controller
 
 public function updateSecurity(Request $request)
 {
-    $request->validate([
+    $v = Validator::make($request->all(), [
         'password_current' => 'required',
-        'password' => 'required|min:6|confirmed',
+        'password'         => 'required|min:6|confirmed',
+    ], [], [
+        'password_current' => 'mật khẩu hiện tại',
+        'password'         => 'mật khẩu mới',
+        'password_confirmation' => 'xác nhận mật khẩu',
     ]);
 
-    // Lấy tài khoản hiện tại theo ID đăng nhập
-    $account = Account::find(Auth::id());
+    if ($v->fails()) {
+        if ($request->expectsJson()) {
+            return response()->json(['errors' => $v->errors()], 422);
+        }
+        return back()->withErrors($v)->withInput();
+    }
 
+    $account = \App\Models\Account::find(Auth::id());
     if (!$account) {
-        return back()->withErrors(['msg' => 'Không tìm thấy tài khoản.']);
+        $msg = 'Không tìm thấy tài khoản.';
+        return $request->expectsJson()
+            ? response()->json(['message' => $msg], 404)
+            : back()->withErrors(['msg' => $msg]);
     }
 
-    // Kiểm tra mật khẩu hiện tại
     if (!Hash::check($request->password_current, $account->password)) {
-        return back()->withErrors(['password_current' => 'Mật khẩu hiện tại không đúng.']);
+        $msg = 'Mật khẩu hiện tại không đúng.';
+        if ($request->expectsJson()) {
+            return response()->json(['errors' => ['password_current' => [$msg]]], 422);
+        }
+        return back()->withErrors(['password_current' => $msg])->withInput();
     }
 
-    // Cập nhật mật khẩu mới
     $account->password = Hash::make($request->password);
     $account->save();
 
-    return back()->with('ok', 'Đã đổi mật khẩu thành công.');
+    $ok = 'Đã đổi mật khẩu thành công.';
+    return $request->expectsJson()
+        ? response()->json(['ok' => $ok])
+        : back()->with('ok', $ok);
 }
 
     public function updateNotifications(Request $request)
