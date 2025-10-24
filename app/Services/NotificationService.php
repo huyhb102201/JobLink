@@ -39,7 +39,7 @@ class NotificationService
                 'visible' => true,
             ]);
 
-             $this->emitHeaderSummary($userId);
+            $this->emitHeaderSummary($userId);
 
             return $notification;
         } catch (Exception $e) {
@@ -123,51 +123,51 @@ class NotificationService
     public function getHeaderChatList(int $userId): array
     {
         // 1) Lấy 5 box gần nhất, chỉ cột cần dùng + latestMessage
-       $boxes = BoxChat::select('id', 'type', 'sender_id', 'receiver_id', 'job_id', 'org_id', 'name', 'updated_at')
-    ->with([
-        'latestMessage' => function ($q) {
-            // Quan trọng: qualify cột với tên bảng để tránh ambiguous
-            $q->select(
-                'messages.id',
-                DB::raw('messages.box_id as box_id'),
-                'messages.content',
-                'messages.created_at'
-            );
-        }
-    ])
-    ->where(function ($q) use ($userId) {
-        $q->where(function ($q2) use ($userId) {
-            $q2->where('type', 1)
-               ->where(function ($q3) use ($userId) {
-                   $q3->where('sender_id', $userId)
-                      ->orWhere('receiver_id', $userId);
-               });
-        })->orWhere(function ($q2) use ($userId) {
-            $q2->where('type', 2)
-               ->whereExists(function ($q3) use ($userId) {
-                   $q3->select(DB::raw(1))
-                      ->from('jobs')
-                      ->whereColumn('jobs.job_id', 'box_chat.job_id')
-                      ->where('jobs.status', 'in_progress')
-                      ->where(function ($q4) use ($userId) {
-                          $q4->where('jobs.account_id', $userId)
-                             ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
-                      });
-               });
-        })->orWhere(function ($q2) use ($userId) {
-            $q2->where('type', 3)
-               ->whereExists(function ($q3) use ($userId) {
-                   $q3->select(DB::raw(1))
-                      ->from('org_members')
-                      ->whereColumn('org_members.org_id', 'box_chat.org_id')
-                      ->where('org_members.account_id', $userId)
-                      ->where('org_members.status', 'ACTIVE');
-               });
-        });
-    })
-    ->orderByDesc('updated_at')
-    ->take(5)
-    ->get();
+        $boxes = BoxChat::select('id', 'type', 'sender_id', 'receiver_id', 'job_id', 'org_id', 'name', 'updated_at')
+            ->with([
+                'latestMessage' => function ($q) {
+                    // Quan trọng: qualify cột với tên bảng để tránh ambiguous
+                    $q->select(
+                        'messages.id',
+                        DB::raw('messages.box_id as box_id'),
+                        'messages.content',
+                        'messages.created_at'
+                    );
+                }
+            ])
+            ->where(function ($q) use ($userId) {
+                $q->where(function ($q2) use ($userId) {
+                    $q2->where('type', 1)
+                        ->where(function ($q3) use ($userId) {
+                            $q3->where('sender_id', $userId)
+                                ->orWhere('receiver_id', $userId);
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 2)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('jobs')
+                                ->whereColumn('jobs.job_id', 'box_chat.job_id')
+                                ->where('jobs.status', 'in_progress')
+                                ->where(function ($q4) use ($userId) {
+                                    $q4->where('jobs.account_id', $userId)
+                                        ->orWhereRaw('find_in_set(?, jobs.apply_id)', [$userId]);
+                                });
+                        });
+                })->orWhere(function ($q2) use ($userId) {
+                    $q2->where('type', 3)
+                        ->whereExists(function ($q3) use ($userId) {
+                            $q3->select(DB::raw(1))
+                                ->from('org_members')
+                                ->whereColumn('org_members.org_id', 'box_chat.org_id')
+                                ->where('org_members.account_id', $userId)
+                                ->where('org_members.status', 'ACTIVE');
+                        });
+                });
+            })
+            ->orderByDesc('updated_at')
+            ->take(5)
+            ->get();
 
         // 2) Đếm unread mỗi box bằng 1 query join notifications + messages
         //    (meta.message_id là id message)
@@ -224,18 +224,18 @@ class NotificationService
             }
 
             return [
-                'id'           => $box->id,
-                'type'         => $box->type,
-                'name'         => $name,
-                'avatar'       => $avatar,
+                'id' => $box->id,
+                'type' => $box->type,
+                'name' => $name,
+                'avatar' => $avatar,
                 'last_message' => $lastMessage ?: '<i>Không có tin nhắn</i>',
-                'last_time'    => $lastTime ?: '',
-                'unread'       => (int) ($unreadByBox[$box->id] ?? 0),
+                'last_time' => $lastTime ?: '',
+                'unread' => (int) ($unreadByBox[$box->id] ?? 0),
             ];
         });
 
         return [
-            'boxes'        => $result,
+            'boxes' => $result,
             'unread_total' => $result->sum('unread'),
         ];
     }
@@ -252,7 +252,7 @@ class NotificationService
                 'read_at' => now(),
             ]);
 
-            $this->emitHeaderSummary($userId);
+        $this->emitHeaderSummary($userId);
     }
 
     public function markBoxMessagesAsRead(int $userId, int $boxId)
@@ -261,7 +261,8 @@ class NotificationService
             ->where('box_id', $boxId)
             ->pluck('id');
 
-        if ($messageIds->isEmpty()) return;
+        if ($messageIds->isEmpty())
+            return;
 
         Notification::forUser($userId)
             ->where('type', Notification::TYPE_MESSAGE)
@@ -273,18 +274,18 @@ class NotificationService
                 'is_read' => true,
                 'read_at' => now(),
             ]);
-            $this->emitHeaderSummary($userId);
+        $this->emitHeaderSummary($userId);
     }
 
-    
 
-private function emitHeaderSummary(int $userId): void
-{
-    $notif = $this->getHeaderData($userId);
-    $chat  = $this->getHeaderChatList($userId);
 
-    event(new HeaderSummaryUpdated($userId, $notif + ['chat' => $chat]));
-}
+    private function emitHeaderSummary(int $userId): void
+    {
+        $notif = $this->getHeaderData($userId);
+        $chat = $this->getHeaderChatList($userId);
+
+        event(new HeaderSummaryUpdated($userId, $notif + ['chat' => $chat]));
+    }
 
 }
 

@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
-use App\Events\MessageSent;
+use App\Events\MessageSent; 
+use Cloudinary\Api\Upload\UploadApi;
+use Illuminate\Support\Facades\Cache;
 
 class MessageService
 {
@@ -316,37 +318,49 @@ class MessageService
             throw new \Exception('File ảnh không hợp lệ.', 422);
         }
 
-        $directory = public_path('img/messages');
-        if (!File::exists($directory)) {
-            File::makeDirectory($directory, 0755, true);
-            Log::info('Created directory for messages images', ['directory' => $directory]);
-        }
-
-        $filename = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-        $fullPath = $directory . '/' . $filename;
+        $originalName = $file->getClientOriginalName();
+        $nameOnly = pathinfo($originalName, PATHINFO_FILENAME);
+        $ext = $file->getClientOriginalExtension();
 
         try {
-            $file->move($directory, $filename);
-            $imgPath = 'img/messages/' . $filename;
+            // Initialize Cloudinary Upload API
+            $uploadApi = new UploadApi();
 
-            if (File::exists($fullPath)) {
-                Log::info('Image saved and verified', [
-                    'path' => $imgPath,
-                    'full_path' => $fullPath,
-                    'size' => File::size($fullPath),
+            // Upload to Cloudinary
+            $uploadResult = $uploadApi->upload(
+                $file->getRealPath(),
+                [
+                    'resource_type' => 'image', // Specify image type
+                    'public_id' => "messages/{$nameOnly}", // Unique path in Cloudinary
+                    'format' => $ext, // File extension
+                    'overwrite' => true, // Overwrite if the same public_id exists
+                ]
+            );
+
+            $imgUrl = $uploadResult['secure_url'] ?? null;
+
+            if (!$imgUrl) {
+                Log::error('Failed to upload image to Cloudinary', [
+                    'filename' => $originalName,
+                    'tmp_path' => $file->getPathname(),
                 ]);
-                return $imgPath;
-            } else {
-                Log::error('Image saved but not found on disk', ['full_path' => $fullPath]);
-                throw new \Exception('Lưu ảnh thất bại: File không tồn tại sau khi lưu.', 500);
+                throw new \Exception('Lỗi khi tải ảnh lên Cloudinary.', 500);
             }
+
+            Log::info('Image uploaded to Cloudinary successfully', [
+                'url' => $imgUrl,
+                'public_id' => $uploadResult['public_id'],
+                'filename' => $originalName,
+            ]);
+
+            return $imgUrl; // Return the secure URL from Cloudinary
         } catch (\Exception $e) {
-            Log::error('Failed to save image', [
+            Log::error('Failed to upload image to Cloudinary', [
                 'error' => $e->getMessage(),
-                'filename' => $filename,
+                'filename' => $originalName,
                 'tmp_path' => $file->getPathname(),
             ]);
-            throw new \Exception('Lỗi khi lưu hình ảnh: ' . $e->getMessage(), 500);
+            throw new \Exception('Lỗi khi tải ảnh lên Cloudinary: ' . $e->getMessage(), 500);
         }
     }
 
@@ -483,39 +497,132 @@ class MessageService
         return $message;
     }
 
+    /** Key helper */
+    private function kBoxVer($boxId){ return "box:$boxId:ver"; }
+    private function kBoxLastId($boxId){ return "box:$boxId:last_id"; }
+    private function kBoxMsgs($boxId,$ver){ return "box:$boxId:messages:v$ver"; }
+
+    /** Lấy version hiện tại (dùng cho ETag) */
+    private function getBoxVersion($boxId): int
+    {
+        return (int) Cache::rememberForever($this->kBoxVer($boxId), fn()=>1);
+    }
+
+    /** Tăng version khi có tin nhắn mới */
+    private function bumpBoxVersion($boxId): int
+    {
+        return (int) Cache::increment($this->kBoxVer($boxId));
+    }
+
+    /** Ghi last_id để client gọi incremental nhanh */
+    private function setBoxLastId($boxId, $messageId): void
+    {
+        Cache::put($this->kBoxLastId($boxId), (int)$messageId, now()->addDays(7));
+    }
+
+    public function getBoxLastId($boxId): ?int
+    {
+        return Cache::get($this->kBoxLastId($boxId));
+    }
+
+    /** Lấy full messages có cache theo version */
+    public function getMessagesForBoxCached($boxId, $userId)
+    {
+        // Reuse kiểm tra quyền cũ:
+        $this->assertCanReadBox($boxId, $userId);
+
+        $ver = $this->getBoxVersion($boxId);
+        $cacheKey = $this->kBoxMsgs($boxId, $ver);
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function() use($boxId){
+            $messages = Message::with('sender')
+                ->where('box_id', $boxId)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // decrypt
+            foreach ($messages as $m) {
+                try { if ($m->content) $m->content = Crypt::decryptString($m->content);
+                } catch (\Exception $e) {
+                    Log::warning('Decrypt fail (cache load)', ['mid'=>$m->id,'err'=>$e->getMessage()]);
+                    $m->content = '[Không thể giải mã tin nhắn]';
+                }
+            }
+            return $messages;
+        });
+    }
+
+    /** Lấy messages tăng dần sau since_id (không cache vì nhỏ) */
+    public function getMessagesForBoxSince($boxId, $userId, $sinceId)
+    {
+        $this->assertCanReadBox($boxId, $userId);
+
+        $messages = Message::with('sender')
+            ->where('box_id', $boxId)
+            ->where('id', '>', (int)$sinceId)
+            ->orderBy('created_at','asc')
+            ->get();
+
+        foreach ($messages as $m) {
+            try { if ($m->content) $m->content = Crypt::decryptString($m->content);
+            } catch (\Exception $e) {
+                Log::warning('Decrypt fail (since)', ['mid'=>$m->id,'err'=>$e->getMessage()]);
+                $m->content = '[Không thể giải mã tin nhắn]';
+            }
+        }
+        return $messages;
+    }
+
+    /** Quyền đọc box (chắt lọc lại từ getMessagesForBox cũ) */
+    private function assertCanReadBox($boxId, $userId): void
+    {
+        $box = BoxChat::where('id',$boxId)->firstOrFail();
+
+        $ok = false;
+        if ($box->type == 1) {
+            $ok = ($box->sender_id == $userId || $box->receiver_id == $userId);
+        } elseif ($box->type == 2) {
+            $ok = DB::table('jobs')
+                ->where('job_id',$box->job_id)
+                ->where('status','in_progress')
+                ->where(function($q) use($userId){
+                    $q->where('account_id',$userId)
+                      ->orWhereRaw('find_in_set(?, apply_id)',[$userId]);
+                })->exists();
+        } else {
+            $ok = DB::table('org_members')
+                ->where('org_id',$box->org_id)
+                ->where('account_id',$userId)
+                ->where('status','ACTIVE')
+                ->exists();
+        }
+        if (!$ok) abort(404,'Box chat not found or access denied');
+    }
+
+    /** OVERRIDE createMessage: invalidate + set last_id + broadcast (giữ nguyên phần còn lại) */
     private function createMessage($data)
     {
         $message = Message::create($data);
 
         if ($message->box_id) {
+            // cập nhật updated_at cho box
             $boxToUpdate = BoxChat::find($message->box_id);
-            if ($boxToUpdate) {
-                $boxToUpdate->touch();
-                Log::info('Updated box_chat updated_at after new message', [
-                    'box_id' => $boxToUpdate->id,
-                    'new_updated_at' => $boxToUpdate->updated_at,
-                ]);
-            }
+            if ($boxToUpdate) $boxToUpdate->touch();
+
+            // invalidate cache theo version
+            $this->setBoxLastId($message->box_id, $message->id);
+            $newVer = $this->bumpBoxVersion($message->box_id);
+            Log::info('Bumped box version', ['box_id'=>$message->box_id,'ver'=>$newVer]);
         }
 
         $message->load('sender');
-        if (!$message->sender) {
-            Log::error('Sender not found for message', ['message_id' => $message->id, 'sender_id' => $data['sender_id']]);
-            throw new \Exception('Người gửi không tồn tại', 500);
+        try { broadcast(new MessageSent($message))->toOthers();
+        } catch(\Exception $e){
+            Log::error('Broadcasting failed',['message_id'=>$message->id,'error'=>$e->getMessage()]);
         }
-
-        try {
-            broadcast(new MessageSent($message))->toOthers();
-            Log::info('Message broadcasted successfully', ['message_id' => $message->id]);
-        } catch (\Exception $e) {
-            Log::error('Broadcasting failed', [
-                'message_id' => $message->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
         return $message;
     }
+
 
     public function getMessagesForPartner($partnerId, $jobId, $userId)
     {

@@ -15,6 +15,7 @@ use App\Services\NotificationService;
 use App\Events\CommentNotificationBroadcasted;
 use App\Events\NewCommentPosted;
 use Illuminate\Support\Facades\Cache;
+use Cloudinary\Api\Upload\UploadApi;
 
 class JobController extends Controller
 {
@@ -267,13 +268,60 @@ class JobController extends Controller
         $request->validate([
             'reason' => 'required|string|max:255',
             'message' => 'nullable|string',
-            'images.*' => 'nullable|image|max:2048',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
-        $paths = [];
+        $urls = [];
         if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $paths[] = $file->store('reports', 'public');
+            try {
+                $uploadApi = new UploadApi();
+                foreach ($request->file('images') as $file) {
+                    if (!$file->isValid()) {
+                        Log::error('Invalid image file uploaded', ['tmp_path' => $file->getPathname()]);
+                        throw new \Exception('File ảnh không hợp lệ.', 422);
+                    }
+
+                    $originalName = $file->getClientOriginalName();
+                    $nameOnly = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = $file->getClientOriginalExtension();
+
+                    // Upload to Cloudinary
+                    $uploadResult = $uploadApi->upload(
+                        $file->getRealPath(),
+                        [
+                            'resource_type' => 'image',
+                            'public_id' => "reports/{$nameOnly}_" . time(), // Unique public_id
+                            'format' => $ext,
+                            'overwrite' => true,
+                        ]
+                    );
+
+                    $imgUrl = $uploadResult['secure_url'] ?? null;
+                    if (!$imgUrl) {
+                        Log::error('Failed to upload image to Cloudinary', [
+                            'filename' => $originalName,
+                            'tmp_path' => $file->getPathname(),
+                        ]);
+                        throw new \Exception('Lỗi khi tải ảnh lên Cloudinary.', 500);
+                    }
+
+                    Log::info('Image uploaded to Cloudinary successfully', [
+                        'url' => $imgUrl,
+                        'public_id' => $uploadResult['public_id'],
+                        'filename' => $originalName,
+                    ]);
+
+                    $urls[] = $imgUrl;
+                }
+            } catch (\Exception $e) {
+                Log::error('Cloudinary upload failed', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lỗi khi tải ảnh lên Cloudinary: ' . $e->getMessage(),
+                ], 500);
             }
         }
 
@@ -282,7 +330,7 @@ class JobController extends Controller
             'user_id' => auth()->id(),
             'reason' => $request->reason,
             'message' => $request->message,
-            'img' => $paths ? implode(',', $paths) : null,
+            'img' => $urls ? implode(',', $urls) : null,
         ]);
 
         // === Gửi thông báo cho admin ===
@@ -339,45 +387,45 @@ class JobController extends Controller
         return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
     }
 
-   public function submitted_jobs(Request $request)
-{
-    $userId = Auth::id();
+    public function submitted_jobs(Request $request)
+    {
+        $userId = Auth::id();
 
-    // Lấy tất cả JobApply của user hiện tại, kèm quan hệ job, category, account, tasks
-    $query = JobApply::with([
-        'job.jobCategory',
-        'job.account.profile',
-        'job.tasks',
-        'user.profile'
-    ])->where('user_id', $userId);
+        // Lấy tất cả JobApply của user hiện tại, kèm quan hệ job, category, account, tasks
+        $query = JobApply::with([
+            'job.jobCategory',
+            'job.account.profile',
+            'job.tasks',
+            'user.profile'
+        ])->where('user_id', $userId)->whereHas('job');;
 
-    if ($request->has('status') && is_array($request->status)) {
-        $query->whereIn('status', $request->status);
+        if ($request->has('status') && is_array($request->status)) {
+            $query->whereIn('status', $request->status);
+        }
+
+        $applies = $query->orderBy('created_at', 'desc')->paginate(6);
+
+        // Lấy tất cả applicants khác đang làm cùng job (status = 2)
+        $jobIds = $applies->pluck('job_id')->unique();
+        $otherApplicants = JobApply::with('user.profile')
+            ->whereIn('job_id', $jobIds)
+            ->where('status', 2) // Đang làm
+            ->where('user_id', '<>', $userId) // Loại bỏ user hiện tại
+            ->get()
+            ->groupBy('job_id');
+
+        if ($request->ajax()) {
+            return response()->json([
+                'applies' => view('jobs.partials.jobs_apply_list', compact('applies', 'otherApplicants'))->render(),
+                'pagination' => view('components.pagination', [
+                    'paginator' => $applies,
+                    'elements' => $applies->links()->elements ?? []
+                ])->render(),
+            ]);
+        }
+
+        return view('jobs.submitted_jobs', compact('applies', 'otherApplicants'));
     }
-
-    $applies = $query->orderBy('created_at', 'desc')->paginate(6);
-
-    // Lấy tất cả applicants khác đang làm cùng job (status = 2)
-    $jobIds = $applies->pluck('job_id')->unique();
-    $otherApplicants = JobApply::with('user.profile')
-        ->whereIn('job_id', $jobIds)
-        ->where('status', 2) // Đang làm
-        ->where('user_id', '<>', $userId) // Loại bỏ user hiện tại
-        ->get()
-        ->groupBy('job_id');
-
-    if ($request->ajax()) {
-        return response()->json([
-            'applies' => view('jobs.partials.jobs_apply_list', compact('applies', 'otherApplicants'))->render(),
-            'pagination' => view('components.pagination', [
-                'paginator' => $applies,
-                'elements' => $applies->links()->elements ?? []
-            ])->render(),
-        ]);
-    }
-
-    return view('jobs.submitted_jobs', compact('applies', 'otherApplicants'));
-}
 
 
     public function userTasks(Job $job)

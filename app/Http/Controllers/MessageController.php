@@ -10,6 +10,7 @@ use App\Services\NotificationService;
 use App\Models\Notification;
 use App\Events\MessageNotificationBroadcasted;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Response;
 
 class MessageController extends Controller
 {
@@ -148,7 +149,7 @@ class MessageController extends Controller
             return response()->json([
                 'id' => $message->id,
                 'content' => $request->input('content'),
-                'img' => $message->img ? asset($message->img) : null,
+                'img' => $message->img ?: null,
                 'sender_id' => $message->sender_id,
                 'sender' => [
                     'name' => $message->sender->name,
@@ -184,7 +185,7 @@ class MessageController extends Controller
             return [
                 'id' => $message->id,
                 'content' => $message->content,
-                'img' => $message->img ? asset($message->img) : null,
+                'img' => $message->img ?: null,
                 'sender_id' => $message->sender_id,
                 'sender' => [
                     'name' => $message->sender->name,
@@ -197,31 +198,72 @@ class MessageController extends Controller
         }));
     }
 
-    public function getBoxMessages($boxId)
+    public function getBoxMessages(Request $req, $boxId)
     {
         try {
             $userId = Auth::id();
-            $messages = $this->messageService->getMessagesForBox($boxId, $userId);
 
-            return response()->json($messages->map(function ($message) {
-                return [
-                    'id' => $message->id,
-                    'content' => $message->content,
-                    'img' => $message->img ? asset($message->img) : null,
-                    'sender_id' => $message->sender_id,
-                    'sender' => [
-                        'name' => $message->sender->name,
-                        'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
-                    ],
-                    'job_id' => $message->job_id,
-                    'org_id' => $message->org_id,
-                    'conversation_id' => $message->conversation_id,
-                    'created_at' => $message->created_at->toISOString(),
-                ];
-            }));
+            // Incremental: nếu có since_id -> chỉ trả phần mới
+            if ($req->filled('since_id')) {
+                $msgs = $this->messageService->getMessagesForBoxSince($boxId, $userId, $req->input('since_id'));
+                $payload = $msgs->map(fn($m)=> $this->presentMessage($m));
+                // ETag tạm theo last id mới
+                $etag = '"' . sha1($boxId.'-since-'.$req->input('since_id').'-'.optional($msgs->last())->id) . '"';
+                return Response::json($payload, 200, [
+                    'ETag' => $etag,
+                    'Cache-Control' => 'private, max-age=0, must-revalidate',
+                ]);
+            }
+
+            // Full: lấy từ cache theo version
+            $messages = $this->messageService->getMessagesForBoxCached($boxId, $userId);
+            $last = $messages->last();
+            $ver = app(\App\Services\MessageService::class)->getBoxLastId($boxId) ?? optional($last)->id ?? 0;
+
+            // Tạo ETag & Last-Modified
+            $etag = '"' . sha1($boxId.'-'.$ver.'-'.$messages->count()) . '"';
+            $lastModified = optional($last)->created_at ? $last->created_at->toRfc7231String() : now()->toRfc7231String();
+
+            // Conditional headers: If-None-Match / If-Modified-Since
+            $ifNoneMatch = $req->headers->get('If-None-Match');
+            $ifModifiedSince = $req->headers->get('If-Modified-Since');
+
+            if ($ifNoneMatch === $etag || ($ifModifiedSince && strtotime($ifModifiedSince) >= strtotime($lastModified))) {
+                return response('', 304, [
+                    'ETag' => $etag,
+                    'Last-Modified' => $lastModified,
+                    'Cache-Control' => 'private, max-age=0, must-revalidate',
+                ]);
+            }
+
+            $payload = $messages->map(fn($m)=> $this->presentMessage($m));
+
+            return Response::json($payload, 200, [
+                'ETag' => $etag,
+                'Last-Modified' => $lastModified,
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], $e->getCode() ?: 404);
+            return response()->json(['error'=>$e->getMessage()], $e->getCode() ?: 404);
         }
+    }
+
+    private function presentMessage($message): array
+    {
+        return [
+            'id' => $message->id,
+            'content' => $message->content,
+            'img' => $message->img ?: null, // đã là Cloudinary URL
+            'sender_id' => $message->sender_id,
+            'sender' => [
+                'name' => $message->sender->name ?? 'Unknown',
+                'avatar_url' => $message->sender->avatar_url ?? asset('assets/img/defaultavatar.jpg'),
+            ],
+            'job_id' => $message->job_id,
+            'org_id' => $message->org_id,
+            'conversation_id' => $message->conversation_id,
+            'created_at' => $message->created_at->toISOString(),
+        ];
     }
 
    public function getChatList()

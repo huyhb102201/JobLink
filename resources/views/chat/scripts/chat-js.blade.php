@@ -273,54 +273,105 @@
         console.log('Subscribed to channel:', currentChannel);
     }
 
-    function handleMessageEvent(e) {
-        console.log('Received MessageSent event:', e);
-        const incomingMsg = e.message;
-        const isMe = incomingMsg.sender_id === window.authId;
+     // ===== In-memory cache =====
+    const messagesCache = new Map(); // boxId -> { list: [], etag: string|null, lastId: number|null, fetchedAt: ms }
+    let inflight = null;
 
-        if (!isMe && (currentPartnerId === incomingMsg.sender_id || currentJobId === incomingMsg.job_id || currentOrgId === incomingMsg.org_id)) {
-            const msgDiv = appendMessage(incomingMsg, false);
+    function renderFromCache(boxId, name) {
+        const cached = messagesCache.get(boxId);
+        const chatBox = document.getElementById('chatMessages');
+        chatBox.innerHTML = '';
+
+        if (!cached || !cached.list || cached.list.length === 0) {
+            chatBox.innerHTML = `<div class="message text-muted">Chưa có tin nhắn với ${name}</div>`;
+            return;
+        }
+        lastMessageTime = null;
+        lastSenderId = null;
+        cached.list.forEach(m => appendMessage(m, m.sender_id === window.authId, m.sender_id === window.authId ? 'Đã nhận' : ''));
+        scrollToBottom();
+    }
+
+    async function fetchMessagesFull(boxId) {
+        // tránh trùng req
+        if (inflight) try { inflight.cancel(); } catch(e){}
+        inflight = axios.CancelToken.source();
+
+        const headers = {};
+        const cached = messagesCache.get(boxId);
+        if (cached?.etag) headers['If-None-Match'] = cached.etag;
+
+        try {
+            const res = await axios.get(`/chat/box/${boxId}/messages`, { headers, cancelToken: inflight.token, validateStatus: s=> (s>=200 && s<300) || s===304 });
+            if (res.status === 304) {
+                // Không có gì mới -> dùng cache cũ
+                return { fromCache: true };
+            }
+            const etag = res.headers.etag || null;
+            const list = Array.isArray(res.data) ? res.data : [];
+            const lastId = list.length ? list[list.length-1].id : (cached?.lastId || null);
+
+            messagesCache.set(boxId, { list, etag, lastId, fetchedAt: Date.now() });
+            return { list };
+        } finally {
+            inflight = null;
         }
     }
 
-    function openBoxChat(name, element, partnerId, boxId, jobId = null, orgId = null) {
+    async function fetchMessagesSince(boxId) {
+        const cached = messagesCache.get(boxId);
+        if (!cached?.lastId) return null;
+
+        try {
+            const res = await axios.get(`/chat/box/${boxId}/messages?since_id=${cached.lastId}`, { validateStatus: s=> s>=200 && s<300 });
+            const newList = Array.isArray(res.data) ? res.data : [];
+            if (!newList.length) return 0;
+
+            // gộp + loại trùng
+            const map = new Map();
+            [...cached.list, ...newList].forEach(m => map.set(m.id, m));
+            const merged = [...map.values()].sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+
+            const newLastId = merged.length ? merged[merged.length-1].id : cached.lastId;
+            const etag = res.headers?.etag || cached.etag || null;
+
+            messagesCache.set(boxId, { list: merged, etag, lastId: newLastId, fetchedAt: Date.now() });
+            return newList.length;
+        } catch(e){
+            console.warn('since fetch error', e);
+            return null;
+        }
+    }
+
+    // === openBoxChat sửa lại ===
+    async function openBoxChat(name, element, partnerId, boxId, jobId = null, orgId = null) {
+        // Nếu đang ở đúng box và cache còn “fresh” (<15s) thì không fetch lại
+        if (currentBoxId === boxId) {
+            const cached = messagesCache.get(boxId);
+            if (cached && (Date.now() - (cached.fetchedAt||0) < 15000)) {
+                return; // không làm gì cả -> không giật màn hình
+            }
+        }
+
         currentChat = name;
         currentBoxId = boxId;
-        if (partnerId) {
-            currentPartnerId = partnerId;
-            currentJobId = null;
-            currentOrgId = null;
-        } else if (jobId) {
-            currentPartnerId = null;
-            currentJobId = jobId;
-            currentOrgId = null;
-        } else if (orgId) {
-            currentPartnerId = null;
-            currentJobId = null;
-            currentOrgId = orgId;
-        }
-        window.currentPartnerId = currentPartnerId;
-        window.currentJobId = currentJobId;
-        window.currentOrgId = currentOrgId;
+        if (partnerId) { currentPartnerId = partnerId; currentJobId = null; currentOrgId = null; }
+        else if (jobId) { currentPartnerId = null; currentJobId = jobId; currentOrgId = null; }
+        else if (orgId) { currentPartnerId = null; currentJobId = null; currentOrgId = orgId; }
 
         if (currentItem) currentItem.classList.remove('active');
-        if (element) {
-            currentItem = element;
-            currentItem.classList.add('active');
-        }
+        if (element) { currentItem = element; currentItem.classList.add('active'); }
 
         const header = document.getElementById('chatHeader');
         const chatInput = document.getElementById('chatInput');
 
         if (partnerId) {
-            const avatarImg = element.querySelector("img");
+            const avatarImg = element?.querySelector("img");
             const avatarUrl = avatarImg ? avatarImg.src : "{{ asset('assets/img/defaultavatar.jpg') }}";
-            // === Modified: Remove initial online status assumption, rely on presence channel ===
             header.innerHTML = `
                 <div class="d-flex align-items-center gap-2">
                     <div class="position-relative" style="width:45px;height:45px;">
-                        <img id="chatHeaderAvatar" src="${avatarUrl}" 
-                             class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
+                        <img id="chatHeaderAvatar" src="${avatarUrl}" class="rounded-circle" style="width:45px;height:45px;object-fit:cover;">
                         <span class="status-dot status-offline" id="chatHeaderStatus"></span>
                     </div>
                     <div>
@@ -329,25 +380,10 @@
                     </div>
                 </div>
             `;
-            // === Added: Update online status dynamically ===
-            if (window.Echo && partnerId) {
-                fetch(`/chat/user-status/${partnerId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        setUserOnline(partnerId, data.is_online);
-                    })
-                    .catch(err => console.error('Lỗi khi lấy trạng thái người dùng:', err));
-            }
         } else if (jobId) {
-            header.innerHTML = `
-                <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div>
-                <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>
-            `;
+            header.innerHTML = `<div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-group"><i class="bi bi-people"></i></span></div><div class="small text-muted" id="chatHeaderStatusText">Chat nhóm</div>`;
         } else if (orgId) {
-            header.innerHTML = `
-                <div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div>
-                <div class="small text-muted" id="chatHeaderStatusText">Chat nhóm tổ chức</div>
-            `;
+            header.innerHTML = `<div class="fw-bold" id="chatHeaderName">${name} <span class="chat-icon icon-org"><i class="bi bi-building"></i></span></div><div class="small text-muted" id="chatHeaderStatusText">Chat nhóm tổ chức</div>`;
         } else {
             header.innerHTML = `<div class="fw-bold">Chọn một cuộc trò chuyện</div>`;
         }
@@ -356,40 +392,57 @@
 
         const chatBox = document.getElementById('chatMessages');
         chatBox.innerHTML = `<div class="message text-muted">Đang tải tin nhắn...</div>`;
-        lastMessageTime = null;
+        lastMessageTime = null; lastSenderId = null;
 
-        fetch(`/chat/box/${boxId}/messages`)
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to load messages');
-                return res.json();
-            })
-            .then(data => {
-                chatBox.innerHTML = '';
-                if (data.length === 0 || (Array.isArray(data) && data.length === 0)) {
-                    chatBox.innerHTML = `<div class="message text-muted">Chưa có tin nhắn với ${name}</div>`;
-                } else {
-                    data.forEach(msg => appendMessage(
-                        msg,
-                        msg.sender_id === window.authId,
-                        msg.sender_id === window.authId ? 'Đã nhận' : ''
-                    ));
-                }
-                scrollToBottom();
-            })
-            .catch(err => {
-                console.error(err);
-                chatBox.innerHTML = `<div class="message text-muted">Lỗi khi tải tin nhắn.</div>`;
-            });
+        // 1) Render ngay từ cache nếu có (không giật UI)
+        const cached = messagesCache.get(boxId);
+        if (cached) renderFromCache(boxId, name);
 
-        if (window.Echo) {
-            subscribeToChannel(partnerId, jobId, orgId);
+        // 2) Fetch bằng Conditional GET (có thể trả 304)
+        const full = await fetchMessagesFull(boxId);
+        if (full?.list) renderFromCache(boxId, name);
+
+        // 3) Đăng ký kênh realtime (chỉ append phần mới)
+        if (window.Echo) subscribeToChannel(partnerId, jobId, orgId);
+
+        // 4) Nếu đang mở sẵn rồi và có lastId -> thử incremental một nhịp
+        if (cached?.lastId) {
+            const added = await fetchMessagesSince(boxId);
+            if (added > 0) renderFromCache(boxId, name);
         }
 
-        if (offcanvas && window.innerWidth < 1200) {
-            offcanvas.hide();
-        }
+        // 5) Mobile offcanvas: đóng lại
+        if (offcanvas && window.innerWidth < 1200) offcanvas.hide();
     }
 
+    // Khi nhận broadcast: append + update cache, KHÔNG refetch
+    function handleMessageEvent(e) {
+        const incoming = e.message;
+        const isMe = incoming.sender_id === window.authId;
+
+        // chỉ xử lý nếu tin thuộc box đang mở
+        if (currentBoxId) {
+            // đoán định box hiện tại bằng 1-1 / group / org
+            const belongs =
+                (currentPartnerId && (incoming.sender_id === currentPartnerId || incoming.conversation_id === currentPartnerId)) ||
+                (currentJobId && incoming.job_id === currentJobId) ||
+                (currentOrgId && incoming.org_id === currentOrgId);
+
+            if (belongs) {
+                // cập nhật cache
+                const cached = messagesCache.get(currentBoxId) || { list: [], etag: null, lastId: null, fetchedAt: 0 };
+                // tránh trùng
+                if (!cached.list.some(m => m.id === incoming.id)) {
+                    cached.list.push(incoming);
+                    cached.lastId = incoming.id;
+                    cached.fetchedAt = Date.now();
+                    messagesCache.set(currentBoxId, cached);
+                    appendMessage(incoming, isMe, isMe ? 'Đã nhận' : '');
+                }
+            }
+        }
+    }
+    
     function sendMessage() {
         if (!currentChat || (!currentPartnerId && !currentJobId && !currentOrgId)) {
             alert('Chọn một cuộc trò chuyện trước!');
