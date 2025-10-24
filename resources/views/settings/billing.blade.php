@@ -96,13 +96,34 @@
         </div>
         <div class="text-end">
           <button id="btnOpenWithdraw"
-                  class="btn btn-primary px-4 py-2"
-                  data-balance-cents="{{ $balanceCents }}"
-                  data-bs-toggle="modal"
-                  data-bs-target="#withdrawModal"
-                  @if(!$hasCards || $balanceCents <= 0) disabled @endif>
-            <i class="bi bi-cash-coin me-1"></i> Rút tiền
-          </button>
+  class="btn btn-gradient px-4 py-2 fw-semibold shadow-sm"
+  data-balance-cents="{{ $balanceCents }}"
+  data-bs-toggle="modal"
+  data-bs-target="#withdrawModal"
+  @if(!$hasCards || $balanceCents <= 0) disabled @endif>
+  <i class="bi bi-cash-coin me-1"></i> Rút tiền
+</button>
+
+<style>
+.btn-gradient {
+  background: linear-gradient(135deg, #007bff 0%, #00c6ff 100%);
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  transition: all 0.25s ease;
+}
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3);
+}
+.btn-gradient:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+</style>
+
           <div id="withdrawHint" class="small text-muted mt-2">
             @if(!$hasCards)
               Hãy thêm thẻ ngân hàng trước khi rút.
