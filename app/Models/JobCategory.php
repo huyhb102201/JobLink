@@ -15,6 +15,7 @@ class JobCategory extends Model
     protected $fillable = [
         'name',
         'description',
+        'img_url',
     ];
 
     // Quan hệ với Job (1 category có nhiều job)

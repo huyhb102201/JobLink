@@ -119,34 +119,6 @@
             href="{{ url('/contact') }}">Liên hệ</a>
         </li>
 
-        <!-- === Notifications === -->
-        <li class="dropdown" id="header-notifications">
-          <a class="nav-link position-relative" href="{{ url('/notifications') }}" data-bs-toggle="dropdown"
-            aria-expanded="false">
-            <i class="bi bi-bell fs-5"></i>
-            <span id="notif-badge"
-              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-          </a>
-          <ul id="notif-list" class="dropdown-menu shadow-sm border-0 p-0"
-            style="min-width:260px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
-            <li class="text-center text-muted py-2">Đang tải...</li>
-          </ul>
-        </li>
-
-        <!-- === Chat Dropdown === -->
-        <li class="dropdown" id="chat-header-box">
-          <a class="nav-link position-relative" href="{{ url('/chat') }}" data-bs-toggle="dropdown"
-            aria-expanded="false">
-            <i class="bi bi-chat-dots fs-5"></i>
-            <span id="chat-badge"
-              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-          </a>
-          <ul id="chat-dropdown" class="dropdown-menu shadow-sm border-0 p-0"
-            style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
-            <li class="text-center text-muted py-2">Đang tải...</li>
-          </ul>
-        </li>
-
         <!-- === STYLE (Bootstrap 5 friendly) === -->
         <style>
           /* --- THÔNG BÁO --- */
@@ -204,6 +176,35 @@
             vertical-align: middle;
           }
         </style>
+        
+        <!-- === Notifications === -->
+        <li class="dropdown" id="header-notifications">
+          <a class="nav-link position-relative" href="{{ url('/notifications') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <i class="bi bi-bell fs-5"></i>
+            <span id="notif-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </a>
+          <ul id="notif-list" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:260px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
+          </ul>
+        </li>
+
+        <!-- === Chat Dropdown === -->
+        <li class="dropdown" id="chat-header-box">
+          <a class="nav-link position-relative" href="{{ url('/chat') }}" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <i class="bi bi-chat-dots fs-5"></i>
+            <span id="chat-badge"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
+          </a>
+          <ul id="chat-dropdown" class="dropdown-menu shadow-sm border-0 p-0"
+            style="min-width:300px; font-size:.9rem; max-height:420px; overflow-y:auto; border-radius:10px;">
+            <li class="text-center text-muted py-2">Đang tải...</li>
+          </ul>
+        </li>
+
         @php
           $service = app(\App\Services\NotificationService::class);
           $userId = Auth::id();

@@ -397,7 +397,7 @@ class JobController extends Controller
             'job.account.profile',
             'job.tasks',
             'user.profile'
-        ])->where('user_id', $userId);
+        ])->where('user_id', $userId)->whereHas('job');;
 
         if ($request->has('status') && is_array($request->status)) {
             $query->whereIn('status', $request->status);

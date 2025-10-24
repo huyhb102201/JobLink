@@ -20,8 +20,9 @@
                 <div class="row g-0">
                     <!-- Ảnh job -->
                     <div class="col-md-4 d-flex justify-content-center align-items-center p-2">
-                        <img src="{{ $job->image ?? asset('assets/img/blog/blog-1.jpg') }}" class="img-fluid rounded"
-                            alt="{{ $job->title }}">
+                        <img src="{{ optional($job->jobCategory)->img_url ?? 'https://res.cloudinary.com/dkviqml2h/image/upload/v1761275988/messages/image.png' }}"
+                            alt="{{ optional($job->jobCategory)->name ?? 'Others' }}"
+                            class="img-fluid rounded">
                     </div>
                     <!-- Thông tin job -->
                     <div class="col-md-8">
@@ -38,8 +39,9 @@
 
                             <!-- Người đăng -->
                             <div class="d-flex align-items-center mb-2">
-                                <img src="{{ optional($job->account)->avatar_url ?? asset('assets/img/defaultavatar.jpg') }}"
-                                    alt="{{ optional($job->account)->name ?? 'Người đăng' }}" class="rounded-circle me-2"
+                                <img src="{{ optional($job->account)->avatar_url ?? 'https://res.cloudinary.com/dkviqml2h/image/upload/v1761276631/messages/defaultavatar.jpg' }}"
+                                    alt="{{ optional($job->account)->name ?? 'Người đăng' }}"
+                                    class="rounded-circle me-2"
                                     width="40" height="40">
                                 <div>
                                     <p class="mb-0 fw-bold">
