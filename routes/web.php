@@ -508,13 +508,15 @@ Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesControl
     ->name('settings.connected.unlink');
 
 // OAuth
-Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
-    ->whereIn('provider', ['github', 'facebook'])
+// routes/web.php
+use App\Http\Controllers\OAuthController;
+
+Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])
     ->name('oauth.redirect');
 
-Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
-    ->whereIn('provider', ['github', 'facebook'])
+Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])
     ->name('oauth.callback');
+
 
 // LEGAL PAGES
 Route::view('/terms', 'legal.terms')->name('legal.terms');
@@ -571,3 +573,8 @@ Route::get('/checkout/stripe/cancel', [StripeCheckoutController::class, 'cancel'
 // routes/api.php (webhook)
 Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
 
+
+
+// ✅ Thêm cặp route “tổng quát” (dùng cho nút Liên kết có ?mode=link)
+Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->name('oauth.redirect');
+Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');

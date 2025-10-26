@@ -23,8 +23,8 @@
                             @if($linked['github'])
                                 <div class="small text-muted">
                                     Đã liên kết:
-                                    <a href="{{ $linked['github']->profile_url }}" target="_blank" rel="noopener">
-                                        {{ $linked['github']->display_name ?? $linked['github']->profile_url }}
+                                    <a href="{{ $linked['github']->nickname }}" target="_blank" rel="noopener">
+                                        {{ $linked['github']->nickname }}
                                     </a>
                                 </div>
                             @else
@@ -42,7 +42,7 @@
                                 </button>
                             </form>
                         @else
-                            <a href="{{ route('oauth.redirect', 'github') }}" class="btn btn-dark btn-sm">
+                            <a href="{{ route('oauth.redirect', 'github') }}?mode=link" class="btn btn-dark btn-sm">
                                 <i class="bi bi-github me-1"></i> Liên kết GitHub
                             </a>
                         @endif
