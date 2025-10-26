@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\AccountType;
 use App\Models\SocialAccount; // ✅ THÊM: dùng cho nhánh liên kết
-
+use App\Http\Controllers\OAuthController;
 class SocialController extends Controller
 {
     // --- GOOGLE ---
@@ -108,96 +108,14 @@ class SocialController extends Controller
 
     public function githubRedirect(Request $request)
     {
-        // Nếu là "liên kết", bắt buộc đã đăng nhập và gắn cờ vào session
-        if ($request->query('mode') === 'link') {
-            if (!Auth::check()) {
-                return redirect()->route('login')
-                    ->with('error', 'Vui lòng đăng nhập trước khi liên kết tài khoản.');
-            }
-            session(['oauth_linking' => 'github']);
-        } else {
-            session()->forget('oauth_linking');
-        }
-
-        return Socialite::driver('github')->redirect();
+        // proxy sang OAuthController, ép provider = 'github'
+        return app(OAuthController::class)->redirect($request, 'github');
     }
 
     public function githubCallback(Request $request)
     {
-        // Có thể dùng stateless để an toàn với proxy; session vẫn đọc được.
-        $gh = Socialite::driver('github')->stateless()->user();
-
-        // ========== NHÁNH LIÊN KẾT ==========
-        $isLinking = session('oauth_linking') === 'github' && Auth::check();
-        if ($isLinking) {
-            $account = Auth::user();
-
-            // Fallback email (nếu user ẩn email trên GitHub)
-            $email = $gh->getEmail()
-                ?? ($gh->user['email'] ?? null)
-                ?? ($gh->getNickname() ? $gh->getNickname() . '@users.noreply.github.com' : null);
-
-            // Không cho một GitHub profile gắn với 2 account khác nhau
-            $existsElsewhere = SocialAccount::where('provider', 'github')
-                ->where('provider_id', (string) $gh->getId())
-                ->where('account_id', '!=', $account->account_id)
-                ->exists();
-            if ($existsElsewhere) {
-                session()->forget('oauth_linking');
-                return redirect()->route('settings.connected')
-                    ->with('error', 'Tài khoản GitHub này đã được liên kết với người dùng khác.');
-            }
-
-            // URL profile GitHub để lưu vào cột nickname (theo đúng yêu cầu)
-            $githubUrl = $this->githubProfileUrl($gh->getNickname(), $gh->getId());
-
-            // Lưu/cập nhật vào bảng social_accounts
-            SocialAccount::updateOrCreate(
-                [
-                    'account_id' => $account->account_id,
-                    'provider'   => 'github',
-                ],
-                [
-                    'provider_id'      => (string) $gh->getId(),
-                    'nickname'         => $githubUrl,                                 // <-- lưu URL vào nickname
-                    'name'             => $gh->getName() ?: $gh->getNickname(),
-                    'email'            => $email,
-                    'avatar'           => $gh->getAvatar(),
-                    'token'            => $gh->token ?? null,
-                    'refresh_token'    => $gh->refreshToken ?? null,
-                    'token_expires_at' => isset($gh->expiresIn) ? now()->addSeconds((int) $gh->expiresIn) : null,
-                ]
-            );
-
-            session()->forget('oauth_linking');
-
-            // ❌ KHÔNG đăng nhập lại
-            return redirect()->route('settings.connected')
-                ->with('success', 'Đã liên kết GitHub thành công.');
-        }
-
-        // ========== NHÁNH ĐĂNG NHẬP ==========
-        // (giữ nguyên behavior login bằng GitHub như trước)
-        $email = $gh->getEmail()
-            ?? ($gh->user['email'] ?? null)
-            ?? ($gh->getNickname() ? $gh->getNickname() . '@users.noreply.github.com' : null);
-
-        $payload = [
-            'provider'    => 'github',
-            'provider_id' => (string) $gh->getId(),
-            'email'       => $email,
-            'name'        => $gh->getName() ?: $gh->getNickname() ?: 'GitHub User',
-            'avatar_url'  => $gh->getAvatar(),
-            'username'    => $gh->getNickname(),
-        ];
-
-        $account = $this->upsertAccountFromOAuth($payload, $request);
-        Auth::login($account, true);
-
-        if ((int) $account->account_type_id === $this->typeIdByCode('GUEST')) {
-            return redirect()->route('role.select');
-        }
-        return redirect()->intended('/');
+        // proxy sang OAuthController, ép provider = 'github'
+        return app(OAuthController::class)->callback($request, 'github');
     }
 
     private function githubProfileUrl(?string $nickname, $id): string
