@@ -551,3 +551,11 @@ Route::get('/checkout/stripe/cancel',  [StripeCheckoutController::class, 'cancel
 // routes/api.php (webhook)
 Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
 
+
+// ✅ Giữ URL cũ cho login, nhưng trỏ sang OAuthController
+Route::get('auth/github/redirect', [OAuthController::class, 'redirect'])->name('github.redirect');
+Route::get('auth/github/callback', [OAuthController::class, 'callback']);
+
+// ✅ Thêm cặp route “tổng quát” (dùng cho nút Liên kết có ?mode=link)
+Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->name('oauth.redirect');
+Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
