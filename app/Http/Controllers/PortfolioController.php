@@ -29,7 +29,7 @@ class PortfolioController extends Controller
             ->where('username', $username)
             ->firstOrFail();
 
-        $account = $profile->account;
+        $account = $profile->account->loadMissing('socialAccounts');
 
         // Jobs
         $jobs = $account->jobs()

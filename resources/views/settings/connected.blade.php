@@ -50,34 +50,7 @@
                 </div>
 
                 {{-- Facebook --}}
-                <div class="list-group-item d-flex align-items-center justify-content-between px-0">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="bi bi-facebook fs-3"></i>
-                        <div>
-                            <div class="fw-semibold">Facebook</div>
-                            @if($linked['facebook'])
-                                <div class="small text-muted">
-                                    Đã liên kết: {{ $linked['facebook']->name ?? $linked['facebook']->email ?? 'Tài khoản' }}
-                                </div>
-                            @else
-                                <div class="small text-muted">Chưa liên kết</div>
-                            @endif
-                        </div>
-                    </div>
-                    <div>
-                        @if($linked['facebook'])
-                            <form method="POST" action="{{ route('settings.connected.unlink', 'facebook') }}">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-outline-danger btn-sm">
-                                    Hủy liên kết
-                                </button>
-                            </form>
-                        @else
-                            <a href="{{ route('oauth.redirect', 'facebook') }}" class="btn btn-primary btn-sm">
-                                <i class="bi bi-facebook me-1"></i> Liên kết Facebook
-                            </a>
-                        @endif
-                    </div>
+                    
                 </div>
             </div>
 

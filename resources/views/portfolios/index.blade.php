@@ -439,14 +439,19 @@
                     <div class="card-body">
                         <h5 class="fw-bold mb-3"><i class="bi bi-share me-2"></i>Liên hệ & Mạng xã hội</h5>
                         <div class="mt-2 d-flex align-items-center">
-                            <a href="{{ $profile->github ?? '#' }}" class="btn btn-outline-dark btn-sm me-1"
-                                target="_blank">
-                                <i class="bi bi-github"></i>
-                            </a>
-                            <a href="{{ $profile->facebook ?? '#' }}" class="btn btn-outline-primary btn-sm me-1"
-                                target="_blank">
-                                <i class="bi bi-facebook"></i>
-                            </a>
+                            @php
+    $githubUrl = optional($account->socialAccounts->firstWhere('provider', 'github'))->nickname;
+@endphp
+
+@if($githubUrl)
+    <a href="{{ $githubUrl }}" 
+       class="btn btn-outline-dark btn-sm me-1" 
+       target="_blank" 
+       rel="noopener">
+       <i class="bi bi-github"></i>
+    </a>
+@endif
+
                             <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ $account->email }}"
                                 class="btn btn-outline-danger btn-sm" target="_blank">
                                 <i class="bi bi-envelope-fill"></i>
