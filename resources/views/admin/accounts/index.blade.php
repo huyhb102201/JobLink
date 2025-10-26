@@ -794,11 +794,15 @@ $(document).ready(function() {
     $('.column-filter').on('keyup change', function() {
         const columnIndex = $(this).data('column');
         let searchValue = $(this).val().trim();
+        const currentFilter = $(this);
         
         // Clear all column searches
         for (let i = 0; i < 8; i++) {
             table.column(i).search('');
         }
+        
+        // Clear all other filter inputs (only keep the current one)
+        $('.column-filter').not(currentFilter).val('');
         
         // Set active filter
         activeFilterColumn = searchValue ? columnIndex : null;

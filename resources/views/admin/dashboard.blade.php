@@ -315,7 +315,7 @@
         <div class="col-xl-4 col-lg-6">
             <div class="chart-container">
                 <h5 class="section-title">Thống kê theo vai trò</h5>
-                <div style="height: 400px; position: relative;">
+                <div style="height: 350px; position: relative;">
                     <canvas id="userRoleChart"></canvas>
                 </div>
             </div>
@@ -325,7 +325,7 @@
         <div class="col-xl-4 col-lg-6">
             <div class="chart-container">
                 <h5 class="section-title">Job theo trạng thái</h5>
-                <div style="height: 300px; position: relative;">
+                <div style="height: 350px; position: relative;">
                     <canvas id="jobStatusChart"></canvas>
                 </div>
             </div>
@@ -335,7 +335,7 @@
         <div class="col-xl-4 col-lg-6">
             <div class="chart-container">
                 <h5 class="section-title">Thanh toán theo trạng thái</h5>
-                <div style="height: 300px; position: relative;">
+                <div style="height: 350px; position: relative;">
                     <canvas id="paymentStatusChart"></canvas>
                 </div>
             </div>

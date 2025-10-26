@@ -71,6 +71,24 @@
                 <i class="fa-solid fa-star me-2"></i> Đánh giá
             </a>
         </li>
+
+        <!-- Quản lý báo cáo job -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white {{ request()->is('admin/job-reports*') ? 'active' : '' }}"
+               href="{{ route('admin.job-reports.index') }}"
+               style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <i class="fa-solid fa-flag me-2"></i> Báo cáo Job
+            </a>
+        </li>
+
+        <!-- Quản lý kỹ năng -->
+        <li class="nav-item mb-2">
+            <a class="nav-link text-white {{ request()->is('admin/skills*') ? 'active' : '' }}"
+               href="{{ route('admin.skills.index') }}"
+               style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                <i class="fa-solid fa-tags me-2"></i> Quản lý Kỹ năng
+            </a>
+        </li>
         
         <!-- Dropdown Thanh toán -->
         <li class="nav-item mb-2">

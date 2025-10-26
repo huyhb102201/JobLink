@@ -371,17 +371,17 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
     Route::put('/account-types/{id}', [AccountController::class, 'updateAccountType'])->name('account-types.update');
     Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
-    
+
     // THÊM ROUTE EXPORT PAYMENTS
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
-    
+
     // TEST ROUTE
-    Route::get('/test-simple', function() {
+    Route::get('/test-simple', function () {
         return 'Server hoạt động bình thường!';
     });
-    
-    
-    Route::get('/test-accounts', function() {
+
+
+    Route::get('/test-accounts', function () {
         $start = microtime(true);
         $accounts = App\Models\Account::limit(5)->get();
         $end = microtime(true);
@@ -398,7 +398,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
     Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
     Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
-    
+
     // ==========================================================
     // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
     // ==========================================================
@@ -411,7 +411,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::post('/verifications/bulk-approve', [AdminVerificationController::class, 'bulkApprove'])->name('verifications.bulk-approve');
     Route::post('/verifications/bulk-reject', [AdminVerificationController::class, 'bulkReject'])->name('verifications.bulk-reject');
     // ==========================================================
-    
+
     // ==========================================================
     // ROUTES QUẢN LÝ DANH MỤC
     // ==========================================================
@@ -421,7 +421,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
     // ==========================================================
-    
+
     // ==========================================================
     // ROUTES QUẢN LÝ ĐÁNH GIÁ
     // ==========================================================
@@ -429,6 +429,28 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::get('/reviews/{id}', [ReviewController::class, 'show'])->name('reviews.show');
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     Route::post('/reviews/destroy-multiple', [ReviewController::class, 'destroyMultiple'])->name('reviews.destroy-multiple');
+    // ==========================================================
+
+    // ==========================================================
+    // ROUTES QUẢN LÝ BÁO CÁO JOB
+    // ==========================================================
+    Route::get('/job-reports', [JobReportController::class, 'index'])->name('job-reports.index');
+    Route::get('/job-reports/{jobId}/details', [JobReportController::class, 'getDetails'])->name('job-reports.details');
+    Route::delete('/job-reports/{id}', [JobReportController::class, 'destroy'])->name('job-reports.destroy');
+    Route::delete('/job-reports/job/{jobId}', [JobReportController::class, 'destroyByJob'])->name('job-reports.destroy-by-job');
+    Route::post('/job-reports/job/{jobId}/toggle-lock', [JobReportController::class, 'toggleLockByJob'])->name('job-reports.toggle-lock');
+    Route::post('/job-reports/bulk-lock', [JobReportController::class, 'bulkLock'])->name('job-reports.bulk-lock');
+    Route::post('/job-reports/bulk-unlock', [JobReportController::class, 'bulkUnlock'])->name('job-reports.bulk-unlock');
+    // ==========================================================
+
+    // ==========================================================
+    // ROUTES QUẢN LÝ KỸ NĂNG
+    // ==========================================================
+    Route::get('/skills', [SkillController::class, 'index'])->name('skills.index');
+    Route::get('/skills/{id}', [SkillController::class, 'show'])->name('skills.show');
+    Route::post('/skills', [SkillController::class, 'store'])->name('skills.store');
+    Route::put('/skills/{id}', [SkillController::class, 'update'])->name('skills.update');
+    Route::delete('/skills/{id}', [SkillController::class, 'destroy'])->name('skills.destroy');
     // ==========================================================
 });
 
@@ -546,7 +568,7 @@ use App\Http\Controllers\StripeCheckoutController;
 
 Route::post('/checkout/stripe', [StripeCheckoutController::class, 'createCheckout'])->name('stripe.checkout');
 Route::get('/checkout/stripe/success', [StripeCheckoutController::class, 'success'])->name('stripe.success');
-Route::get('/checkout/stripe/cancel',  [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
+Route::get('/checkout/stripe/cancel', [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
 
 // routes/api.php (webhook)
 Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
