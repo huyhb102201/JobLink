@@ -441,10 +441,10 @@ Route::view('/terms', 'legal.terms')->name('legal.terms');
 Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
 
 Route::post('/profile/avatar', [PortfolioController::class, 'upload'])
-        ->name('profile.avatar.upload');
+    ->name('profile.avatar.upload');
 
 Route::patch('/portfolios/location', [PortfolioController::class, 'updateLocation'])
-        ->name('portfolios.location.update');
+    ->name('portfolios.location.update');
 
 Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
 Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
@@ -455,7 +455,7 @@ use App\Http\Controllers\ReviewController;
 Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
-Route::post('/profiles/{profile:profile_id}/skills',[PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
+Route::post('/profiles/{profile:profile_id}/skills', [PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 
 Route::post('/client/tasks', [\App\Http\Controllers\TaskController::class, 'store'])
@@ -470,4 +470,25 @@ Route::patch('/client/tasks/extend', [\App\Http\Controllers\TaskController::clas
 Route::post('/settings/billing/withdraw', [BillingController::class, 'withdraw'])
     ->name('settings.billing.withdraw')
     ->middleware('auth');
+
+// Bulk trước
+Route::patch('/client/jobs/{job_id}/applications/bulk', [MyJobsController::class, 'bulkUpdate'])
+    ->whereNumber('job_id')
+    ->name('client.jobs.applications.bulk');
+
+// Update 1 người sau, ràng buộc user_id là số
+Route::patch('/client/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
+    ->whereNumber('job_id')
+    ->whereNumber('user_id')
+    ->name('client.jobs.applications.update');
+
+
+use App\Http\Controllers\StripeCheckoutController;
+
+Route::post('/checkout/stripe', [StripeCheckoutController::class, 'createCheckout'])->name('stripe.checkout');
+Route::get('/checkout/stripe/success', [StripeCheckoutController::class, 'success'])->name('stripe.success');
+Route::get('/checkout/stripe/cancel',  [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
+
+// routes/api.php (webhook)
+Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
 

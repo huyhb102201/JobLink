@@ -57,5 +57,10 @@ return [
         'client_id' => env('VIETQR_CLIENT_ID'),
         'api_key' => env('VIETQR_API_KEY'),
     ],
+    'stripe' => [
+        'key' => env('STRIPE_PUBLIC_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+    ],
+
 
 ];

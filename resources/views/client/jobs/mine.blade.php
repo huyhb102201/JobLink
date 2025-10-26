@@ -2,19 +2,20 @@
 @section('title', 'Công việc đã đăng')
 
 @section('content')
- <main class="main">
-        <!-- Page Title -->
-        <div class="page-title">
-            <div class="container d-lg-flex justify-content-between align-items-center">
-                <h1 class="mb-2 mb-lg-0">Danh sách công việc của tôi</h1>
-                <nav class="breadcrumbs">
-                    <ol>
-                        <li><a href="{{ route('home') }}">Trang chủ</a></li>
-                        <li class="current">Danh sách công việc</li>
-                    </ol>
-                </nav>
-            </div>
-        </div>
+<main class="main">
+  <!-- Page Title -->
+  <div class="page-title">
+    <div class="container d-lg-flex justify-content-between align-items-center">
+      <h1 class="mb-2 mb-lg-0">Danh sách công việc của tôi</h1>
+      <nav class="breadcrumbs">
+        <ol>
+          <li><a href="{{ route('home') }}">Trang chủ</a></li>
+          <li class="current">Danh sách công việc</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
   <div class="container" style="max-width: 1100px; margin-top: 60px; margin-bottom: 200px;">
     <div class="d-flex align-items-center justify-content-between mb-4">
       <div>
@@ -90,6 +91,9 @@
             $firstAssigneeId = optional($acceptedApplicants->first())->account_id;
             $jobTasksMap = $tasksByJobAndUser[$job->job_id] ?? [];
             $firstUserTasks = $firstAssigneeId ? ($jobTasksMap[$firstAssigneeId] ?? []) : [];
+
+            // slot còn lại cho phép duyệt
+            $remain = max(0, (int)($quantity - $acceptedCount));
           @endphp
 
           <div class="card shadow-sm border-0 job-card">
@@ -162,9 +166,9 @@
 
                       {{-- Giao/Xem task (chỉ khi đã funded) --}}
                       <li>
-                        <button class="dropdown-item @if(!$canManageApplicants) disabled @endif" @if($canManageApplicants && $acceptedApplicants->count() > 0) data-bs-toggle="modal"
-                        data-bs-target="#assignTaskModal-{{ $job->job_id }}" @endif @if(!$canManageApplicants)
-                          data-bs-toggle="tooltip" title="Cần thanh toán cọc trước" @endif>
+                        <button class="dropdown-item @if(!$canManageApplicants) disabled @endif"
+                          @if($canManageApplicants && $acceptedApplicants->count() > 0) data-bs-toggle="modal" data-bs-target="#assignTaskModal-{{ $job->job_id }}" @endif
+                          @if(!$canManageApplicants) data-bs-toggle="tooltip" title="Cần thanh toán cọc trước" @endif>
                           <i class="bi bi-clipboard-check me-1"></i> Giao / Xem task
                         </button>
                       </li>
@@ -179,10 +183,7 @@
                       </li>
 
                       {{-- Hoàn thành & giải ngân --}}
-                      {{-- Hoàn thành & giải ngân --}}
-                      <li>
-                        <hr class="dropdown-divider">
-                      </li>
+                      <li><hr class="dropdown-divider"></li>
                       <li>
                         @if($canRelease)
                           <form class="complete-job-form" data-job-id="{{ $job->job_id }}"
@@ -203,12 +204,9 @@
                         @endif
                       </li>
 
-
                       {{-- Xoá job (chỉ khi đã huỷ) --}}
                       @if($job->status === 'cancelled')
-                        <li>
-                          <hr class="dropdown-divider">
-                        </li>
+                        <li><hr class="dropdown-divider"></li>
                         <li>
                           <form action="{{ route('client.jobs.destroy', $job->job_id) }}" method="POST"
                             onsubmit="return confirm('Bạn có chắc muốn xóa công việc này?');">
@@ -237,7 +235,7 @@
                     </div>
 
                     <div class="modal-body pt-0">
-                      {{-- Tabs (1 cụm duy nhất) --}}
+                      {{-- Tabs --}}
                       <ul class="nav nav-tabs mt-3" role="tablist">
                         <li class="nav-item" role="presentation">
                           <button class="nav-link active" id="tab-assign-{{ $job->job_id }}" data-bs-toggle="tab"
@@ -336,8 +334,7 @@
                                       $p = $u->profile ?? null;
                                       $n = $p->fullname ?? $u->name ?? ('#' . $u->account_id);
                                     @endphp
-                                    <option value="{{ $u->account_id }}" @selected($u->account_id == $firstAssigneeId)>{{ $n }}
-                                    </option>
+                                    <option value="{{ $u->account_id }}" @selected($u->account_id == $firstAssigneeId)>{{ $n }}</option>
                                   @endforeach
                                 </select>
                               </div>
@@ -378,9 +375,7 @@
                                     $p = $u->profile ?? null;
                                     $n = $p->fullname ?? $u->name ?? ('#' . $u->account_id);
                                   @endphp
-                                  <option value="{{ $u->account_id }}" @selected($u->account_id == $firstAssigneeId)>
-                                    {{ $n }}
-                                  </option>
+                                  <option value="{{ $u->account_id }}" @selected($u->account_id == $firstAssigneeId)>{{ $n }}</option>
                                 @endforeach
                               </select>
                             </div>
@@ -436,35 +431,80 @@
                 </div>
               </div>
 
-              {{-- Danh sách ứng viên --}}
+              {{-- Danh sách ứng viên (có bulk chọn nhiều) --}}
               <div class="collapse mt-3" id="applicants-{{ $job->job_id }}">
+
+                {{-- TOOLBAR BULK --}}
+                <form class="bulk-form mb-2"
+                      data-job-id="{{ $job->job_id }}"
+                      data-remaining="{{ $remain }}"
+                      action="{{ route('client.jobs.applications.bulk', $job->job_id) }}"
+                      method="POST">
+                  @csrf
+                  @method('PATCH')
+
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="form-check me-3">
+                      <input class="form-check-input bulk-check-all" type="checkbox" id="bulk-all-{{ $job->job_id }}"
+                             @if($remain===0) disabled @endif>
+                      <label class="form-check-label" for="bulk-all-{{ $job->job_id }}">Chọn tất cả</label>
+                    </div>
+
+                    <button type="button" class="btn btn-sm btn-success bulk-accept"
+                            @if(!$canManageApplicants || $job->status==='cancelled' || $remain===0) disabled @endif>
+                      <i class="bi bi-check2"></i> Duyệt đã chọn
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-danger bulk-reject"
+                            @if(!$canManageApplicants || $job->status==='cancelled') disabled @endif>
+                      <i class="bi bi-x"></i> Từ chối đã chọn
+                    </button>
+
+                    <span class="badge rounded-pill {{ $remain>0 ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle' }} ms-2">
+                      @if($remain>0) Còn {{ $remain }} slot @else Đã đủ số lượng @endif
+                    </span>
+
+                    <span class="text-muted small ms-2 d-none bulk-hint">0 mục đã chọn</span>
+                  </div>
+                </form>
+
                 @forelse(($job->applicants ?? collect()) as $acc)
                   @php
-                    $pro = $acc->profile ?? null;
-                    $name = $pro->fullname ?? $acc->name ?? 'Ứng viên';
+                    $pro   = $acc->profile ?? null;
+                    $name  = $pro->fullname ?? $acc->name ?? 'Ứng viên';
                     $email = $acc->email ?? null;
                     $intro = $acc->pivot->introduction ?? null;
-                    $apAt = $acc->pivot->created_at ?? null;
-                    $st = (int) ($acc->pivot->status ?? 0);
+                    $apAt  = $acc->pivot->created_at ?? null;
+                    $st    = (int) ($acc->pivot->status ?? 0); // 0 từ chối, 1 chờ duyệt, 2 đã nhận
                     $avatar = $acc->avatar_url ?: 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&size=64';
-                    $stBadge = match ($st) {
-                      1 => ['Chờ duyệt', 'secondary'],
-                      0 => ['Đã từ Chối', 'warning'],
-                      default => ['Đã duyệt', 'success'],
+                    $stBadge = match($st) {
+                      1 => ['Chờ duyệt','secondary'],
+                      0 => ['Đã từ chối','warning'],
+                      default => ['Đã duyệt','success'],
                     };
                   @endphp
 
                   <div class="list-group-item px-0 border-top pt-2">
                     <div class="d-flex align-items-start gap-3">
-                      <img src="{{ $avatar }}" class="rounded-circle" style="width:42px;height:42px;object-fit:cover"
-                        alt="avatar">
+
+                      {{-- CHECKBOX bulk: chỉ hiển thị khi CHỜ DUYỆT và job cho phép thao tác --}}
+                      <div style="width:30px">
+                        @if($st === 1 && $canManageApplicants && $job->status!=='cancelled')
+                          <input type="checkbox"
+                                 class="form-check-input bulk-cb"
+                                 value="{{ $acc->account_id }}"
+                                 data-job-id="{{ $job->job_id }}">
+                        @endif
+                      </div>
+
+                      <img src="{{ $avatar }}" class="rounded-circle" style="width:42px;height:42px;object-fit:cover" alt="avatar">
+
                       <div class="flex-grow-1">
                         <div class="d-flex justify-content-between align-items-start">
                           <div>
                             <div class="fw-semibold">
                               {{ $name }}
-                              <span
-                                class="badge rounded-pill bg-{{ $stBadge[1] }}-subtle text-{{ $stBadge[1] }} border border-{{ $stBadge[1] }}-subtle ms-1">
+                              <span class="badge rounded-pill bg-{{ $stBadge[1] }}-subtle text-{{ $stBadge[1] }} border border-{{ $stBadge[1] }}-subtle ms-1">
                                 {{ $stBadge[0] }}
                               </span>
                             </div>
@@ -500,56 +540,6 @@
                       </div>
                     </div>
                   </div>
-
-                  @php
-                    $st = (int) ($acc->pivot->status ?? 0); // 0 từ chối, 1 chờ duyệt, 2 đã nhận
-                  @endphp
-
-                  <div class="text-end py-2">
-                    {{-- CHẤP NHẬN --}}
-                    @if($st !== 2 && $st != 0)
-                      @if(!$canManageApplicants)
-                        <button class="btn btn-sm btn-success" disabled data-bs-toggle="tooltip"
-                          title="Cần thanh toán cọc trước khi xác nhận ứng viên">
-                          <i class="bi bi-check2"></i> Chấp nhận
-                        </button>
-                      @elseif($isFull)
-                        <button class="btn btn-sm btn-success" disabled data-bs-toggle="tooltip"
-                          title="Đã đủ số lượng tuyển ({{ $acceptedCount }}/{{ $quantity }})">
-                          <i class="bi bi-check2"></i> Chấp nhận
-                        </button>
-                      @else
-                        <form class="d-inline" method="POST"
-                          action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}">
-                          @csrf @method('PATCH')
-                          <input type="hidden" name="status" value="2">
-                          <button class="btn btn-sm btn-success">
-                            <i class="bi bi-check2"></i> Chấp nhận
-                          </button>
-                        </form>
-                      @endif
-                    @endif
-
-                    {{-- TỪ CHỐI --}}
-                    @if($st !== 0 && $st != 2)
-                      @if(!$canManageApplicants)
-                        <button class="btn btn-sm btn-outline-danger ms-1" disabled data-bs-toggle="tooltip"
-                          title="Cần thanh toán cọc trước khi thao tác với ứng viên">
-                          <i class="bi bi-x"></i> Từ chối
-                        </button>
-                      @else
-                        <form class="d-inline ms-1" method="POST"
-                          action="{{ route('client.jobs.applications.update', ['job_id' => $job->job_id, 'user_id' => $acc->account_id]) }}"
-                          onsubmit="return confirm('Từ chối ứng viên này?');">
-                          @csrf @method('PATCH')
-                          <input type="hidden" name="status" value="0">
-                          <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-x"></i> Từ chối
-                          </button>
-                        </form>
-                      @endif
-                    @endif
-                  </div>
                 @empty
                   <div class="text-muted">Chưa có ứng viên nào nộp cho job này.</div>
                 @endforelse
@@ -565,21 +555,12 @@
     @endif
   </div>
 </main>
-  <style>
-    .job-card {
-      transition: box-shadow .2s, transform .05s;
-    }
 
-    .job-card:hover {
-      box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .08) !important;
-    }
-
-    .disabled-link {
-      pointer-events: none;
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  </style>
+<style>
+  .job-card { transition: box-shadow .2s, transform .05s; }
+  .job-card:hover { box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .08) !important; }
+  .disabled-link { pointer-events: none; opacity: 0.5; cursor: not-allowed; }
+</style>
 @endsection
 
 @push('scripts')
@@ -587,9 +568,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   {{-- Map toàn bộ tasks: { [job_id]: { [account_id]: [task,...] } } --}}
-  <script>
-    window.TASKS_BY_JOB = @json($tasksByJobAndUser ?? []);
-  </script>
+  <script>window.TASKS_BY_JOB = @json($tasksByJobAndUser ?? []);</script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -642,7 +621,6 @@
               body: new FormData(this)
             });
 
-            // Nếu backend trả HTML (validation redirect), cố gắng bóc message
             let json; const text = await res.text();
             try { json = JSON.parse(text); } catch { json = { message: text }; }
             if (!res.ok) throw new Error(json?.message || 'Có lỗi xảy ra.');
@@ -674,7 +652,7 @@
             const multi = this.querySelector('select[name="assignee_account_ids[]"]');
             if (multi) Array.from(multi.options).forEach(o => o.selected = false);
 
-            // 3) Chuyển tab "Xem task" và render lại danh sách theo freelancer phù hợp
+            // 3) Chuyển tab "Xem task" và render lại
             const viewTabBtn = document.getElementById('tab-view-' + jobId);
             if (viewTabBtn) bootstrap.Tab.getOrCreateInstance(viewTabBtn).show();
 
@@ -718,7 +696,7 @@
         const assigneeId = sel.value;
         const mapByJob = window.TASKS_BY_JOB || {};
         const tasksByUser = mapByJob[jobId] || {};
-        const tasks = tasksByUser[assigneeId] || [];
+        const tasks = tasksByUser[assigneeId] || {};
 
         const holder = document.getElementById('taskList-' + jobId);
         if (!holder) return;
@@ -726,7 +704,7 @@
         holder.innerHTML = renderTaskListHtml(tasks);
       });
 
-      // ===== Khởi tạo danh sách task trong tab "Gia hạn" khi modal mở lần đầu =====
+      // ===== Khởi tạo pane "Gia hạn" khi modal mở lần đầu =====
       document.querySelectorAll('[id^="assignTaskModal-"]').forEach(modal => {
         modal.addEventListener('shown.bs.modal', function () {
           const jobId = this.id.replace('assignTaskModal-', '');
@@ -769,13 +747,12 @@
         }).join('');
       }
 
-      // ===== AJAX: Gia hạn task (spinner trong nút) =====
+      // ===== AJAX: Gia hạn task =====
       document.querySelectorAll('form[id^="extendTaskForm-"]').forEach(form => {
         form.addEventListener('submit', async function (e) {
           e.preventDefault();
           const btn = this.querySelector('button[type="submit"]');
 
-          // thêm spinner tạm nếu chưa có
           let spin = btn.querySelector('.spinner-border');
           if (!spin) {
             spin = document.createElement('span');
@@ -795,7 +772,7 @@
 
           try {
             const res = await fetch(this.getAttribute('action'), {
-              method: method === 'PATCH' ? 'POST' : method, // dùng _method=PATCH
+              method: method === 'PATCH' ? 'POST' : method,
               headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -813,7 +790,6 @@
             const uid = String(d.assignee_account_id);
             const taskId = Number(d.task_id);
 
-            // update cache
             const arr = window.TASKS_BY_JOB?.[jobId]?.[uid];
             if (arr) {
               const found = arr.find(t => Number(t.task_id) === taskId);
@@ -823,7 +799,6 @@
               }
             }
 
-            // re-render nếu đang xem đúng freelancer
             const holder = document.getElementById('taskList-' + jobId);
             const currentSel = document.getElementById('view-assignee-' + jobId);
             if (holder && currentSel && String(currentSel.value) === uid) {
@@ -840,105 +815,274 @@
         });
       });
 
-      // ===== AJAX: HOÀN THÀNH & GIẢI NGÂN (spinner trong nút) =====
-        document.querySelectorAll('form.complete-job-form').forEach(form => {
-    form.addEventListener('submit', async function (e) {
-      e.preventDefault();
+      // ===== AJAX: HOÀN THÀNH & GIẢI NGÂN =====
+      document.querySelectorAll('form.complete-job-form').forEach(form => {
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
 
-      const jobId = this.getAttribute('data-job-id');
-      const action = this.getAttribute('action');
-      const fd = new FormData(this); // _method=PATCH + _token
-      const btn = this.querySelector('button[type="submit"]');
+          const jobId = this.getAttribute('data-job-id');
+          const action = this.getAttribute('action');
+          const fd = new FormData(this); // _method=PATCH + _token
+          const btn = this.querySelector('button[type="submit"]');
 
-      // (tuỳ chọn) khoá nút để tránh double click khi popup đang mở
-      btn?.setAttribute('disabled', 'disabled');
+          btn?.setAttribute('disabled', 'disabled');
 
-      Swal.fire({
-        title: 'Xác nhận giải ngân?',
-        text: 'Hành động này không thể hoàn tác.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Đồng ý',
-        cancelButtonText: 'Hủy',
-        // >>> Hiển thị spinner trong chính alert khi bấm Đồng ý
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: async () => {
-          try {
-            const res = await fetch(action, {
-              method: 'POST', // Laravel dùng _method=PATCH
-              headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                ...(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                  ? { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
-                  : {})
-              },
-              body: fd
+          Swal.fire({
+            title: 'Xác nhận giải ngân?',
+            text: 'Hành động này không thể hoàn tác.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy',
+            showLoaderOnConfirm: true,
+            allowOutsideClick: () => !Swal.isLoading(),
+            preConfirm: async () => {
+              try {
+                const res = await fetch(action, {
+                  method: 'POST',
+                  headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                      ? { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                      : {})
+                  },
+                  body: fd
+                });
+
+                const textRes = await res.text();
+                let json;
+                try { json = JSON.parse(textRes); } catch { json = { message: textRes }; }
+
+                if (!res.ok) {
+                  Swal.showValidationMessage(json?.message || 'Có lỗi xảy ra.');
+                  throw new Error(json?.message || 'Có lỗi xảy ra.');
+                }
+                return json;
+              } catch (err) {
+                Swal.showValidationMessage(err?.message || 'Không thể kết nối máy chủ.');
+                throw err;
+              }
+            }
+          }).then(async (result) => {
+            if (!result.isConfirmed) return;
+            const json = result.value || {};
+            await Swal.fire({
+              title: 'Thành công',
+              text: json?.message || 'Đã hoàn thành job và giải ngân thành công.',
+              icon: 'success',
+              confirmButtonText: 'OK'
             });
 
-            const textRes = await res.text();
-            let json;
-            try { json = JSON.parse(textRes); } catch { json = { message: textRes }; }
+            const card = document.querySelector(`#assignTaskModal-${jobId}`)?.closest('.card')
+                      || document.querySelector(`[data-job-id="${jobId}"]`)?.closest('.card')
+                      || form.closest('.card');
 
-            if (!res.ok) {
-              // Hiển thị lỗi ngay trong alert, vẫn giữ popup + spinner tắt
-              Swal.showValidationMessage(json?.message || 'Có lỗi xảy ra.');
-              throw new Error(json?.message || 'Có lỗi xảy ra.');
+            if (card) {
+              const badges = card.querySelectorAll('.badge');
+              badges.forEach(b => {
+                const t = (b.textContent || '').trim().toUpperCase();
+                if (t.includes('THANH TOÁN') || t.includes('GIẢI NGÂN')) {
+                  b.className = 'badge rounded-pill bg-success-subtle text-success border border-success-subtle';
+                  b.textContent = 'ĐÃ GIẢI NGÂN';
+                }
+                if (['ĐANG MỞ','CHỜ DUYỆT','ĐANG LÀM','ĐÃ HỦY','ĐÃ ĐÓNG','COMPLETED','ĐÃ HOÀN THÀNH'].includes(t)) {
+                  b.className = 'badge rounded-pill bg-success-subtle text-success border border-success-subtle';
+                  b.textContent = 'ĐÃ HOÀN THÀNH';
+                }
+              });
             }
-            return json;
-          } catch (err) {
-            // Nếu mạng lỗi, cũng hiển thị trong alert
-            Swal.showValidationMessage(err?.message || 'Không thể kết nối máy chủ.');
-            throw err;
+
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Đã giải ngân';
+            btn.classList.add('disabled');
+            btn.setAttribute('disabled', 'disabled');
+          }).catch(() => {
+            btn?.removeAttribute('disabled');
+          }).finally(() => {
+            btn?.removeAttribute('disabled');
+          });
+        });
+      });
+
+      // ===== Bulk chọn nhiều ứng viên =====
+      document.querySelectorAll('.bulk-form').forEach(form => {
+    const jobId      = form.getAttribute('data-job-id');
+    const remaining  = parseInt(form.getAttribute('data-remaining') || '0', 10);
+    const wrap       = document.getElementById('applicants-' + jobId);
+    const checkAll   = form.querySelector('.bulk-check-all');
+    const hint       = form.querySelector('.bulk-hint');
+    const btnAccept  = form.querySelector('.bulk-accept');
+    const btnReject  = form.querySelector('.bulk-reject');
+
+    // (NEW) Tạo overlay mờ để khoá thao tác khu vực danh sách khi đang xử lý
+    let overlay = document.createElement('div');
+    overlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-none';
+    overlay.style.background = 'rgba(255,255,255,.6)';
+    overlay.style.backdropFilter = 'blur(1px)';
+    overlay.innerHTML = `
+      <div class="position-absolute top-50 start-50 translate-middle">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+        <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
+      </div>`;
+    // bọc collapse relative để overlay định vị đúng
+    const collapse = document.getElementById('applicants-' + jobId);
+    if (collapse && !collapse.classList.contains('position-relative')) {
+      collapse.classList.add('position-relative');
+    }
+    collapse?.appendChild(overlay);
+
+    const cbs = () => wrap.querySelectorAll('.bulk-cb');
+
+    function updateHint() {
+      const n = [...cbs()].filter(cb => cb.checked).length;
+      if (hint) {
+        hint.textContent = n + ' mục đã chọn' + (remaining > 0 ? ` (tối đa ${remaining})` : '');
+        hint.classList.toggle('d-none', n === 0);
+      }
+      const disabled = n === 0;
+      btnAccept?.toggleAttribute('disabled', disabled || remaining === 0);
+      btnReject?.toggleAttribute('disabled', disabled);
+    }
+
+    // Chọn tất cả: chỉ tick tối đa "remaining"
+    checkAll?.addEventListener('change', e => {
+      const wantCheck = e.target.checked;
+      if (!wantCheck) {
+        cbs().forEach(cb => cb.checked = false);
+        updateHint();
+        return;
+      }
+      let slots = remaining;
+      cbs().forEach(cb => {
+        if (cb.disabled) return;
+        if (slots > 0) { cb.checked = true; slots--; }
+        else { cb.checked = false; }
+      });
+      if (remaining === 0 || slots === 0) checkAll.checked = [...cbs()].every(cb => cb.checked);
+      updateHint();
+    });
+
+    // Tick lẻ từng mục: chặn nếu vượt limit
+    wrap.addEventListener('change', e => {
+      if (!e.target.classList.contains('bulk-cb')) return;
+      if (e.target.checked) {
+        const nChecked = [...cbs()].filter(cb => cb.checked).length;
+        if (nChecked > remaining) {
+          e.target.checked = false;
+          if (window.Swal) {
+            Swal.fire({ icon: 'info', title: 'Đã đủ chỉ tiêu', text: `Bạn chỉ có thể duyệt tối đa ${remaining} ứng viên.`, timer: 1800, showConfirmButton: false });
+          } else {
+            alert(`Bạn chỉ có thể duyệt tối đa ${remaining} ứng viên.`);
           }
         }
-      }).then(async (result) => {
-        // Người dùng đã confirm và preConfirm trả về json OK
-        if (!result.isConfirmed) return;
-        const json = result.value || {};
-        await Swal.fire({
-          title: 'Thành công',
-          text: json?.message || 'Đã hoàn thành job và giải ngân thành công.',
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
-
-        // ====== Cập nhật UI ngay: đổi badge Escrow + Status + vô hiệu hóa mục menu ======
-        const card = document.querySelector(`#assignTaskModal-${jobId}`)?.closest('.card')
-                  || document.querySelector(`[data-job-id="${jobId}"]`)?.closest('.card')
-                  || form.closest('.card');
-
-        if (card) {
-          const badges = card.querySelectorAll('.badge');
-          badges.forEach(b => {
-            const t = (b.textContent || '').trim().toUpperCase();
-            // Escrow -> ĐÃ GIẢI NGÂN
-            if (t.includes('THANH TOÁN') || t.includes('GIẢI NGÂN')) {
-              b.className = 'badge rounded-pill bg-success-subtle text-success border border-success-subtle';
-              b.textContent = 'ĐÃ GIẢI NGÂN';
-            }
-            // Status -> ĐÃ HOÀN THÀNH
-            if (['ĐANG MỞ','CHỜ DUYỆT','ĐANG LÀM','ĐÃ HỦY','ĐÃ ĐÓNG','COMPLETED','ĐÃ HOÀN THÀNH'].includes(t)) {
-              b.className = 'badge rounded-pill bg-success-subtle text-success border border-success-subtle';
-              b.textContent = 'ĐÃ HOÀN THÀNH';
-            }
-          });
-        }
-
-        // đổi nút trong menu thành trạng thái đã giải ngân
-        btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Đã giải ngân';
-        btn.classList.add('disabled');
-        btn.setAttribute('disabled', 'disabled');
-      }).catch(() => {
-        // Nếu có lỗi trong preConfirm đã được showValidationMessage hiển thị,
-        // chỉ cần mở khoá nút để người dùng thao tác lại
-        btn?.removeAttribute('disabled');
-      }).finally(() => {
-        // Mở khoá nút nếu người dùng cancel
-        btn?.removeAttribute('disabled');
-      });
+      }
+      if (!e.target.checked && checkAll) checkAll.checked = false;
+      updateHint();
     });
+
+    // (NEW) helper set/restore loading trên nút
+    function setBtnLoading(btn, text = 'Đang xử lý...') {
+      if (!btn) return () => {};
+      const prev = btn.innerHTML;
+      btn.setAttribute('disabled', 'disabled');
+      btn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        <span>${text}</span>`;
+      return () => {
+        btn.innerHTML = prev;
+        btn.removeAttribute('disabled');
+      };
+    }
+
+    // (NEW) bật/tắt overlay + khoá checkbox
+    function setBusy(on) {
+      overlay?.classList.toggle('d-none', !on);
+      cbs().forEach(cb => cb.disabled = on);
+      checkAll?.toggleAttribute('disabled', on);
+    }
+
+    async function submitBulk(action) {
+      const selected = [...cbs()].filter(x => x.checked).map(x => x.value);
+      if (selected.length === 0) return;
+
+      if (action === 'accept' && selected.length > remaining) {
+        if (window.Swal) {
+          await Swal.fire({ icon: 'error', title: 'Vượt quá chỉ tiêu', text: `Bạn đang chọn ${selected.length} người, nhưng chỉ còn ${remaining} slot. Hãy bỏ chọn bớt.` });
+        } else {
+          alert(`Chỉ còn ${remaining} slot.`);
+        }
+        return;
+      }
+
+      const pretty = action === 'accept' ? 'Duyệt' : 'Từ chối';
+      const ok = await Swal.fire({
+        title: `${pretty} ${selected.length} ứng viên?`,
+        text: action === 'accept' ? `Tối đa ${remaining} người sẽ được duyệt.` : '',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Thực hiện',
+        cancelButtonText: 'Hủy'
+      });
+      if (!ok.isConfirmed) return;
+
+      const fd = new FormData();
+      fd.append('_method', 'PATCH');
+      const token = document.querySelector('meta[name="csrf-token"]')?.content;
+      if (token) fd.append('_token', token);
+      fd.append('action', action);
+      selected.forEach(id => fd.append('user_ids[]', id));
+
+      // (NEW) bật loading UI
+      const restoreAccept = action === 'accept' ? setBtnLoading(btnAccept, 'Đang duyệt...') : () => {};
+      const restoreReject = action === 'reject' ? setBtnLoading(btnReject, 'Đang từ chối...') : () => {};
+      setBusy(true);
+      // (NEW) dùng SweetAlert loading (tuỳ chọn)
+      let loadingSwal;
+      if (window.Swal) {
+        loadingSwal = Swal.fire({
+          title: 'Đang xử lý...',
+          html: 'Vui lòng đợi trong giây lát.',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => Swal.showLoading()
+        });
+      }
+
+      try {
+        const res = await fetch(form.getAttribute('action'), {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: fd
+        });
+        const text = await res.text();
+        let json; try { json = JSON.parse(text); } catch { json = { message: text }; }
+        if (!res.ok) throw new Error(json?.message || 'Có lỗi xảy ra.');
+
+        if (window.Swal) {
+          await Swal.fire({ icon: 'success', title: 'Thành công', text: json?.message || 'Đã xử lý.' });
+        } else {
+          alert(json?.message || 'Đã xử lý.');
+        }
+        // đồng bộ UI nhanh nhất: reload
+        location.reload();
+      } catch (err) {
+        if (window.Swal) {
+          Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message || 'Không xử lý được.' });
+        } else {
+          alert(err.message || 'Không xử lý được.');
+        }
+      } finally {
+        // tắt loading UI (sẽ không chạy nếu đã reload)
+        restoreAccept();
+        restoreReject();
+        setBusy(false);
+      }
+    }
+
+    btnAccept?.addEventListener('click', () => submitBulk('accept'));
+    btnReject?.addEventListener('click', () => submitBulk('reject'));
+
+    updateHint();
   });
       // ===== Helpers =====
       function renderTaskListHtml(tasks) {
@@ -976,35 +1120,12 @@
         return String(s).replace(/[&<>\"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
       }
 
-      // SweetAlert helpers
       function flashOk(msg) {
-        Swal.fire({
-          title: 'Thành công',
-          text: msg || 'Thao tác hoàn tất.',
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
+        Swal.fire({ title: 'Thành công', text: msg || 'Thao tác hoàn tất.', icon: 'success', confirmButtonText: 'OK' });
       }
 
       function flashErr(msg) {
-        Swal.fire({
-          title: 'Lỗi',
-          text: msg || 'Có lỗi xảy ra, vui lòng thử lại.',
-          icon: 'error',
-          confirmButtonText: 'Đóng'
-        });
-      }
-
-      // Toast gọn nhẹ (nếu muốn dùng)
-      function toast(msg, icon = 'success') {
-        const Toast = Swal.mixin({
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2200,
-          timerProgressBar: true
-        });
-        Toast.fire({ icon, title: msg || '' });
+        Swal.fire({ title: 'Lỗi', text: msg || 'Có lỗi xảy ra, vui lòng thử lại.', icon: 'error', confirmButtonText: 'Đóng' });
       }
     });
   </script>
