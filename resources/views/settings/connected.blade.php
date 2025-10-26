@@ -5,7 +5,7 @@
     <div class="card border-0 shadow-sm" style="margin-bottom:200px;">
         <div class="card-body">
             <h5 class="mb-1">Dịch vụ đã liên kết</h5>
-            <div class="text-muted mb-4">Kết nối tài khoản bên thứ ba để đăng nhập nhanh và đồng bộ thông tin.</div>
+            <div class="text-muted mb-4">Kết nối tài khoản bên thứ ba để tăng cơ hội của bạn.</div>
 
             @if(session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
