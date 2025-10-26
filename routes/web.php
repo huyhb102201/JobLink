@@ -52,6 +52,13 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\AdminLogController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\JobReportController;
+use App\Http\Controllers\Admin\SkillController;
+use App\Http\Controllers\Admin\JobPaymentController as AdminJobPaymentController;
+
+
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
@@ -424,6 +431,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::post('/reviews/destroy-multiple', [ReviewController::class, 'destroyMultiple'])->name('reviews.destroy-multiple');
     // ==========================================================
 });
+
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
