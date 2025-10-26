@@ -176,11 +176,11 @@
             vertical-align: middle;
           }
         </style>
-        
+
         <!-- === Notifications === -->
         <li class="dropdown" id="header-notifications">
-          <a class="nav-link position-relative" href="{{ url('/notifications') }}" data-bs-toggle="dropdown"
-            aria-expanded="false">
+          <a class="nav-link position-relative dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false"
+            onclick="event.preventDefault();">
             <i class="bi bi-bell fs-5"></i>
             <span id="notif-badge"
               class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
@@ -193,8 +193,7 @@
 
         <!-- === Chat Dropdown === -->
         <li class="dropdown" id="chat-header-box">
-          <a class="nav-link position-relative" href="{{ url('/chat') }}" data-bs-toggle="dropdown"
-            aria-expanded="false">
+          <a class="nav-link position-relative" href="{{ url('/chat') }}">
             <i class="bi bi-chat-dots fs-5"></i>
             <span id="chat-badge"
               class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
@@ -204,6 +203,7 @@
             <li class="text-center text-muted py-2">Đang tải...</li>
           </ul>
         </li>
+
 
         @php
           $service = app(\App\Services\NotificationService::class);
@@ -227,6 +227,28 @@
         @endif
 
         <script>
+          document.querySelectorAll('#header-notifications').forEach(dropdown => {
+            dropdown.addEventListener('mouseenter', () => {
+              const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+              const bsDropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+              bsDropdown.show();
+            });
+            dropdown.addEventListener('mouseleave', () => {
+              const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+              const bsDropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+              bsDropdown.hide();
+            });
+          });
+
+          document.getElementById('chat-header-box').addEventListener('mouseenter', () => {
+            const menu = document.querySelector('#chat-dropdown');
+            menu.classList.add('show');
+          });
+          document.getElementById('chat-header-box').addEventListener('mouseleave', () => {
+            const menu = document.querySelector('#chat-dropdown');
+            menu.classList.remove('show');
+          });
+
           document.addEventListener('DOMContentLoaded', function () {
             const notifBadge = document.getElementById('notif-badge');
             const chatBadge = document.getElementById('chat-badge');
