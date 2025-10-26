@@ -8,14 +8,84 @@
 
 @push('styles')
 <style>
-    .table-responsive {
-        overflow-x: auto;
+    /* Responsive container cho zoom - ưu tiên cao nhất */
+    * {
+        box-sizing: border-box;
     }
     
-    /* Fix layout cho bảng */
+    .h3.mb-4, h1.h3.mb-4 {
+        max-width: 100%;
+        word-wrap: break-word;
+    }
+    
+    /* Responsive cho phần thống kê */
+    .row.g-4.mb-4 {
+        max-width: 100%;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    .row.g-4.mb-4 > .col-md-3 {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    /* Card container */
+    .card.shadow.mb-4 {
+        max-width: 100%;
+        overflow: visible;
+    }
+    
+    .card-header {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .card-header > div {
+        min-width: max-content;
+    }
+    
+    .card-body {
+        padding: 1rem;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Table container với scroll */
+    .table-responsive {
+        overflow-x: auto !important;
+        max-width: 100% !important;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Fix layout cho bảng - giống bảng thanh toán job */
     #accounts-table {
         width: 100% !important;
         table-layout: fixed;
+        margin-bottom: 0 !important;
+    }
+    
+    /* DataTables wrapper */
+    .dataTables_wrapper {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    .dataTables_wrapper .row {
+        max-width: 100%;
+        margin: 0;
+    }
+    
+    /* Filter collapse */
+    #filterCollapse {
+        max-width: 100%;
+    }
+    
+    #filterCollapse .card-body {
+        overflow-x: auto;
     }
     
     #accounts-table th,
@@ -27,36 +97,50 @@
         text-overflow: ellipsis;
     }
     
-    /* Loại bỏ custom sorting CSS để tăng tốc */
-    
-    /* Định width cho từng cột */
+    /* Định width cho từng cột - sử dụng % thay vì px */
     #accounts-table th:nth-child(1),
-    #accounts-table td:nth-child(1) { width: 50px; } /* Checkbox */
+    #accounts-table td:nth-child(1) { 
+        width: 5%;
+        text-align: center;
+    } /* Checkbox */
     
     #accounts-table th:nth-child(2),
     #accounts-table td:nth-child(2) { 
-        width: 250px; 
+        width: 20%;
         white-space: normal;
     } /* Người dùng */
     
     #accounts-table th:nth-child(3),
-    #accounts-table td:nth-child(3) { width: 200px; } /* Email */
+    #accounts-table td:nth-child(3) { 
+        width: 18%;
+    } /* Email */
     
     #accounts-table th:nth-child(4),
-    #accounts-table td:nth-child(4) { width: 140px; } /* Loại TK */
+    #accounts-table td:nth-child(4) { 
+        width: 12%;
+    } /* Loại TK */
     
     #accounts-table th:nth-child(5),
-    #accounts-table td:nth-child(5) { width: 120px; } /* Trạng thái */
+    #accounts-table td:nth-child(5) { 
+        width: 12%;
+        text-align: center;
+    } /* Trạng thái */
     
     #accounts-table th:nth-child(6),
-    #accounts-table td:nth-child(6) { width: 100px; text-align: center; } /* Xác minh */
+    #accounts-table td:nth-child(6) { 
+        width: 10%;
+        text-align: center;
+    } /* Xác minh */
     
     #accounts-table th:nth-child(7),
-    #accounts-table td:nth-child(7) { width: 100px; text-align: center; } /* Nhà cung cấp */
+    #accounts-table td:nth-child(7) { 
+        width: 12%;
+        text-align: center;
+    } /* Nhà cung cấp */
     
     #accounts-table th:nth-child(8),
     #accounts-table td:nth-child(8) { 
-        width: 140px; 
+        width: 11%;
         text-align: center;
         white-space: nowrap;
     } /* Thao tác */
@@ -149,7 +233,7 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Tổng tài khoản</div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $totalAccountsCount ?? 0 }}</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-accounts-count">{{ $totalAccountsCount ?? 0 }}</div>
             </div>
             <div class="col-auto">
               <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -164,7 +248,7 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Kích hoạt</div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $activeAccountsCount ?? 0 }}</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="active-accounts-count">{{ $activeAccountsCount ?? 0 }}</div>
             </div>
             <div class="col-auto">
               <i class="fas fa-check-circle fa-2x text-gray-300"></i>
@@ -179,7 +263,7 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Bị khoá</div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $lockedAccountsCount ?? 0 }}</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="locked-accounts-count">{{ $lockedAccountsCount ?? 0 }}</div>
             </div>
             <div class="col-auto">
               <i class="fas fa-times-circle fa-2x text-gray-300"></i>
@@ -194,7 +278,7 @@
           <div class="row no-gutters align-items-center">
             <div class="col mr-2">
               <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Chưa xác minh email</div>
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $unverifiedAccountsCount ?? 0 }}</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800" id="unverified-accounts-count">{{ $unverifiedAccountsCount ?? 0 }}</div>
             </div>
             <div class="col-auto">
               <i class="fas fa-envelope fa-2x text-gray-300"></i>
@@ -227,6 +311,67 @@
       </div>
     </div>
     <div class="card-body">
+      <!-- Filter Dropdown -->
+      <div class="mb-3">
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+          <i class="fas fa-filter me-1"></i> Bộ lọc
+        </button>
+        <button class="btn btn-outline-secondary btn-sm ms-2" type="button" id="clearFilters">
+          <i class="fas fa-times me-1"></i> Xóa bộ lọc
+        </button>
+      </div>
+      
+      <div class="collapse" id="filterCollapse">
+        <div class="card card-body mb-3">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Tên người dùng</label>
+              <input type="text" class="form-control form-control-sm column-filter" placeholder="Tìm kiếm..." data-column="1" id="filter-name">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Email</label>
+              <input type="text" class="form-control form-control-sm column-filter" placeholder="Tìm kiếm..." data-column="2" id="filter-email">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-bold small">Loại TK</label>
+              <select class="form-select form-select-sm column-filter" data-column="3" id="filter-type">
+                <option value="">Tất cả</option>
+                @foreach($accountTypes as $type)
+                  <option value="{{ $type->name }}">{{ $type->name }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-bold small">Trạng thái</label>
+              <select class="form-select form-select-sm column-filter" data-column="4" id="filter-status">
+                <option value="">Tất cả</option>
+                <option value="Hoạt động">Hoạt động</option>
+                <option value="Tạm khóa">Tạm khóa</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label fw-bold small">Xác minh</label>
+              <select class="form-select form-select-sm column-filter" data-column="5" id="filter-verified">
+                <option value="">Tất cả</option>
+                <option value="verified">Đã xác minh</option>
+                <option value="unverified">Chưa xác minh</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Nhà cung cấp</label>
+              <select class="form-select form-select-sm column-filter" data-column="6" id="filter-provider">
+                <option value="">Tất cả</option>
+                <option value="google">Google</option>
+                <option value="github">GitHub</option>
+                <option value="facebook">Facebook</option>
+                <option value="local">Đăng ký thường</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="table-responsive">
         <table class="table table-bordered table-hover" id="accounts-table">
           <thead class="table-light">
@@ -271,7 +416,7 @@
                   <span class="badge bg-danger">Tạm khóa</span>
                 @endif
               </td>
-              <td>
+              <td data-verification="{{ $account->email_verified_at ? 'verified' : 'unverified' }}">
                 @if($account->email_verified_at)
                   <i class="fa-solid fa-circle-check text-success" title="Đã xác minh"></i>
                 @else
@@ -316,11 +461,13 @@
 
   <!-- Modal tạo tài khoản -->
   <div class="modal fade" id="createAccountModal" tabindex="-1" aria-labelledby="createAccountModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="createAccountModalLabel">Thêm tài khoản mới</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="createAccountModalLabel">
+            <i class="fas fa-user-plus me-2"></i>Thêm tài khoản mới
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <form action="{{ route('admin.accounts.store') }}" method="POST">
           @csrf
@@ -347,8 +494,12 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times me-1"></i>Đóng
+            </button>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save me-1"></i>Tạo tài khoản
+            </button>
           </div>
         </form>
       </div>
@@ -357,11 +508,13 @@
 
   <!-- Modal chỉnh sửa tài khoản -->
   <div class="modal fade" id="editAccountModal" tabindex="-1" aria-labelledby="editAccountModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="editAccountModalLabel">Chỉnh sửa tài khoản</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="editAccountModalLabel">
+            <i class="fas fa-user-edit me-2"></i>Chỉnh sửa tài khoản
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <form id="editAccountForm" method="POST">
           @csrf
@@ -369,11 +522,11 @@
           <div class="modal-body">
             <div class="mb-3">
               <label class="form-label">Họ và tên</label>
-              <input type="text" class="form-control" id="edit-fullname" name="fullname" required>
+              <input type="text" class="form-control" id="edit-fullname" name="fullname" readonly style="background-color: #e9ecef;">
             </div>
             <div class="mb-3">
               <label class="form-label">Email</label>
-              <input type="email" class="form-control" id="edit-email" name="email" required>
+              <input type="email" class="form-control" id="edit-email" name="email" readonly style="background-color: #e9ecef;">
             </div>
             <div class="mb-3">
               <label class="form-label">Loại tài khoản</label>
@@ -389,8 +542,12 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-            <button type="submit" class="btn btn-primary">Cập nhật</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times me-1"></i>Đóng
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>Cập nhật
+            </button>
           </div>
         </form>
       </div>
@@ -399,39 +556,24 @@
 
   <!-- Modal quản lý loại tài khoản -->
   <div class="modal fade" id="manageAccountTypesModal" tabindex="-1" aria-labelledby="manageAccountTypesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="manageAccountTypesModalLabel">Quản lý loại tài khoản</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="manageAccountTypesModalLabel">
+            <i class="fas fa-tags me-2"></i>Quản lý loại tài khoản
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <!-- Form thêm loại tài khoản mới -->
-          <div class="card mb-3">
-            <div class="card-header">
-              <h6 class="mb-0">Thêm loại tài khoản mới</h6>
+          <div class="card mb-4 border-info">
+            <div class="card-header bg-info text-white">
+              <h6 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Thêm loại tài khoản mới</h6>
             </div>
             <div class="card-body">
               <form id="addAccountTypeForm">
                 <div class="row">
-                  <div class="col-md-6">
-                    <label class="form-label">Mã loại tài khoản</label>
-                    <select class="form-select" id="newAccountTypeId" name="account_type_id" required>
-                      <option value="">Chọn mã loại...</option>
-                      @php
-                        $existingIds = $accountTypes->pluck('account_type_id')->toArray();
-                        $allIds = range(1, 20); // Tăng lên 20 để có nhiều lựa chọn hơn
-                        $availableIds = array_diff($allIds, $existingIds);
-                      @endphp
-                      @foreach($availableIds as $id)
-                        <option value="{{ $id }}">{{ $id }}</option>
-                      @endforeach
-                      <option value="custom">➕ Nhập mã khác...</option>
-                    </select>
-                    <input type="number" class="form-control mt-2 d-none" id="customAccountTypeId" placeholder="Nhập mã tùy chỉnh (VD: 21, 50, 100...)" min="1" max="999">
-                    <small class="text-muted d-none" id="customIdHint">Mã phải là số nguyên dương và chưa tồn tại</small>
-                  </div>
-                  <div class="col-md-6">
+                  <div class="col-md-12">
                     <label class="form-label">Tên loại tài khoản</label>
                     <input type="text" class="form-control" id="newAccountTypeName" name="name" required placeholder="Nhập tên loại...">
                   </div>
@@ -452,9 +594,9 @@
           </div>
 
           <!-- Danh sách loại tài khoản hiện có -->
-          <div class="card">
-            <div class="card-header">
-              <h6 class="mb-0">Danh sách loại tài khoản hiện có</h6>
+          <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+              <h6 class="mb-0"><i class="fas fa-list me-2"></i>Danh sách loại tài khoản hiện có</h6>
             </div>
             <div class="card-body">
               <div class="table-responsive">
@@ -494,8 +636,45 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Đóng
+          </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal chỉnh sửa loại tài khoản -->
+  <div class="modal fade" id="editAccountTypeModal" tabindex="-1" aria-labelledby="editAccountTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="editAccountTypeModalLabel">
+            <i class="fas fa-edit me-2"></i>Chỉnh sửa loại tài khoản
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="editAccountTypeForm">
+          <div class="modal-body">
+            <input type="hidden" id="edit-type-id">
+            <div class="mb-3">
+              <label class="form-label">Tên loại tài khoản</label>
+              <input type="text" class="form-control" id="edit-type-name" name="name" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mô tả</label>
+              <textarea class="form-control" id="edit-type-description" name="description" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times me-1"></i>Hủy
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save me-1"></i>Cập nhật
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -508,6 +687,16 @@ $(document).ready(function() {
     let selectedAccounts = new Set();
     let originalOrder = []; // Lưu thứ tự ban đầu
     let columnStates = {}; // Lưu trạng thái sort của từng cột
+    let allAccountIds = []; // Lưu tất cả ID tài khoản trong database
+    let selectAllMode = false; // Chế độ chọn tất cả
+
+    // Lấy tất cả account IDs từ bảng
+    $('#accounts-table tbody tr').each(function() {
+        const accountId = $(this).find('.row-checkbox').data('account-id');
+        if (accountId) {
+            allAccountIds.push(accountId);
+        }
+    });
 
     function updateButtonStates() {
         const selectedCount = selectedAccounts.size;
@@ -522,22 +711,29 @@ $(document).ready(function() {
         originalOrder.push($(this).clone(true));
     });
 
-    // Khởi tạo DataTables tối ưu - vừa đẹp vừa nhanh
+    // Khởi tạo DataTables với 3-state sorting và pagination
     const table = $('#accounts-table').DataTable({
         processing: false,
         serverSide: false,
-        ordering: true, // Bật lại sorting cơ bản
+        ordering: true,
         paging: true,
-        pageLength: 25, // Trở lại 25 items
+        pageLength: 10,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-        stateSave: true, // Bật lại state save
+        stateSave: false, // Tắt state save để reset được
         searching: true,
-        searchDelay: 100, // Giảm delay xuống 100ms
+        searchDelay: 100,
         deferRender: true,
         autoWidth: false,
+        orderCellsTop: true,
+        search: {
+            caseInsensitive: true
+        },
+        // Bật 3-state sorting: asc -> desc -> none (reset)
+        orderMulti: false,
         columnDefs: [
-            { orderable: false, targets: [0, 7] }, // Chỉ tắt sort cho checkbox và action
-            { className: "text-center", targets: [0, 5, 6, 7] }
+            { orderable: false, targets: [0, 7] },
+            { className: "text-center", targets: [0, 5, 6, 7] },
+            { orderSequence: ['asc', 'desc', ''], targets: '_all' } // 3-state: A→Z, Z→A, Reset
         ],
         language: {
             lengthMenu: "Hiển thị _MENU_ mục",
@@ -551,6 +747,85 @@ $(document).ready(function() {
         drawCallback: function() {
             bindEvents();
         }
+    });
+
+    // Store current active filter
+    let activeFilterColumn = null;
+    let activeFilterValue = '';
+    
+    // Custom search and sort function
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        if (settings.nTable.id !== 'accounts-table') {
+            return true;
+        }
+        
+        if (!activeFilterValue || activeFilterColumn === null) {
+            return true;
+        }
+        
+        const columnData = data[activeFilterColumn] || '';
+        const searchLower = activeFilterValue.toLowerCase();
+        const dataLower = columnData.toLowerCase();
+        
+        // Lọc: chỉ hiển thị dòng có chứa ký tự tìm kiếm
+        return dataLower.includes(searchLower);
+    });
+    
+    // Clear filters button
+    $('#clearFilters').on('click', function() {
+        // Clear all filter inputs
+        $('.column-filter').val('');
+        
+        // Clear all column searches
+        for (let i = 0; i < 8; i++) {
+            table.column(i).search('');
+        }
+        
+        // Reset active filter
+        activeFilterColumn = null;
+        activeFilterValue = '';
+        
+        // Reset to default order
+        table.order([[1, 'asc']]);
+        table.draw();
+    });
+    
+    // Column filtering với logic ưu tiên đầu dòng
+    $('.column-filter').on('keyup change', function() {
+        const columnIndex = $(this).data('column');
+        let searchValue = $(this).val().trim();
+        
+        // Clear all column searches
+        for (let i = 0; i < 8; i++) {
+            table.column(i).search('');
+        }
+        
+        // Set active filter
+        activeFilterColumn = searchValue ? columnIndex : null;
+        activeFilterValue = searchValue;
+        
+        if (searchValue) {
+            // Apply custom ordering: đẩy các giá trị bắt đầu bằng ký tự tìm kiếm lên đầu
+            const searchLower = searchValue.toLowerCase();
+            
+            // Custom ordering function
+            $.fn.dataTable.ext.order['starts-with-' + columnIndex] = function(settings, col) {
+                return this.api().column(col, {order: 'index'}).nodes().map(function(td, i) {
+                    const text = $(td).text().trim().toLowerCase();
+                    // Trả về 0 nếu bắt đầu bằng ký tự tìm kiếm, 1 nếu không
+                    return text.startsWith(searchLower) ? '0' + text : '1' + text;
+                });
+            };
+            
+            // Apply ordering
+            table.column(columnIndex).order('asc');
+            table.order([[columnIndex, 'asc']]);
+        } else {
+            // Reset về thứ tự mặc định
+            table.order([[1, 'asc']]);
+        }
+        
+        table.draw();
     });
 
     // Loại bỏ 3-state sorting để tăng tốc độ
@@ -583,6 +858,7 @@ $(document).ready(function() {
                 cancelButtonText: 'Hủy'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    showLoading('Đang xóa tài khoản...');
                     const form = $('<form>', {
                         method: 'POST',
                         action: `/admin/accounts/${accountId}`
@@ -617,19 +893,38 @@ $(document).ready(function() {
         });
     }
 
-    // Check all functionality
+    // Check all functionality - chọn TẤT CẢ tài khoản trong database
     $('#checkAll').on('change', function() {
         const isChecked = this.checked;
-        $('.row-checkbox').each(function() {
+        selectAllMode = isChecked;
+        
+        if (isChecked) {
+            // Thêm TẤT CẢ account IDs vào selectedAccounts
+            allAccountIds.forEach(id => selectedAccounts.add(id));
+        } else {
+            // Xóa tất cả
+            selectedAccounts.clear();
+        }
+        
+        // Cập nhật checkbox trên trang hiện tại
+        $('.row-checkbox:visible').each(function() {
             this.checked = isChecked;
-            const accountId = $(this).data('account-id');
-            if (isChecked) {
-                selectedAccounts.add(accountId);
-            } else {
-                selectedAccounts.delete(accountId);
-            }
         });
+        
         updateButtonStates();
+    });
+    
+    // Đồng bộ trạng thái checkAll khi chuyển trang
+    table.on('draw', function() {
+        // Cập nhật checkbox trên trang mới dựa vào selectedAccounts
+        $('.row-checkbox').each(function() {
+            const accountId = $(this).data('account-id');
+            this.checked = selectedAccounts.has(accountId);
+        });
+        
+        // Cập nhật trạng thái checkAll
+        const allChecked = allAccountIds.every(id => selectedAccounts.has(id));
+        $('#checkAll').prop('checked', allChecked);
     });
 
     // Bulk operations
@@ -650,16 +945,81 @@ $(document).ready(function() {
             cancelButtonText: 'Hủy'
         }).then((result) => {
             if (result.isConfirmed) {
-                const form = $('<form>', {
+                // Hiển thị loading
+                Swal.fire({
+                    title: 'Đang xử lý...',
+                    text: `Đang ${actionText} tài khoản`,
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Gửi AJAX request thay vì submit form
+                showLoading('Đang cập nhật trạng thái...');
+                
+                $.ajax({
+                    url: '{{ route("admin.accounts.update-status-multiple") }}',
                     method: 'POST',
-                    action: '{{ route("admin.accounts.update-status-multiple") }}'
-                }).append(
-                    '@csrf',
-                    $('<input>', { type: 'hidden', name: 'ids', value: accountIds.join(',') }),
-                    $('<input>', { type: 'hidden', name: 'status', value: status })
-                );
-                $('body').append(form);
-                form.submit();
+                    data: {
+                        ids: accountIds.join(','),
+                        status: status,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        hideLoading();
+                        // Cập nhật UI ngay lập tức
+                        accountIds.forEach(accountId => {
+                            const row = $(`.row-checkbox[data-account-id="${accountId}"]`).closest('tr');
+                            const statusCell = row.find('td:nth-child(5)');
+                            
+                            if (status === 1) {
+                                statusCell.html('<span class="badge bg-success">Hoạt động</span>');
+                            } else {
+                                statusCell.html('<span class="badge bg-danger">Tạm khóa</span>');
+                            }
+                        });
+
+                        // Cập nhật số liệu thống kê ngay lập tức
+                        const countChange = accountIds.length;
+                        const currentActive = parseInt($('#active-accounts-count').text());
+                        const currentLocked = parseInt($('#locked-accounts-count').text());
+                        
+                        if (status === 1) {
+                            // Mở khóa: tăng kích hoạt, giảm bị khóa
+                            $('#active-accounts-count').text(currentActive + countChange);
+                            $('#locked-accounts-count').text(Math.max(0, currentLocked - countChange));
+                        } else {
+                            // Khóa: giảm kích hoạt, tăng bị khóa
+                            $('#active-accounts-count').text(Math.max(0, currentActive - countChange));
+                            $('#locked-accounts-count').text(currentLocked + countChange);
+                        }
+
+                        // Reset checkboxes
+                        $('.row-checkbox').prop('checked', false);
+                        $('#checkAll').prop('checked', false);
+                        selectedAccounts.clear();
+                        updateButtonStates();
+
+                        // Hiển thị thông báo thành công
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Thành công!',
+                            text: response.message || `Đã ${actionText} ${accountIds.length} tài khoản`,
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    },
+                    error: function(xhr) {
+                        hideLoading();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Lỗi!',
+                            text: xhr.responseJSON?.message || `Có lỗi xảy ra khi ${actionText} tài khoản`,
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                });
             }
         });
     }
@@ -672,42 +1032,97 @@ $(document).ready(function() {
         performBulkStatusUpdate(1);
     });
 
-    // Account Type Management
-    // Toggle custom ID input
-    $('#newAccountTypeId').on('change', function() {
-        if ($(this).val() === 'custom') {
-            $('#customAccountTypeId').removeClass('d-none').attr('required', true);
-            $('#customIdHint').removeClass('d-none');
-            $(this).removeAttr('required');
-        } else {
-            $('#customAccountTypeId').addClass('d-none').removeAttr('required').val('');
-            $('#customIdHint').addClass('d-none');
-            $(this).attr('required', true);
+    // Bulk delete
+    $('#bulk-delete-btn').on('click', function() {
+        if (selectedAccounts.size === 0) {
+            Swal.fire('Thông báo', 'Vui lòng chọn ít nhất một tài khoản để xóa', 'warning');
+            return;
         }
+
+        const accountIds = Array.from(selectedAccounts);
+
+        Swal.fire({
+            title: `Bạn có chắc chắn muốn xóa ${accountIds.length} tài khoản đã chọn?`,
+            text: "Hành động này không thể hoàn tác!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Đồng ý, xóa!',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('Đang xóa tài khoản...');
+
+                // Gửi AJAX request
+                $.ajax({
+                    url: '{{ route("admin.accounts.destroy-multiple") }}',
+                    method: 'DELETE',
+                    data: {
+                        ids: accountIds.join(','),
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        hideLoading();
+                        if (response.success) {
+                            // Xóa các dòng khỏi bảng
+                            accountIds.forEach(accountId => {
+                                const row = $(`.row-checkbox[data-account-id="${accountId}"]`).closest('tr');
+                                table.row(row).remove();
+                            });
+                            table.draw();
+
+                            // Cập nhật số liệu thống kê
+                            if (response.stats) {
+                                const currentTotal = parseInt($('#total-accounts-count').text());
+                                const currentActive = parseInt($('#active-accounts-count').text());
+                                const currentLocked = parseInt($('#locked-accounts-count').text());
+                                
+                                $('#total-accounts-count').text(currentTotal - response.stats.removed_total);
+                                $('#active-accounts-count').text(Math.max(0, currentActive - response.stats.removed_active));
+                                $('#locked-accounts-count').text(Math.max(0, currentLocked - response.stats.removed_locked));
+                            }
+
+                            // Reset checkboxes
+                            $('.row-checkbox').prop('checked', false);
+                            $('#checkAll').prop('checked', false);
+                            selectedAccounts.clear();
+                            updateButtonStates();
+
+                            // Hiển thị thông báo thành công
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công!',
+                                text: response.message || `Đã xóa ${accountIds.length} tài khoản`,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        hideLoading();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Lỗi!',
+                            text: xhr.responseJSON?.message || 'Có lỗi xảy ra khi xóa tài khoản',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                });
+            }
+        });
     });
 
+    // Account Type Management
     $('#addAccountTypeForm').on('submit', function(e) {
         e.preventDefault();
         
-        // Xác định mã tài khoản (từ dropdown hoặc custom input)
-        let accountTypeId = $('#newAccountTypeId').val();
-        if (accountTypeId === 'custom') {
-            accountTypeId = $('#customAccountTypeId').val();
-            if (!accountTypeId || accountTypeId < 1) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Thiếu thông tin',
-                    text: 'Vui lòng nhập mã loại tài khoản hợp lệ (số nguyên dương)'
-                });
-                return;
-            }
-        }
-        
         const formData = {
-            account_type_id: accountTypeId,
             name: $('#newAccountTypeName').val(),
             description: $('#newAccountTypeDescription').val()
         };
+        
+        showLoading('Đang thêm loại tài khoản...');
         
         $.ajax({
             url: '/admin/account-types',
@@ -717,6 +1132,7 @@ $(document).ready(function() {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
+                hideLoading();
                 if (response.success) {
                     // Add new row to table
                     const newRow = `
@@ -742,9 +1158,6 @@ $(document).ready(function() {
                     
                     // Reset form
                     $('#addAccountTypeForm')[0].reset();
-                    $('#customAccountTypeId').addClass('d-none').removeAttr('required').val('');
-                    $('#customIdHint').addClass('d-none');
-                    $('#newAccountTypeId').attr('required', true);
                     
                     // Update dropdowns in other forms
                     updateAccountTypeDropdowns();
@@ -759,10 +1172,96 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
+                hideLoading();
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi!',
                     text: xhr.responseJSON?.message || 'Có lỗi xảy ra khi thêm loại tài khoản'
+                });
+            }
+        });
+    });
+
+    // Edit account type - Open modal
+    $(document).on('click', '.edit-type-btn', function() {
+        const typeId = $(this).data('type-id');
+        const typeName = $(this).data('type-name');
+        const typeDescription = $(this).data('type-description');
+        
+        // Populate modal fields
+        $('#edit-type-id').val(typeId);
+        $('#edit-type-name').val(typeName);
+        $('#edit-type-description').val(typeDescription || '');
+        
+        // Show modal
+        $('#editAccountTypeModal').modal('show');
+    });
+
+    // Edit account type - Submit form
+    $('#editAccountTypeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const typeId = $('#edit-type-id').val();
+        const name = $('#edit-type-name').val().trim();
+        const description = $('#edit-type-description').val().trim();
+        
+        if (!name) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cảnh báo',
+                text: 'Vui lòng nhập tên loại tài khoản'
+            });
+            return;
+        }
+        
+        showLoading('Đang cập nhật loại tài khoản...');
+        
+        $.ajax({
+            url: `/admin/account-types/${typeId}`,
+            method: 'POST',
+            data: {
+                _method: 'PUT',
+                name: name,
+                description: description
+            },
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                hideLoading();
+                if (response.success) {
+                    // Close modal
+                    $('#editAccountTypeModal').modal('hide');
+                    
+                    // Update row in table
+                    const row = $(`.edit-type-btn[data-type-id="${typeId}"]`).closest('tr');
+                    row.find('td:eq(1)').text(name);
+                    row.find('td:eq(2)').text(description || 'Không có mô tả');
+                    
+                    // Update data attributes - QUAN TRỌNG: Phải update cả data() và attr()
+                    const editBtn = $(`.edit-type-btn[data-type-id="${typeId}"]`);
+                    editBtn.attr('data-type-name', name);
+                    editBtn.attr('data-type-description', description);
+                    editBtn.data('type-name', name);
+                    editBtn.data('type-description', description);
+                    
+                    updateAccountTypeDropdowns();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Đã cập nhật loại tài khoản',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function(xhr) {
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: xhr.responseJSON?.message || 'Không thể cập nhật loại tài khoản'
                 });
             }
         });
@@ -784,6 +1283,8 @@ $(document).ready(function() {
             cancelButtonText: 'Hủy'
         }).then((result) => {
             if (result.isConfirmed) {
+                showLoading('Đang xóa loại tài khoản...');
+                
                 $.ajax({
                     url: `/admin/account-types/${typeId}`,
                     method: 'DELETE',
@@ -791,6 +1292,7 @@ $(document).ready(function() {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
+                        hideLoading();
                         if (response.success) {
                             row.fadeOut(300, function() {
                                 $(this).remove();
@@ -806,6 +1308,7 @@ $(document).ready(function() {
                         }
                     },
                     error: function(xhr) {
+                        hideLoading();
                         Swal.fire({
                             icon: 'error',
                             title: 'Lỗi!',
@@ -826,25 +1329,49 @@ $(document).ready(function() {
                     `<option value="${type.account_type_id}">${type.name}</option>`
                 ).join('');
                 
-                $('select[name="account_type_id"]:not(#newAccountTypeId)').each(function() {
+                $('select[name="account_type_id"]').each(function() {
                     const currentValue = $(this).val();
                     $(this).html('<option value="">Chọn loại tài khoản...</option>' + options);
                     $(this).val(currentValue);
                 });
-                
-                // Update dropdown mã loại tài khoản (cho form thêm account type mới)
-                const existingIds = response.accountTypes.map(type => type.account_type_id);
-                const allIds = Array.from({length: 20}, (_, i) => i + 1); // 1-20
-                const availableIds = allIds.filter(id => !existingIds.includes(id));
-                
-                const idOptions = availableIds.map(id => 
-                    `<option value="${id}">${id}</option>`
-                ).join('');
-                
-                $('#newAccountTypeId').html('<option value="">Chọn mã loại...</option>' + idOptions);
             }
         });
     }
+
+    // Khởi tạo DataTables cho bảng loại tài khoản trong modal
+    let accountTypesTableInstance = null;
+    $('#manageAccountTypesModal').on('shown.bs.modal', function() {
+        if (!accountTypesTableInstance) {
+            accountTypesTableInstance = $('#accountTypesTable').DataTable({
+                paging: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                ordering: true,
+                searching: false,
+                info: true,
+                orderMulti: false,
+                columnDefs: [
+                    { orderable: false, targets: [3] }, // Tắt sort cho cột Thao tác
+                    { orderSequence: ['asc', 'desc', ''], targets: '_all' } // 3-state sorting
+                ],
+                language: {
+                    lengthMenu: "Hiển thị _MENU_ mục",
+                    zeroRecords: "Không tìm thấy dữ liệu",
+                    info: "Hiển thị _START_ đến _END_ của _TOTAL_ mục",
+                    infoEmpty: "Hiển thị 0 đến 0 của 0 mục",
+                    paginate: { first: "Đầu", last: "Cuối", next: "Tiếp", previous: "Trước" }
+                }
+            });
+        }
+    });
+
+    // Destroy DataTable khi đóng modal để tránh lỗi
+    $('#manageAccountTypesModal').on('hidden.bs.modal', function() {
+        if (accountTypesTableInstance) {
+            accountTypesTableInstance.destroy();
+            accountTypesTableInstance = null;
+        }
+    });
 
     // Initial bind
     bindEvents();

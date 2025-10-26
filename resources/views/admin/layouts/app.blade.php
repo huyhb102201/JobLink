@@ -2,9 +2,13 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Dashboard')</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -12,6 +16,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Responsive layout cho zoom */
+        html {
+            overflow-x: hidden;
+            overflow-y: scroll; /* Luôn hiển thị scrollbar để tránh layout shift */
+        }
+        
+        body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            max-width: 100vw;
+        }
+        
+        /* Ngăn layout shift khi mở modal - Áp dụng cho tất cả trang */
+        body.modal-open {
+            overflow: hidden;
+            padding-right: 0 !important; /* Không thêm padding khi mở modal */
+        }
+        
+        /* Đảm bảo navbar và các element cố định không bị shift */
+        body.modal-open .navbar,
+        body.modal-open .fixed-top,
+        body.modal-open .sidebar {
+            padding-right: 0 !important;
+        }
+        
         /* Ẩn icon mặc định của DataTables */
         table.dataTable thead th.sorting:before,
         table.dataTable thead th.sorting:after,
@@ -55,20 +84,66 @@
         }
         
         /* Sidebar toggle */
+        .admin-layout {
+            position: relative;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+        
         .sidebar {
-            transition: margin-left 0.3s ease;
+            transition: all 0.3s ease;
+            width: 320px !important;
+            min-width: 320px !important;
+            max-width: 320px !important;
+            overflow-x: hidden;
+            overflow-y: auto;
+            flex-shrink: 0;
         }
         
         .sidebar.collapsed {
-            margin-left: -250px;
+            margin-left: -320px;
         }
         
         .main-content {
-            transition: margin-left 0.3s ease;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 0;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        
+        .content-wrapper {
+            max-width: 100%;
+            overflow-x: hidden;
         }
         
         #sidebarToggle {
             transition: all 0.3s ease;
+        }
+        
+        /* Dropdown menu trong sidebar */
+        .sidebar .collapse {
+            width: 100%;
+        }
+        
+        .sidebar .nav-link {
+            cursor: pointer;
+        }
+        
+        /* Ngăn sidebar expand khi dropdown mở */
+        .sidebar .collapse.show {
+            display: block;
+        }
+        
+        /* Icon chevron rotation */
+        .sidebar .nav-link[aria-expanded="true"] .fa-chevron-down {
+            transform: rotate(180deg);
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar .nav-link[aria-expanded="false"] .fa-chevron-down {
+            transform: rotate(0deg);
+            transition: transform 0.3s ease;
         }
     </style>
 
@@ -100,6 +175,25 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Global Loading Functions using SweetAlert2
+window.showLoading = function(message = 'Đang xử lý, vui lòng đợi...') {
+    Swal.fire({
+        title: 'Đang xử lý...',
+        html: message,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        allowEnterKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+};
+
+window.hideLoading = function() {
+    Swal.close();
+};
+
 // Setup CSRF token cho tất cả AJAX requests
 $.ajaxSetup({
     headers: {
@@ -124,6 +218,27 @@ $.extend($.fn.dataTable.defaults, {
 $(document).ready(function() {
     $('#sidebarToggle').on('click', function() {
         $('.sidebar').toggleClass('collapsed');
+    });
+    
+    // Xử lý dropdown trong sidebar
+    $('.sidebar [data-bs-toggle="collapse"]').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var target = $(this).attr('href');
+        var $target = $(target);
+        
+        // Toggle collapse
+        $target.collapse('toggle');
+        
+        // Update aria-expanded
+        var isExpanded = $(this).attr('aria-expanded') === 'true';
+        $(this).attr('aria-expanded', !isExpanded);
+    });
+    
+    // Ngăn sidebar expand khi dropdown đang mở/đóng
+    $('.sidebar .collapse').on('show.bs.collapse hide.bs.collapse', function(e) {
+        e.stopPropagation();
     });
 });
 </script>

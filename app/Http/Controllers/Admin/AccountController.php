@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
+use App\Services\AdminLogService;
 
 class AccountController extends Controller
 {
@@ -22,22 +23,12 @@ class AccountController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Tối ưu hóa queries với cache
-        $totalAccountsCount = \Cache::remember('admin_total_accounts', 300, function() {
-            return Account::count();
-        });
-        $activeAccountsCount = \Cache::remember('admin_active_accounts', 300, function() {
-            return Account::where('status', 1)->count();
-        });
-        $lockedAccountsCount = \Cache::remember('admin_locked_accounts', 300, function() {
-            return Account::where('status', 0)->count();
-        });
-        $unverifiedAccountsCount = \Cache::remember('admin_unverified_accounts', 300, function() {
-            return Account::whereNull('email_verified_at')->count();
-        });
-        $accountTypes = \Cache::remember('admin_account_types', 600, function() {
-            return AccountType::orderBy('name')->get(['account_type_id', 'name', 'description']);
-        });
+        // Lấy thống kê real-time (không cache để cập nhật ngay lập tức)
+        $totalAccountsCount = Account::count();
+        $activeAccountsCount = Account::where('status', 1)->count();
+        $lockedAccountsCount = Account::where('status', 0)->count();
+        $unverifiedAccountsCount = Account::whereNull('email_verified_at')->count();
+        $accountTypes = AccountType::orderBy('name')->get(['account_type_id', 'name', 'description']);
 
         return view('admin.accounts.index', compact(
             'accounts',
@@ -78,8 +69,13 @@ class AccountController extends Controller
                 'username' => strtolower(str_replace(' ', '', $request->fullname)) . rand(100, 999),
             ]);
 
-            // Clear cache
-            $this->clearAccountCache();
+            // Log admin action
+            AdminLogService::logCreate(
+                'Account',
+                $account->account_id,
+                "Tạo tài khoản mới: {$request->email}",
+                ['email' => $request->email, 'fullname' => $request->fullname]
+            );
 
             DB::commit();
             return back()->with('success', 'Tạo tài khoản thành công!');
@@ -134,7 +130,12 @@ class AccountController extends Controller
                 ]);
             }
 
-            $this->clearAccountCache();
+            // Log admin action
+            AdminLogService::logUpdate(
+                'Account',
+                $account->account_id,
+                "Cập nhật tài khoản: {$account->email}"
+            );
             
             DB::commit();
             return back()->with('success', 'Cập nhật tài khoản thành công!');
@@ -154,6 +155,14 @@ class AccountController extends Controller
 
         DB::beginTransaction();
         try {
+            // Log before delete
+            AdminLogService::logDelete(
+                'Account',
+                $account->account_id,
+                "Xóa tài khoản: {$account->email}",
+                ['email' => $account->email]
+            );
+
             // Xóa profile tương ứng trước
             if ($account->profile) {
                 $account->profile->delete();
@@ -161,8 +170,6 @@ class AccountController extends Controller
             
             // Sau đó xóa account
             $account->delete();
-            
-            $this->clearAccountCache();
             
             DB::commit();
             return back()->with('success', 'Đã xóa tài khoản và profile thành công.');
@@ -175,26 +182,86 @@ class AccountController extends Controller
 
     public function destroyMultiple(Request $request)
     {
-        $ids = explode(',', $request->input('ids'));
+        $idsInput = $request->input('ids');
+        $ids = [];
+
+        if (is_array($idsInput)) {
+            $ids = $idsInput;
+        } elseif (is_string($idsInput)) {
+            $decoded = json_decode($idsInput, true);
+            if (is_array($decoded)) {
+                $ids = $decoded;
+            } else {
+                $ids = explode(',', $idsInput);
+            }
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map(function ($id) {
+            if (is_numeric($id)) {
+                return (int) $id;
+            }
+            return null;
+        }, $ids))));
+
         if (empty($ids)) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn ít nhất một tài khoản để xóa.'
+                ], 422);
+            }
             return back()->with('error', 'Vui lòng chọn ít nhất một tài khoản để xóa.');
         }
 
         DB::beginTransaction();
         try {
-            // Xóa tất cả profiles tương ứng trước
+            $accounts = Account::whereIn('account_id', $ids)->get(['account_id', 'status']);
+
+            if ($accounts->isEmpty()) {
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy tài khoản hợp lệ để xóa.'
+                    ], 404);
+                }
+                return back()->with('error', 'Không tìm thấy tài khoản hợp lệ để xóa.');
+            }
+
+            $activeDeleted = $accounts->where('status', 1)->count();
+            $lockedDeleted = $accounts->where('status', 0)->count();
+
+            AdminLogService::logBulk('delete', 'Account', $ids, 'Xóa hàng loạt ' . count($ids) . ' tài khoản');
+
             Profile::whereIn('account_id', $ids)->delete();
-            
-            // Sau đó xóa các accounts
             Account::whereIn('account_id', $ids)->delete();
-            
-            $this->clearAccountCache();
-            
+
             DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đã xóa các tài khoản và profiles đã chọn thành công.',
+                    'removed_ids' => $ids,
+                    'stats' => [
+                        'removed_total' => count($ids),
+                        'removed_active' => $activeDeleted,
+                        'removed_locked' => $lockedDeleted,
+                    ],
+                ]);
+            }
+
             return back()->with('success', 'Đã xóa các tài khoản và profiles đã chọn thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Lỗi khi xóa nhiều tài khoản: ' . $e->getMessage());
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không thể xóa các tài khoản này. Có thể có dữ liệu liên quan.'
+                ], 500);
+            }
+
             return back()->with('error', 'Không thể xóa các tài khoản này. Có thể có dữ liệu liên quan.');
         }
     }
@@ -207,6 +274,12 @@ class AccountController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Yêu cầu không hợp lệ.'
+                ], 422);
+            }
             return back()->with('error', 'Yêu cầu không hợp lệ.');
         }
 
@@ -215,7 +288,13 @@ class AccountController extends Controller
         $actionText = $status === 1 ? 'mở khóa' : 'tạm khóa';
 
         if (empty($ids)) {
-             return back()->with('error', 'Vui lòng chọn ít nhất một tài khoản.');
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng chọn ít nhất một tài khoản.'
+                ], 422);
+            }
+            return back()->with('error', 'Vui lòng chọn ít nhất một tài khoản.');
         }
 
         try {
@@ -225,32 +304,120 @@ class AccountController extends Controller
                 return $id != $currentAdminId;
             });
 
-            if (count($filteredIds) < count($ids)) {
-                 Account::whereIn('account_id', $filteredIds)->update(['status' => $status]);
-                 return back()->with('success', "Đã $actionText các tài khoản đã chọn thành công. Tài khoản của bạn đã được bỏ qua.");
-            }
+            $skippedSelf = count($filteredIds) < count($ids);
             
             Account::whereIn('account_id', $filteredIds)->update(['status' => $status]);
 
-            $this->clearAccountCache();
+            // Log bulk status update
+            AdminLogService::logBulk(
+                $status === 1 ? 'unlock' : 'lock',
+                'Account',
+                $filteredIds,
+                "Cập nhật trạng thái hàng loạt: $actionText " . count($filteredIds) . " tài khoản"
+            );
 
-            return back()->with('success', "Đã $actionText các tài khoản đã chọn thành công.");
+            $message = "Đã $actionText các tài khoản đã chọn thành công.";
+            if ($skippedSelf) {
+                $message .= " Tài khoản của bạn đã được bỏ qua.";
+            }
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'updated_ids' => $filteredIds
+                ]);
+            }
+
+            return back()->with('success', $message);
         } catch (\Exception $e) {
             Log::error("Lỗi khi $actionText nhiều tài khoản: " . $e->getMessage());
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã có lỗi xảy ra trong quá trình xử lý.'
+                ], 500);
+            }
+            
             return back()->with('error', 'Đã có lỗi xảy ra trong quá trình xử lý.');
         }
     }
 
-    /**
-     * Clear account-related cache
-     */
-    private function clearAccountCache()
+    public function updateStatusAll(Request $request)
     {
-        \Cache::forget('admin_total_accounts');
-        \Cache::forget('admin_active_accounts');
-        \Cache::forget('admin_locked_accounts');
-        \Cache::forget('admin_unverified_accounts');
-        \Cache::forget('admin_account_types');
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Yêu cầu không hợp lệ.'
+            ], 422);
+        }
+
+        $status = (int) $request->input('status');
+        $actionText = $status === 1 ? 'mở khóa' : 'khóa';
+
+        try {
+            $currentAdminId = auth()->id();
+            
+            // Lấy tất cả tài khoản có trạng thái ngược lại (để cập nhật)
+            $targetStatus = $status === 1 ? 0 : 1; // Nếu mở khóa thì lấy tài khoản bị khóa (status=0)
+            
+            // Cập nhật tất cả tài khoản trừ tài khoản admin hiện tại
+            $updatedCount = Account::where('status', $targetStatus)
+                ->where('account_id', '!=', $currentAdminId)
+                ->update(['status' => $status]);
+
+            if ($updatedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $status === 1 
+                        ? 'Không có tài khoản nào bị khóa để mở khóa.' 
+                        : 'Không có tài khoản nào đang hoạt động để khóa.'
+                ], 422);
+            }
+
+            // Log bulk status update
+            AdminLogService::logAction(
+                $status === 1 ? 'unlock_all' : 'lock_all',
+                'Account',
+                null,
+                "Cập nhật trạng thái tất cả: $actionText $updatedCount tài khoản"
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Đã $actionText thành công $updatedCount tài khoản.",
+                'updated_count' => $updatedCount
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Lỗi khi $actionText tất cả tài khoản: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã có lỗi xảy ra trong quá trình xử lý.'
+            ], 500);
+        }
+    }
+
+
+    private function getNextAvailableAccountTypeId(): int
+    {
+        $existingIds = AccountType::orderBy('account_type_id')->pluck('account_type_id');
+        $nextId = 1;
+
+        foreach ($existingIds as $id) {
+            if ($id == $nextId) {
+                $nextId++;
+            } elseif ($id > $nextId) {
+                break;
+            }
+        }
+
+        return $nextId;
     }
 
     // Account Type Management Methods
@@ -260,7 +427,8 @@ class AccountController extends Controller
             $accountTypes = AccountType::orderBy('account_type_id')->get();
             return response()->json([
                 'success' => true,
-                'accountTypes' => $accountTypes
+                'accountTypes' => $accountTypes,
+                'next_available_id' => $this->getNextAvailableAccountTypeId()
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -273,12 +441,9 @@ class AccountController extends Controller
     public function storeAccountType(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'account_type_id' => 'required|integer|unique:account_types,account_type_id',
             'name' => 'required|string|max:255|unique:account_types,name',
             'description' => 'nullable|string|max:500'
         ], [
-            'account_type_id.required' => 'Vui lòng chọn mã loại tài khoản',
-            'account_type_id.unique' => 'Mã loại tài khoản này đã tồn tại',
             'name.required' => 'Vui lòng nhập tên loại tài khoản',
             'name.unique' => 'Tên loại tài khoản này đã tồn tại'
         ]);
@@ -291,6 +456,9 @@ class AccountController extends Controller
         }
 
         try {
+            // Tự động tạo account_type_id duy nhất
+            $accountTypeId = $this->getNextAvailableAccountTypeId();
+
             // Tự động tạo code từ tên (uppercase, loại bỏ khoảng trắng, giới hạn 20 ký tự)
             $code = strtoupper(str_replace(' ', '_', substr($request->name, 0, 20)));
             
@@ -303,7 +471,7 @@ class AccountController extends Controller
             }
             
             $accountType = AccountType::create([
-                'account_type_id' => $request->account_type_id,
+                'account_type_id' => $accountTypeId,
                 'name' => $request->name,
                 'code' => $code,
                 'description' => $request->description,
@@ -315,12 +483,19 @@ class AccountController extends Controller
                 'auto_approve_job_posts' => 0
             ]);
 
-            $this->clearAccountCache();
+            // Log admin action
+            AdminLogService::logCreate(
+                'AccountType',
+                $accountType->account_type_id,
+                "Tạo loại tài khoản mới: {$accountType->name}",
+                ['name' => $accountType->name, 'code' => $accountType->code]
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Đã thêm loại tài khoản thành công',
-                'accountType' => $accountType
+                'accountType' => $accountType,
+                'next_available_id' => $this->getNextAvailableAccountTypeId()
             ]);
         } catch (\Exception $e) {
             Log::error('Lỗi khi thêm loại tài khoản: ' . $e->getMessage());
@@ -351,8 +526,15 @@ class AccountController extends Controller
                 ], 422);
             }
 
+            // Log before delete
+            AdminLogService::logDelete(
+                'AccountType',
+                $accountType->account_type_id,
+                "Xóa loại tài khoản: {$accountType->name}",
+                ['name' => $accountType->name, 'code' => $accountType->code]
+            );
+
             $accountType->delete();
-            $this->clearAccountCache();
 
             return response()->json([
                 'success' => true,
@@ -362,6 +544,52 @@ class AccountController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi xóa loại tài khoản'
+            ], 500);
+        }
+    }
+
+    public function updateAccountType(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255|unique:account_types,name,' . $id . ',account_type_id',
+            'description' => 'nullable|string|max:500'
+        ], [
+            'name.required' => 'Vui lòng nhập tên loại tài khoản',
+            'name.unique' => 'Tên loại tài khoản này đã tồn tại'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            $accountType = AccountType::where('account_type_id', $id)->firstOrFail();
+            
+            $accountType->update([
+                'name' => $request->name,
+                'description' => $request->description
+            ]);
+
+            // Log admin action
+            AdminLogService::logUpdate(
+                'AccountType',
+                $accountType->account_type_id,
+                "Cập nhật loại tài khoản: {$accountType->name}",
+                ['name' => $accountType->name, 'description' => $accountType->description]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã cập nhật loại tài khoản thành công',
+                'accountType' => $accountType
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi cập nhật loại tài khoản: ' . $e->getMessage()
             ], 500);
         }
     }
