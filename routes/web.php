@@ -520,3 +520,24 @@ Route::post('/settings/billing/withdraw', [BillingController::class, 'withdraw']
     ->name('settings.billing.withdraw')
     ->middleware('auth');
 
+// Bulk trước
+Route::patch('/client/jobs/{job_id}/applications/bulk', [MyJobsController::class, 'bulkUpdate'])
+    ->whereNumber('job_id')
+    ->name('client.jobs.applications.bulk');
+
+// Update 1 người sau, ràng buộc user_id là số
+Route::patch('/client/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
+    ->whereNumber('job_id')
+    ->whereNumber('user_id')
+    ->name('client.jobs.applications.update');
+
+
+use App\Http\Controllers\StripeCheckoutController;
+
+Route::post('/checkout/stripe', [StripeCheckoutController::class, 'createCheckout'])->name('stripe.checkout');
+Route::get('/checkout/stripe/success', [StripeCheckoutController::class, 'success'])->name('stripe.success');
+Route::get('/checkout/stripe/cancel',  [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
+
+// routes/api.php (webhook)
+Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
+
