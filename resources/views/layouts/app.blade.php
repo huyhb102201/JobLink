@@ -23,7 +23,7 @@
   <link href="{{ asset('assets/css/main.css') }}" rel="stylesheet">
   <!-- Sweet Alert -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
- <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"> -->
+  <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"> -->
   <meta name="csrf-token" content="{{ csrf_token() }}">
   @stack('styles')
 </head>
@@ -38,11 +38,12 @@
   {{-- Main Content --}}
   @yield('content')
 
-  <!-- Toast Container for Notifications -->
+  <!-- Toast Container for Notifications
   <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
-
-  <!-- Notification Sound -->
-  <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio>
+  <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio> -->
+  @if(!request()->is('chat'))
+    @include('partials.chatBox')
+  @endif
 
   <!-- Preloader -->
   <div id="preloader"></div>
