@@ -578,3 +578,7 @@ Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->na
 // ✅ Thêm cặp route “tổng quát” (dùng cho nút Liên kết có ?mode=link)
 Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->name('oauth.redirect');
 Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
+
+use App\Http\Controllers\ChatBotController;
+Route::post('/chat', [ChatBotController::class, 'handle']);
+Route::post('/chat/reset', [ChatBotController::class, 'reset']);
