@@ -21,7 +21,22 @@ class JobController extends Controller
 {
     public function index(Request $request)
     {
-        $jobs = Job::with('account.profile', 'jobCategory')
+        // Lấy user_id theo chuẩn dự án (accounts.account_id)
+        $userId = auth()->user()?->account_id ?? auth()->id();
+
+        $jobs = Job::query()
+            ->with('account.profile', 'jobCategory')
+            ->select('jobs.*') // giữ cột gốc của bảng jobs
+            // Thêm cột is_favorited cho từng job
+            ->when($userId, function ($q) use ($userId) {
+                // Đã đăng nhập: true/false tùy theo tồn tại trong job_favorites
+                $q->withExists([
+                    'favorites as is_favorited' => fn($x) => $x->where('user_id', $userId)
+                ]);
+            }, function ($q) {
+                // Chưa đăng nhập: luôn false
+                $q->selectRaw('0 as is_favorited');
+            })
             ->whereNotIn('status', ['pending', 'cancelled']);
 
         // Lọc theo payment_type
@@ -397,7 +412,8 @@ class JobController extends Controller
             'job.account.profile',
             'job.tasks',
             'user.profile'
-        ])->where('user_id', $userId)->whereHas('job');;
+        ])->where('user_id', $userId)->whereHas('job');
+        ;
 
         if ($request->has('status') && is_array($request->status)) {
             $query->whereIn('status', $request->status);
