@@ -97,7 +97,7 @@ class ChatBotController extends Controller
                 $resp = $client->post('/api/v1/chat/completions', [
                     'headers' => [
                         'Authorization' => 'Bearer ' . $apiKey,
-                        'HTTP-Referer' => config('app.url') ?? 'http://localhost',
+                        'HTTP-Referer' =>  'https://www.vanda.id.vn/',
                         'X-Title' => 'Laravel Job Assistant',
                         'Content-Type' => 'application/json',
                     ],

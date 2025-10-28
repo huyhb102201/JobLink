@@ -123,5 +123,11 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
     }
+    
+public function favoriteJobs()
+{
+    return $this->belongsToMany(Job::class, 'job_favorites', 'user_id', 'job_id')
+        ->withTimestamps();
+}
 
 }

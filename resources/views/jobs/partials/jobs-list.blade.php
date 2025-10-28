@@ -59,12 +59,20 @@
 
                             <!-- Nút chi tiết -->
                             <div class="mt-3 d-flex justify-content-between align-items-center">
-                                <a href="{{ route('jobs.show', $job->job_id) }}" class="btn btn-sm text-white"
-                                    style="background-color: #0ea2bd; border-color: #0ea2bd;">Xem chi tiết</a>
-                                <button class="btn p-0 text-danger fs-5 d-flex align-items-center justify-content-center" type="button">
-                                    <i class="bi bi-heart"></i>
-                                </button>
+                            <a href="{{ route('jobs.show', $job->job_id) }}" class="btn btn-sm text-white"
+                                style="background-color: #0ea2bd; border-color: #0ea2bd;">Xem chi tiết</a>
+
+                            {{-- Nút Yêu thích --}}
+                            <button
+                                class="btn p-0 text-danger fs-5 d-flex align-items-center justify-content-center btn-fav"
+                                type="button"
+                                data-job-id="{{ $job->job_id }}"
+                                aria-pressed="{{ !empty($job->is_favorited) ? 'true' : 'false' }}"
+                                title="{{ !empty($job->is_favorited) ? 'Bỏ yêu thích' : 'Thêm vào yêu thích' }}">
+                                <i class="bi {{ !empty($job->is_favorited) ? 'bi-heart-fill' : 'bi-heart' }}"></i>
+                            </button>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -78,3 +86,71 @@
         </div>
     @endforelse
 </div>
+<script>
+(function () {
+  const list = document.getElementById('jobs-list');
+  if (!list) return;
+
+  const CSRF = '{{ csrf_token() }}';
+
+  list.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('.btn-fav');
+    if (!btn || !list.contains(btn)) return;
+
+    const jobId = btn.dataset.jobId;
+    const icon  = btn.querySelector('i');
+    const wasFavorited = btn.getAttribute('aria-pressed') === 'true';
+
+    // Optimistic UI: đổi icon trước
+    setHeart(icon, !wasFavorited);
+    btn.setAttribute('aria-pressed', (!wasFavorited).toString());
+    btn.title = (!wasFavorited) ? 'Bỏ yêu thích' : 'Thêm vào yêu thích';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`{{ url('/jobs') }}/${jobId}/favorite`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': CSRF,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (res.status === 401) {
+        // Chưa đăng nhập → chuyển đến trang đăng nhập
+        const back = encodeURIComponent(location.href);
+        window.location.href = `/login?redirect=${back}`;
+        return;
+      }
+
+      if (!res.ok) throw new Error('Network');
+
+      const data = await res.json();
+      const shouldBeFavorited = (data.status === 'added');
+      setHeart(icon, shouldBeFavorited);
+      btn.setAttribute('aria-pressed', shouldBeFavorited.toString());
+      btn.title = shouldBeFavorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích';
+    } catch (e) {
+      // Hoàn tác nếu lỗi
+      setHeart(icon, wasFavorited);
+      btn.setAttribute('aria-pressed', wasFavorited.toString());
+      btn.title = wasFavorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích';
+      // Thông báo nhẹ
+      alert('Không thể cập nhật yêu thích. Vui lòng thử lại.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function setHeart(icon, active) {
+    if (!icon) return;
+    if (active) {
+      icon.classList.add('bi-heart-fill');
+      icon.classList.remove('bi-heart');
+    } else {
+      icon.classList.add('bi-heart');
+      icon.classList.remove('bi-heart-fill');
+    }
+  }
+})();
+</script>

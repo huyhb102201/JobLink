@@ -84,7 +84,7 @@
                   </a>
                 </li>
                 <li>
-                  <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}" href="#">
+                  <a class="dropdown-item {{ $activeMine ? 'active fw-semibold' : '' }}" href="{{ route('favorites.index') }}">
                     Công việc yêu thích
                   </a>
                 </li>

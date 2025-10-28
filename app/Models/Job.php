@@ -90,5 +90,16 @@ class Job extends Model
         return $this->hasMany(Task::class, 'job_id', 'job_id');
     }
 
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(Account::class, 'job_favorites', 'job_id', 'user_id')
+            ->withTimestamps();
+    }
+    // app/Models/Job.php
+    public function favorites()
+    {
+        return $this->hasMany(\App\Models\JobFavorite::class, 'job_id', 'job_id');
+    }
+
 
 }

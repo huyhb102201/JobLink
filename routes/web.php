@@ -10,7 +10,7 @@ use App\Http\Controllers\OnboardingController;
 // routes/web.php
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\MessageController;
-use App\Http\Controllers\FreelancerController;
+use App\Http\Controllers\JobFavoriteController;
 use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -189,7 +189,11 @@ Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
 
 
 // Hiển thị danh sách freelancer
-Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
+Route::get('/favorites', [JobFavoriteController::class, 'index'])
+    ->name('favorites.index');
+
+Route::post('/jobs/{job}/favorite', [JobFavoriteController::class, 'toggle'])
+    ->name('jobs.favorite.toggle');
 Route::get('/orgs', [OrgsController::class, 'index'])->name('orgs.index');
 
 // Hiển thị danh sách portfolio
