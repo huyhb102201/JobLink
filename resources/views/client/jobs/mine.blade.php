@@ -561,7 +561,209 @@
           {{ $jobs->links() }}
         </div>
       @endif
+      {{-- ====== KHỐI: Công việc của doanh nghiệp (READ-ONLY) ====== --}}
+      @if(isset($orgOwnerJobs) && $orgOwnerJobs instanceof \Illuminate\Contracts\Pagination\Paginator && $orgOwnerJobs->count())
+        <hr class="my-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h2 class="h5 mb-1">Công việc của doanh nghiệp</h2>
+            <div class="text-muted small">Các job do <strong>Chủ doanh nghiệp</strong> đăng trong tổ chức bạn đang tham gia
+              (chế độ chỉ xem).</div>
+          </div>
+        </div>
+
+        <div id="org-owner-jobs" class="vstack gap-3">
+          @foreach($orgOwnerJobs as $job)
+            @php
+              $statusMap = [
+                'open' => ['label' => 'ĐANG MỞ', 'class' => 'success'],
+                'pending' => ['label' => 'CHỜ DUYỆT', 'class' => 'warning'],
+                'in_progress' => ['label' => 'ĐANG LÀM', 'class' => 'info'],
+                'completed' => ['label' => 'ĐÃ HOÀN THÀNH', 'class' => 'success'],
+                'cancelled' => ['label' => 'ĐÃ HỦY', 'class' => 'secondary'],
+                'closed' => ['label' => 'ĐÃ ĐÓNG', 'class' => 'dark'],
+              ];
+              $cfg = $statusMap[$job->status] ?? ['label' => strtoupper($job->status), 'class' => 'secondary'];
+
+              $escrowMap = [
+                'pending' => ['label' => 'CHƯA THANH TOÁN', 'class' => 'warning'],
+                'funded' => ['label' => 'ĐÃ THANH TOÁN', 'class' => 'primary'],
+                'released' => ['label' => 'ĐÃ GIẢI NGÂN', 'class' => 'success'],
+                'refunded' => ['label' => 'HOÀN TIỀN', 'class' => 'secondary'],
+              ];
+              $esc = $escrowMap[$job->escrow_status ?? 'pending'] ?? $escrowMap['pending'];
+
+              $applyCount = $job->applicants_count
+                ?? ($job->relationLoaded('applicants') ? $job->applicants->count() : 0);
+
+              $countBadge = $applyCount > 0
+                ? 'bg-primary-subtle text-primary border border-primary-subtle'
+                : 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+
+              $acceptedCount = collect($job->applicants ?? collect())
+                ->filter(fn($u) => (int) ($u->pivot->status ?? 0) === 2)
+                ->count();
+
+              $quantity = (int) ($job->quantity ?? 1);
+            @endphp
+
+            <div class="card shadow-sm border-0 job-card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                  {{-- LEFT: Tiêu đề + badges + meta + mô tả --}}
+                  <div class="flex-grow-1">
+                    <a class="fw-semibold text-decoration-none link-dark h5 mb-1 d-inline-block"
+                      href="{{ route('jobs.show', $job->job_id) }}">
+                      {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 60) }}
+                    </a>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap small">
+                      <span class="badge rounded-pill bg-dark-subtle text-dark border border-dark-subtle">Chủ DN</span>
+                      <span
+                        class="badge rounded-pill bg-{{ $esc['class'] }}-subtle text-{{ $esc['class'] }} border border-{{ $esc['class'] }}-subtle">
+                        {{ $esc['label'] }}
+                      </span>
+                      <span
+                        class="badge rounded-pill bg-{{ $cfg['class'] }}-subtle text-{{ $cfg['class'] }} border border-{{ $cfg['class'] }}-subtle">
+                        {{ $cfg['label'] }}
+                      </span>
+                      <span class="badge rounded-pill {{ $countBadge }}">
+                        <i class="bi bi-people me-1"></i>{{ $applyCount }} ứng viên
+                      </span>
+                      <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle">
+                        <i class="bi bi-person-check me-1"></i>{{ $acceptedCount }}/{{ $quantity }} đã nhận
+                      </span>
+                    </div>
+
+                    <div class="text-muted mt-2 small">
+                      <span class="me-3"><i class="bi bi-tag"></i> {{ $job->categoryRef->name ?? '—' }}</span>
+                      <span class="me-3">
+                        <i class="bi bi-wallet2"></i> {{ $job->payment_type }}
+                        @if($job->total_budget)
+                                    ${{ $job->total_budget == floor($job->total_budget)
+                          ? number_format($job->total_budget, 0)
+                          : rtrim(rtrim(number_format($job->total_budget, 2, '.', ','), '0'), '.') }}
+                        @endif
+                      </span>
+                      @if($job->deadline)
+                        <span><i class="bi bi-calendar-event"></i>
+                          {{ \Illuminate\Support\Carbon::parse($job->deadline)->toDateString() }}</span>
+                      @endif
+                    </div>
+
+                    <div class="mt-2 text-secondary" style="max-width: 820px;">
+                      {{ \Illuminate\Support\Str::limit(strip_tags($job->description), 50) }}
+                    </div>
+                  </div>
+
+                  {{-- RIGHT: chỉ có nút xem chi tiết, không thao tác --}}
+                  {{-- RIGHT: mở modal CHỈ XEM TASK --}}
+                  <div class="text-end d-flex flex-column align-items-end gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ route('jobs.show', $job->job_id) }}">
+                      Xem chi tiết
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                      data-bs-target="#viewTasksModal-{{ $job->job_id }}">
+                      Xem task
+                    </button>
+                  </div>
+
+
+                </div>
+              </div>
+            </div>
+            {{-- MODAL: XEM TASK (view-only) --}}
+<div class="modal fade" id="viewTasksModal-{{ $job->job_id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Task – {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 50) }} (Chỉ xem)
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        @php
+          // Map task đã được controller truyền vào: $tasksByJobAndUser[job_id][account_id] = [task...]
+          $jobTasksMap   = $tasksByJobAndUser[$job->job_id] ?? [];
+          $acceptedUsers = collect(($job->applicants ?? collect()))
+                            ->filter(fn($u) => (int) ($u->pivot->status ?? -1) === 2)
+                            ->values();
+          $firstUserId   = optional($acceptedUsers->first())->account_id;
+          $firstUserTasks = $firstUserId ? ($jobTasksMap[$firstUserId] ?? []) : [];
+        @endphp
+
+        <div class="row g-3 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label">Freelancer</label>
+            <select class="form-select" disabled>
+              @forelse($acceptedUsers as $u)
+                @php
+                  $p = $u->profile ?? null;
+                  $n = $p->fullname ?? $u->name ?? ('#'.$u->account_id);
+                @endphp
+                <option value="{{ $u->account_id }}" @selected($u->account_id == $firstUserId)>{{ $n }}</option>
+              @empty
+                <option>(Chưa có freelancer được nhận)</option>
+              @endforelse
+            </select>
+            <div class="form-text">Chế độ chỉ xem</div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          @if($firstUserId && !empty($firstUserTasks))
+            <div class="list-group small">
+              @foreach($firstUserTasks as $t)
+                @php
+                  $fileUrls = collect(explode('|', (string) ($t->file_url ?? '')))
+                    ->map(fn($u) => trim($u))->filter()->values();
+                  $prettyName = function ($u) {
+                    $p = parse_url($u, PHP_URL_PATH) ?? '';
+                    return urldecode($p ? basename($p) : 'file');
+                  };
+                @endphp
+                <div class="list-group-item border-0 ps-0">
+                  <div class="fw-semibold">
+                    #{{ $t->task_id }}
+                    <span class="fw-normal text-secondary">· {{ $t->title }}</span>
+                    <small class="text-muted ms-2">
+                      <i class="bi bi-clock-history"></i>
+                      {{ \Illuminate\Support\Carbon::parse($t->updated_at)->format('Y-m-d H:i') }}
+                    </small>
+                  </div>
+                  @if($fileUrls->count())
+                    <ul class="mb-0 mt-1">
+                      @foreach($fileUrls as $u)
+                        <li><a href="{{ $u }}" target="_blank" rel="noopener" download>{{ $prettyName($u) }}</a></li>
+                      @endforeach
+                    </ul>
+                  @else
+                    <div class="text-muted small">Không có tệp đính kèm.</div>
+                  @endif
+                </div>
+              @endforeach
+            </div>
+          @else
+            <div class="text-muted small"><i class="bi bi-info-circle"></i> Chưa có task.</div>
+          @endif
+        </div>
+      </div>
     </div>
+  </div>
+</div>
+
+          @endforeach
+        </div>
+
+        <div class="mt-3">
+          {{ $orgOwnerJobs->links() }}
+        </div>
+      @endif
+
+    </div>
+
   </main>
 
   <style>
@@ -938,10 +1140,10 @@
         overlay.style.background = 'rgba(255,255,255,.6)';
         overlay.style.backdropFilter = 'blur(1px)';
         overlay.innerHTML = `
-        <div class="position-absolute top-50 start-50 translate-middle">
-          <div class="spinner-border" role="status" aria-hidden="true"></div>
-          <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
-        </div>`;
+            <div class="position-absolute top-50 start-50 translate-middle">
+              <div class="spinner-border" role="status" aria-hidden="true"></div>
+              <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
+            </div>`;
         // bọc collapse relative để overlay định vị đúng
         const collapse = document.getElementById('applicants-' + jobId);
         if (collapse && !collapse.classList.contains('position-relative')) {
@@ -1004,8 +1206,8 @@
           const prev = btn.innerHTML;
           btn.setAttribute('disabled', 'disabled');
           btn.innerHTML = `
-          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          <span>${text}</span>`;
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              <span>${text}</span>`;
           return () => {
             btn.innerHTML = prev;
             btn.removeAttribute('disabled');
@@ -1120,15 +1322,15 @@
           }).join('');
 
           html += `
-              <div class="list-group-item border-0 ps-0">
-                <div class="fw-semibold">
-                  #${t.task_id ?? ''}
-                  ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
-                  ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
-                </div>
-                ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
-              </div>
-            `;
+                  <div class="list-group-item border-0 ps-0">
+                    <div class="fw-semibold">
+                      #${t.task_id ?? ''}
+                      ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
+                      ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
+                    </div>
+                    ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
+                  </div>
+                `;
         }
         html += '</div>';
         return html;

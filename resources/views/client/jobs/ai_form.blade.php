@@ -292,24 +292,94 @@
 @endsection
 
 @push('scripts')
-  <script>
+<script>
+  // ===== Helpers cho Deadline =====
+  function _todayISO() {
+    const t = new Date();
+    const y = t.getFullYear();
+    const m = String(t.getMonth() + 1).padStart(2, '0');
+    const d = String(t.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function _toISO(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function _parseISO(s) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s || '').trim())) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return (dt && dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) ? dt : null;
+  }
+  function _parseDDMMYYYY(s) {
+    const m = String(s || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10), mon = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
+    const dt = new Date(y, mon, d);
+    return (dt && dt.getFullYear() === y && dt.getMonth() === mon && dt.getDate() === d) ? dt : null;
+  }
+  function _parseRelative(s) {
+    s = String(s || '').trim().toLowerCase();
+    if (!s) return null;
+    s = s.replace(',', ' ').replace(/\s+/g, ' ').trim();
+    // +10 ngày / +10 day(s)
+    let m = s.match(/^\+?\s*(\d+)\s*(ng[aà]y|day|days)$/);
+    if (m) { const n = Math.max(0, parseInt(m[1],10)); const dt = new Date(); dt.setDate(dt.getDate() + n); return dt; }
+    // +2 tuần / +2 week(s)
+    m = s.match(/^\+?\s*(\d+)\s*(tu[aâ]n|week|weeks)$/);
+    if (m) { const n = Math.max(0, parseInt(m[1],10)); const dt = new Date(); dt.setDate(dt.getDate() + n*7); return dt; }
+    // "+2" (ngầm hiểu ngày)
+    m = s.match(/^\+?\s*(\d+)$/);
+    if (m) { const n = Math.max(0, parseInt(m[1],10)); const dt = new Date(); dt.setDate(dt.getDate() + n); return dt; }
+    return null;
+  }
+  function _alert(icon, title, text) {
+    if (window.Swal) Swal.fire({ icon, title, text, confirmButtonText: 'OK' });
+    else alert(text || title || 'Lỗi');
+  }
 
-    // ✅ Ngăn submit nếu tổng ngân sách = 0
+  // ===== Form handler =====
+  (function(){
+    // Ngăn submit nếu tổng ngân sách = 0
     document.getElementById('jobForm').addEventListener('submit', function (e) {
-      const totalBudget = parseFloat(document.getElementById('f_budget_total').value || 0);
-
+      const totalBudget = parseFloat((document.getElementById('f_budget_total').value || '').toString().replace(/[^\d.-]/g, '')) || 0;
       if (!totalBudget || totalBudget <= 0) {
-        e.preventDefault(); // chặn submit
-        Swal.fire({
-          icon: 'warning',
-          title: 'Thiếu thông tin',
-          text: 'Vui lòng nhập Tổng ngân sách lớn hơn 0 trước khi đăng job.',
-          confirmButtonText: 'OK'
-        });
+        e.preventDefault();
+        _alert('warning', 'Thiếu thông tin', 'Vui lòng nhập Tổng ngân sách lớn hơn 0 trước khi đăng job.');
         return false;
       }
+
+      // Kiểm tra Deadline > hôm nay
+      const raw = (document.getElementById('f_deadline').value || '').trim();
+      if (!raw) {
+        e.preventDefault();
+        _alert('warning', 'Thiếu deadline', 'Vui lòng nhập deadline.');
+        return false;
+      }
+
+      let dt = _parseRelative(raw) || _parseDDMMYYYY(raw) || _parseISO(raw);
+      if (!dt) {
+        e.preventDefault();
+        _alert('error', 'Định dạng ngày không hợp lệ', 'Nhập dạng YYYY-MM-DD, dd/mm/yyyy, hoặc +2 tuần / +10 ngày.');
+        return false;
+      }
+
+      const iso = _toISO(dt);
+      const today = _todayISO();
+      if (iso <= today) {
+        e.preventDefault();
+        _alert('warning', 'Deadline chưa hợp lệ', 'Deadline phải lớn hơn ngày hiện tại.');
+        return false;
+      }
+
+      // Chuẩn hoá: ghi lại vào input theo ISO trước khi submit (để backend nhận đúng)
+      document.getElementById('f_deadline').value = iso;
+      return true;
     });
 
+    // ===== Các hàm có sẵn của bạn =====
     const btn = document.getElementById('btnBuild');
     const statusEl = document.getElementById('aiStatus');
     const formBody = document.getElementById('formBody');
@@ -341,7 +411,6 @@
         if (!data.ok) throw new Error(data.error || 'Lỗi AI');
 
         const d = data.data || {};
-        // --- Điền form ---
         setVal('f_title', d.title || '');
         setVal('f_category_id', d.category_id || '');
         setVal('f_category', d.category_name || d.category || '');
@@ -349,7 +418,7 @@
         setVal('f_quantity', d.quantity || 1);
         setVal('f_budget_total', d.total_budget ?? '');
         setVal('f_budget', d.budget ?? '');
-        setVal('f_deadline', d.deadline || '');
+        setVal('f_deadline', d.deadline || ''); // nếu AI trả về +2 tuần, submit sẽ chuẩn hoá ở trên
         setVal('f_description', d.description || (d._raw ?? ''));
 
         normalizeBudgetFromTotal();
@@ -368,7 +437,7 @@
       }
     });
 
-    /* ===== Helpers ===== */
+    // Helpers cũ
     function toggleSkeleton(on) { if (on) formBody.classList.add('skel'); else formBody.classList.remove('skel'); }
     function toNum(v) { const n = parseFloat(String(v).replace(/[^\d.-]/g, '')); return isFinite(n) ? n : 0; }
     function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v; }
@@ -377,12 +446,7 @@
       const total = toNum(getEl('f_budget_total').value);
       const qty = Math.max(1, parseInt(getEl('f_quantity').value || 1));
       const per = qty > 0 ? total / qty : 0;
-
-      // ✅ Làm tròn 2 chữ số nhưng bỏ .00 nếu không cần
-      const formatted = (per % 1 === 0)
-        ? per.toString()              // nếu là số nguyên thì giữ nguyên
-        : per.toFixed(2).replace(/\.?0+$/, '');  // bỏ .00 hoặc .0
-
+      const formatted = (per % 1 === 0) ? per.toString() : per.toFixed(2).replace(/\.?0+$/, '');
       setVal('f_budget', per > 0 ? formatted : '');
     }
     function hookupRecalcPerFromTotal() {
@@ -390,5 +454,6 @@
       totalEl.removeEventListener?.('input', recalc); qtyEl.removeEventListener?.('input', recalc);
       totalEl.addEventListener('input', recalc); qtyEl.addEventListener('input', recalc);
     }
-  </script>
+  })();
+</script>
 @endpush

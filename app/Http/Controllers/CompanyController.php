@@ -685,6 +685,49 @@ public function leaveOrg(Request $r, int $org)
 
     return redirect()->route('settings.company')->with('ok', 'Bạn đã rời khỏi doanh nghiệp.');
 }
+    public function destroy(Request $request, string $orgId)
+    {
+        $userId = auth()->id();
 
+        // Lấy doanh nghiệp
+        $org = DB::table('orgs')->where('org_id', $orgId)->first();
+
+        if (!$org) {
+            return back()->withErrors(['msg' => 'Không tìm thấy doanh nghiệp.']);
+        }
+
+        // Kiểm tra quyền: chỉ owner được giải tán
+        $owner = DB::table('org_members')
+            ->where('org_id', $orgId)
+            ->where('role', 'OWNER')
+            ->first();
+
+        if (!$owner || $owner->account_id != $userId) {
+            return back()->withErrors(['msg' => 'Bạn không có quyền giải tán doanh nghiệp này.']);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Xóa tất cả thành viên
+            DB::table('org_members')->where('org_id', $orgId)->delete();
+
+            // Xóa tất cả lời mời
+            DB::table('org_invitations')->where('org_id', $orgId)->delete();
+             DB::table('org_verifications')->where('org_id', $orgId)->delete();
+            // Cuối cùng xóa tổ chức
+            DB::table('orgs')->where('org_id', $orgId)->delete();
+            
+            DB::commit();
+
+            return redirect()
+                ->route('settings.company')
+                ->with('ok', 'Doanh nghiệp đã được giải tán thành công.');
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            report($th);
+            return back()->withErrors(['msg' => 'Đã xảy ra lỗi khi giải tán doanh nghiệp.']);
+        }
+    }
 
 }

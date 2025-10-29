@@ -46,7 +46,7 @@
                             <label class="form-label fw-semibold">Mô tả cơ bản *</label>
                             <textarea name="description" rows="7"
                                 class="form-control @error('description') is-invalid @enderror"
-                                placeholder="Tóm tắt ngắn gọn">{{ old('description', $d['description'] ?? '') }}</textarea>
+                                placeholder="Tóm tắt ngắn gọn" required>{{ old('description', $d['description'] ?? '') }} </textarea>
                             @error('description') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
@@ -66,7 +66,7 @@
                         <div class="col-12">
                             <label class="form-label fw-semibold">Nội dung chi tiết</label>
                             <textarea id="detailEditor"
-                                name="content">{!! old('content', $d['content'] ?? '') !!}</textarea>
+                                name="content" required>{!! old('content', $d['content'] ?? '') !!}</textarea>
                             <div class="form-text">Bạn có thể định dạng văn bản, chèn ảnh, link…</div>
                         </div>
 
