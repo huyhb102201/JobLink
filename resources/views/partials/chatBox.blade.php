@@ -81,7 +81,7 @@
     localStorage.removeItem('chat_history');
     showWelcomeMessage();
     saveHistory();
-    fetch('/chat', {
+    fetch('/chatbot', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +156,7 @@
     isWaiting = true;
     sendBtn.disabled = true;
 
-    fetch('/chat', {
+    fetch('/chatbot', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
