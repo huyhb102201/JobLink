@@ -584,5 +584,5 @@ Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->
 Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
 
 use App\Http\Controllers\ChatBotController;
-Route::post('/chat', [ChatBotController::class, 'handle']);
-Route::post('/chat/reset', [ChatBotController::class, 'reset']);
+Route::post('/chatbot', [ChatBotController::class, 'handle'])->name('chatbot.handle');
+Route::post('/chatbot/reset', [ChatBotController::class, 'reset'])->name('chatbot.reset');
