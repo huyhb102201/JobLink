@@ -97,7 +97,7 @@ class ChatBotController extends Controller
                 $resp = $client->post('/api/v1/chat/completions', [
                     'headers' => [
                         'Authorization' => 'Bearer ' . $apiKey,
-                        'HTTP-Referer' =>  'https://www.vanda.id.vn/',
+                        'HTTP-Referer' => 'https://www.vanda.id.vn/',
                         'X-Title' => 'Laravel Job Assistant',
                         'Content-Type' => 'application/json',
                     ],
@@ -117,7 +117,7 @@ class ChatBotController extends Controller
                 $advice = trim($content) ?: "Mình đã đọc yêu cầu của bạn và sẽ gợi ý vài hướng đi cùng các job liên quan ngay bên dưới nhé.";
             } catch (\GuzzleHttp\Exception\RequestException $e) {
                 $status = $e->getResponse() ? $e->getResponse()->getStatusCode() : null;
-                $body   = $e->getResponse() ? (string) $e->getResponse()->getBody() : null;
+                $body = $e->getResponse() ? (string) $e->getResponse()->getBody() : null;
 
                 \Log::error('OpenRouter error', [
                     'status' => $status,
@@ -179,7 +179,7 @@ class ChatBotController extends Controller
             if ($phraseLower !== '') {
                 $titleContainsPhrase = DB::table('jobs')
                     ->where('status', 'open')
-                    ->whereRaw('LOWER(title) LIKE ?', ['%'.$phraseLower.'%'])
+                    ->whereRaw('LOWER(title) LIKE ?', ['%' . $phraseLower . '%'])
                     ->orderByDesc('created_at')
                     ->limit(12)
                     ->get();
@@ -191,8 +191,8 @@ class ChatBotController extends Controller
                 $query = DB::table('jobs')->where('status', 'open');
                 $query->where(function ($q) use ($terms) {
                     foreach ($terms as $t) {
-                        $q->orWhere('title', 'like', '%'.$t.'%')
-                          ->orWhere('description', 'like', '%'.$t.'%');
+                        $q->orWhere('title', 'like', '%' . $t . '%')
+                            ->orWhere('description', 'like', '%' . $t . '%');
                     }
                 });
                 $titleOrDescLikeTerms = $query->orderByDesc('created_at')->limit(12)->get();
@@ -290,10 +290,60 @@ class ChatBotController extends Controller
         $raw = array_map('trim', $raw);
 
         $stop = [
-            'tôi','toi','là','la','cần','can','muốn','muon','việc','viec','làm','lam','job',
-            'công','cong','việc','viec','ở','o','tại','tai','cho','và','va','hoặc','hoac',
-            'thì','thi','nữa','nua','nhé','nhe','đi','di','giúp','giup','có','co','không','khong',
-            'một','mot','hai','ba','những','nhung','các','cac','trong','khi','với','voi','đến','den'
+            'tôi',
+            'toi',
+            'là',
+            'la',
+            'cần',
+            'can',
+            'muốn',
+            'muon',
+            'việc',
+            'viec',
+            'làm',
+            'lam',
+            'job',
+            'công',
+            'cong',
+            'việc',
+            'viec',
+            'ở',
+            'o',
+            'tại',
+            'tai',
+            'cho',
+            'và',
+            'va',
+            'hoặc',
+            'hoac',
+            'thì',
+            'thi',
+            'nữa',
+            'nua',
+            'nhé',
+            'nhe',
+            'đi',
+            'di',
+            'giúp',
+            'giup',
+            'có',
+            'co',
+            'không',
+            'khong',
+            'một',
+            'mot',
+            'hai',
+            'ba',
+            'những',
+            'nhung',
+            'các',
+            'cac',
+            'trong',
+            'khi',
+            'với',
+            'voi',
+            'đến',
+            'den'
         ];
 
         $terms = [];
@@ -324,28 +374,28 @@ class ChatBotController extends Controller
           <ul class='list-unstyled'>
         ";
 
-       foreach ($jobs as $job) {
-    $salary = number_format((int) ($job->budget ?? 0), 0, ',', '.');
-    $desc = e(Str::limit(strip_tags((string) ($job->description ?? '')), 100));
-    $title = e((string) $job->title);
-    $jobId = e((string) $job->job_id);
+        foreach ($jobs as $job) {
+            $salary = number_format((int) ($job->budget ?? 0), 0, ',', '.');
+            $desc = e(Str::limit(strip_tags((string) ($job->description ?? '')), 100));
+            $title = e((string) $job->title);
+            $jobId = e((string) $job->job_id);
 
-    // Xử lý deadline sang múi giờ Việt Nam
-    if (!empty($job->deadline)) {
-        try {
-            $deadline = Carbon::parse($job->deadline)
-                ->setTimezone('Asia/Ho_Chi_Minh')
-                ->format('H:i d/m/Y');
-        } catch (\Exception $e) {
-            $deadline = 'N/A';
-        }
-    } else {
-        $deadline = 'N/A';
-    }
+            // Xử lý deadline sang múi giờ Việt Nam
+            if (!empty($job->deadline)) {
+                try {
+                    $deadline = Carbon::parse($job->deadline)
+                        ->setTimezone('Asia/Ho_Chi_Minh')
+                        ->format('H:i d/m/Y');
+                } catch (\Exception $e) {
+                    $deadline = 'N/A';
+                }
+            } else {
+                $deadline = 'N/A';
+            }
 
-    $deadline = e($deadline);
+            $deadline = e($deadline);
 
-    $html .= "
+            $html .= "
     <li class='p-2 mb-2 border rounded bg-white shadow-sm'>
       <b>{$title}</b><br>
       <small class='text-muted'>{$desc}</small><br>
@@ -355,7 +405,7 @@ class ChatBotController extends Controller
         <i class='bi bi-box-arrow-up-right'></i> Xem chi tiết
       </a>
     </li>";
-}
+        }
 
 
         $html .= "</ul></div>";
@@ -430,9 +480,11 @@ class ChatBotController extends Controller
     protected function inCollectionById($row, $collection): bool
     {
         $id = (string) ($row->job_id ?? '');
-        if ($id === '') return false;
+        if ($id === '')
+            return false;
         foreach ($collection as $r) {
-            if ((string) ($r->job_id ?? '') === $id) return true;
+            if ((string) ($r->job_id ?? '') === $id)
+                return true;
         }
         return false;
     }
