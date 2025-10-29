@@ -9,8 +9,7 @@
     ['label'=>'Members & Permissions','route'=>'settings.members'],
     ['label'=>'Tax Information',      'route'=>'settings.tax'],
     ['label'=>'Connected Services',   'route'=>'settings.connected'],
-    ['label'=>'Appeals Tracker',      'route'=>'settings.appeals'],
-    ['label'=>'Công việc đã nộp',     'route'=>'settings.submitted_jobs'],
+    ['label'=>'Báo cáo công việc',     'route'=>'settings.reported_jobs'],
   ];
 @endphp
 

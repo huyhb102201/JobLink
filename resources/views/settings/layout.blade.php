@@ -6,7 +6,6 @@
   <div class="container settings" style="margin-top: 50px;">
     <div class="row g-4 align-items-start">
       {{-- Sidebar trái --}}
-      {{-- Sidebar trái --}}
       <aside class="col-12 col-lg-3 col-xl-3">
         @php
           use Illuminate\Support\Facades\DB;
@@ -58,23 +57,19 @@
             class="nav-link @if(request()->routeIs('settings.connected')) active @endif">
             Dịch vụ đã liên kết
           </a>
-          <a href="{{ route('settings.appeals') }}"
-            class="nav-link @if(request()->routeIs('settings.appeals')) active @endif">
-            Theo dõi khiếu nại
-          </a>
           @auth
             @php
               $acc = Auth::user()->loadMissing('type');
               $typeId = $acc->type->account_type_id ?? null;
 
               // check active
-              $activeSubmitted = request()->routeIs('settings.submitted_jobs');
+              $activeSubmitted = request()->routeIs('settings.reported_jobs');
             @endphp
 
             @if(in_array($typeId, [1, 2]))
-              <a href="{{ route('settings.submitted_jobs') }}"
+              <a href="{{ route('settings.reported_jobs') }}"
                 class="nav-link {{ $activeSubmitted ? 'active fw-semibold' : '' }}">
-                Công việc đã nộp
+                Báo cáo công việc
               </a>
             @endif
           @endauth
@@ -112,28 +107,29 @@
       /* nền trắng giữ đơn giản */
       color: #000;
     }
+
     .disabled-link {
-  opacity: 0.65;
-  pointer-events: auto;
-  transition: 0.2s;
-  color: #6c757d !important;
-}
-.disabled-link:hover {
-  opacity: 0.9;
-  background: #fff8e1;
-  color: #000 !important;
-}
+      opacity: 0.65;
+      pointer-events: auto;
+      transition: 0.2s;
+      color: #6c757d !important;
+    }
 
-.upgrade-badge {
-  background: linear-gradient(135deg,#facc15 0%,#fbbf24 45%,#f59e0b 100%);
-  color: #000;
-  font-weight: 600;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  padding: 3px 6px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.15);
-}
+    .disabled-link:hover {
+      opacity: 0.9;
+      background: #fff8e1;
+      color: #000 !important;
+    }
 
+    .upgrade-badge {
+      background: linear-gradient(135deg, #facc15 0%, #fbbf24 45%, #f59e0b 100%);
+      color: #000;
+      font-weight: 600;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      padding: 3px 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+    }
   </style>
 
 @endsection
