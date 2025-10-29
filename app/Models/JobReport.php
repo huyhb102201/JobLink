@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\Account;
 class JobReport extends Model
 {
     use HasFactory;
@@ -30,8 +30,8 @@ class JobReport extends Model
     /**
      * Quan hệ: Báo cáo được gửi bởi một người dùng
      */
-    public function user()
+    public function reporter()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(Account::class, 'user_id', 'account_id')->withDefault();
     }
 }
