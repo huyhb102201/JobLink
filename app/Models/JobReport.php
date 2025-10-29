@@ -34,4 +34,19 @@ class JobReport extends Model
     {
         return $this->belongsTo(Account::class, 'user_id', 'account_id')->withDefault();
     }
+
+    // Quan hệ: báo cáo thuộc về người dùng
+    public function user()
+    {
+        return $this->belongsTo(Account::class, 'user_id');
+    }
+
+    // Helper: trả về mảng ảnh
+    public function getImagesArrayAttribute()
+    {
+        if (empty($this->img))
+            return [];
+        $images = explode(',', $this->img);
+        return array_slice(array_map('trim', $images), 0, 5); // tối đa 5 ảnh
+    }
 }
