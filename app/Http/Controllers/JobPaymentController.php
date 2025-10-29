@@ -18,7 +18,7 @@ class JobPaymentController extends Controller
 
         // Lấy amount từ budget của job (PayOS cần integer VND)
         // Giả sử budget là decimal(10,2) => ép về int VND
-        $price = (int) round($job->budget ?? 0);
+        $price = (int) round($job->total_budget ?? 0);
 
         if ($price <= 0) {
             return back()->with('error', 'Ngân sách (budget) của job không hợp lệ.');
@@ -31,7 +31,7 @@ class JobPaymentController extends Controller
         JobPayment::create([
             'job_id' => $job->job_id,
             'orderCode' => $orderCode,
-            'amount' => $job->budget,
+            'amount' => $job->total_budget,
             'description' => 'JOB_' . $job->job_id . ' THANH TOÁN',
             'status' => 'pending', // <-- mới
         ]);
