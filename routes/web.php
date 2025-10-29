@@ -231,7 +231,7 @@ Route::middleware('auth')->prefix('settings')->name('settings.')->group(function
     Route::get('/connected', [SettingsController::class, 'connected'])->name('connected');
     Route::get('/appeals', [SettingsController::class, 'appeals'])->name('appeals');
 
-    Route::get('/submitted_jobs', [SettingsController::class, 'submitted_jobs'])->name('submitted_jobs')->middleware('role:F_BASIC|F_PLUS');
+    Route::get('/reported_jobs', [SettingsController::class, 'reported_jobs'])->name('reported_jobs')->middleware('role:F_BASIC|F_PLUS');
 
 });
 // Routes Xác minh Email
@@ -599,5 +599,5 @@ Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->
 Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
 
 use App\Http\Controllers\ChatBotController;
-Route::post('/chat', [ChatBotController::class, 'handle']);
-Route::post('/chat/reset', [ChatBotController::class, 'reset']);
+Route::post('/chatbot', [ChatBotController::class, 'handle'])->name('chatbot.handle');
+Route::post('/chatbot/reset', [ChatBotController::class, 'reset'])->name('chatbot.reset');

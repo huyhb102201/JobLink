@@ -34,6 +34,7 @@ class SearchController extends Controller
         } else { // account
             $data = Profile::query()
                 ->join('accounts', 'profiles.account_id', '=', 'accounts.account_id')
+                ->where('accounts.status', 1)
                 ->where(function ($query) use ($q) {
                     $query->where('profiles.username', 'like', "%$q%")
                         ->orWhere('profiles.fullname', 'like', "%$q%");

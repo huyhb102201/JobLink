@@ -41,9 +41,10 @@
   <!-- Toast Container for Notifications
   <div id="chatToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
   <audio id="chatNotifySound" src="{{ asset('assets/sounds/notify.mp3') }}" preload="auto"></audio> -->
-  @if(!request()->is('chat'))
+ @if(!request()->is('chat') && !request()->is('jobs/*'))
     @include('partials.chatBox')
-  @endif
+@endif
+
 
   <!-- Preloader -->
   <div id="preloader"></div>
