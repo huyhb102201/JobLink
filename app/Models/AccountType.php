@@ -11,6 +11,7 @@ class AccountType extends Model
 
       protected $fillable = [
         'name',
+        'withdraw_monthly_limit_cents',
         'description',
         'code',
         'monthly_fee',
