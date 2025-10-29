@@ -26,15 +26,12 @@ class JobController extends Controller
 
         $jobs = Job::query()
             ->with('account.profile', 'jobCategory')
-            ->select('jobs.*') // giữ cột gốc của bảng jobs
-            // Thêm cột is_favorited cho từng job
+            ->select('jobs.*')
             ->when($userId, function ($q) use ($userId) {
-                // Đã đăng nhập: true/false tùy theo tồn tại trong job_favorites
                 $q->withExists([
                     'favorites as is_favorited' => fn($x) => $x->where('user_id', $userId)
                 ]);
             }, function ($q) {
-                // Chưa đăng nhập: luôn false
                 $q->selectRaw('0 as is_favorited');
             })
             ->whereNotIn('status', ['pending', 'cancelled']);

@@ -7,6 +7,8 @@ use App\Models\Job;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use App\Services\AdminLogService;
+use App\Services\NotificationService;
+use App\Models\Notification;
 
 class JobController extends Controller
 {
@@ -17,10 +19,10 @@ class JobController extends Controller
     {
         // Load tất cả jobs một lần với đầy đủ thông tin để preload modal
         $jobs = Job::with([
-                'client:account_id,email,name',
-                'client.profile:account_id,fullname',
-                'category:category_id,name'
-            ])
+            'client:account_id,email,name',
+            'client.profile:account_id,fullname',
+            'category:category_id,name'
+        ])
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -30,7 +32,7 @@ class JobController extends Controller
         foreach ($jobs as $job) {
             // Tạo status badge
             $statusBadge = '';
-            switch($job->status) {
+            switch ($job->status) {
                 case 'pending':
                     $statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Chờ duyệt</span>';
                     break;
@@ -64,16 +66,16 @@ class JobController extends Controller
 
         // Preload history data (jobs đã duyệt/từ chối)
         $historyJobs = Job::with([
-                'account:account_id,email,name',
-                'account.profile:account_id,fullname'
-            ])
+            'account:account_id,email,name',
+            'account.profile:account_id,fullname'
+        ])
             ->whereIn('status', ['open', 'cancelled'])
             ->orderBy('updated_at', 'desc')
             ->get();
 
         $historyData = [];
         foreach ($historyJobs as $job) {
-            $statusBadge = $job->status === 'open' 
+            $statusBadge = $job->status === 'open'
                 ? '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Đã duyệt</span>'
                 : '<span class="badge bg-danger"><i class="fas fa-times me-1"></i>Từ chối</span>';
 
@@ -125,7 +127,7 @@ class JobController extends Controller
 
         // Tạo status badge
         $statusBadge = '';
-        switch($job->status) {
+        switch ($job->status) {
             case 'pending':
                 $statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Chờ duyệt</span>';
                 break;
@@ -168,7 +170,28 @@ class JobController extends Controller
         }
 
         \DB::update("UPDATE jobs SET status = ?, updated_at = NOW() WHERE job_id = ?", ['open', $job->job_id]);
+        try {
+            $clientId = $job->account_id ?? $job->client_id ?? null;
+            if ($clientId && $clientId !== auth()->id()) {
+                $notification = app(NotificationService::class)->create(
+                    userId: $clientId,
+                    type: Notification::TYPE_SYSTEM,
+                    title: 'Công việc của bạn đã được duyệt',
+                    body: "Bài đăng '{$job->title}' của bạn đã được duyệt và đang hiển thị trên hệ thống.",
+                    meta: [
+                        'job_id' => $job->job_id,
+                    ],
+                    actorId: auth()->id(),
+                    severity: 'low'
+                );
 
+                // Broadcast realtime
+                broadcast(new \App\Events\GenericNotificationBroadcasted($notification, $clientId))->toOthers();
+                \Cache::forget("header_json_{$clientId}");
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gửi thông báo duyệt công việc thất bại', ['error' => $e->getMessage()]);
+        }
         // Log admin action
         AdminLogService::logApprove('Job', $job->job_id, "Duyệt công việc: {$job->title}");
 
@@ -188,6 +211,28 @@ class JobController extends Controller
 
         \DB::update("UPDATE jobs SET status = ?, updated_at = NOW() WHERE job_id = ?", ['cancelled', $job->job_id]);
 
+        try {
+            $clientId = $job->account_id ?? $job->client_id ?? null;
+            if ($clientId && $clientId !== auth()->id()) {
+                $notification = app(NotificationService::class)->create(
+                    userId: $clientId,
+                    type: Notification::TYPE_SYSTEM,
+                    title: 'Công việc của bạn bị từ chối',
+                    body: "Bài đăng '{$job->title}' đã bị từ chối. Lý do: {$rejectReason}",
+                    meta: [
+                        'job_id' => $job->job_id,
+                    ],
+                    actorId: auth()->id(),
+                    severity: 'low'
+                );
+
+                broadcast(new \App\Events\GenericNotificationBroadcasted($notification, $clientId))->toOthers();
+                \Cache::forget("header_json_{$clientId}");
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gửi thông báo từ chối công việc thất bại', ['error' => $e->getMessage()]);
+        }
+
         // Log admin action with reason
         AdminLogService::logReject('Job', $job->job_id, "Từ chối công việc: {$job->title}. Lý do: {$rejectReason}");
 
@@ -201,7 +246,7 @@ class JobController extends Controller
     {
         // Lấy danh sách job_id từ request
         $jobIds = $request->input('job_ids');
-        
+
         // Nếu là string (comma-separated hoặc JSON), xử lý
         if (is_string($jobIds)) {
             // Thử decode JSON trước
@@ -227,6 +272,26 @@ class JobController extends Controller
         );
 
         if ($count > 0) {
+            $jobs = Job::whereIn('job_id', $jobIds)->get();
+            foreach ($jobs as $job) {
+                try {
+                    $clientId = $job->account_id ?? $job->client_id ?? null;
+                    if ($clientId && $clientId !== auth()->id()) {
+                        $notification = app(NotificationService::class)->create(
+                            userId: $clientId,
+                            type: Notification::TYPE_SYSTEM,
+                            title: 'Công việc của bạn đã được duyệt',
+                            body: "Bài đăng '{$job->title}' của bạn đã được duyệt.",
+                            meta: ['job_id' => $job->job_id],
+                            actorId: auth()->id(),
+                            severity: 'low'
+                        );
+                        broadcast(new \App\Events\GenericNotificationBroadcasted($notification, $clientId))->toOthers();
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Gửi thông báo duyệt hàng loạt thất bại', ['error' => $e->getMessage()]);
+                }
+            }
             // Log bulk approve
             AdminLogService::logBulk('approve', 'Job', $jobIds, "Duyệt hàng loạt $count công việc");
 
@@ -243,7 +308,7 @@ class JobController extends Controller
     {
         $jobIds = $request->input('job_ids');
         $rejectReason = $request->input('reject_reason', 'Không đủ tiêu chuẩn');
-        
+
         // Nếu là string (comma-separated hoặc JSON), xử lý
         if (is_string($jobIds)) {
             // Thử decode JSON trước
@@ -274,6 +339,27 @@ class JobController extends Controller
         );
 
         if ($count > 0) {
+            $jobs = Job::whereIn('job_id', $jobIds)->get();
+            foreach ($jobs as $job) {
+                try {
+                    $clientId = $job->account_id ?? $job->client_id ?? null;
+                    if ($clientId && $clientId !== auth()->id()) {
+                        $notification = app(NotificationService::class)->create(
+                            userId: $clientId,
+                            type: Notification::TYPE_SYSTEM,
+                            title: 'Công việc của bạn bị từ chối',
+                            body: "Bài đăng '{$job->title}' đã bị từ chối. Lý do: {$rejectReason}",
+                            meta: ['job_id' => $job->job_id],
+                            actorId: auth()->id(),
+                            severity: 'low'
+                        );
+                        broadcast(new \App\Events\GenericNotificationBroadcasted($notification, $clientId))->toOthers();
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Gửi thông báo từ chối hàng loạt thất bại', ['error' => $e->getMessage()]);
+                }
+            }
+
             // Log bulk reject with reason
             AdminLogService::logBulk('reject', 'Job', $jobIds, "Từ chối hàng loạt $count công việc. Lý do: {$rejectReason}");
 
@@ -295,7 +381,7 @@ class JobController extends Controller
 
         // If AJAX request, return JSON
         if ($request->ajax() || $request->wantsJson()) {
-            $jobsData = $jobs->map(function($job) {
+            $jobsData = $jobs->map(function ($job) {
                 return [
                     'job_id' => $job->job_id,
                     'title' => $job->title,
@@ -326,13 +412,13 @@ class JobController extends Controller
     {
         try {
             $count = \DB::table('jobs')->whereNull('deleted_at')->count();
-            
+
             // Xóa tất cả jobs (bao gồm cả soft delete)
             \DB::table('jobs')->delete();
-            
+
             // Xóa admin logs
             \DB::table('admin_logs')->delete();
-            
+
             // Log action
             AdminLogService::log(
                 'reset_all',
@@ -340,7 +426,7 @@ class JobController extends Controller
                 null,
                 "Reset hệ thống: Đã xóa tất cả {$count} công việc"
             );
-            
+
             return back()->with('success', "Đã reset thành công! Xóa {$count} công việc.");
         } catch (\Exception $e) {
             \Log::error('Lỗi khi reset jobs: ' . $e->getMessage());

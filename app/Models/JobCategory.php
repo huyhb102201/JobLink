@@ -37,8 +37,9 @@ class JobCategory extends Model
     }
 
     // Đếm số jobs của category
-    public function getJobsCountAttribute()
+    public function getJobsCountAttribute($value)
     {
-        return $this->jobs()->count();
+        return $value !== null ? (int) $value : $this->jobs()->count();
     }
+
 }
