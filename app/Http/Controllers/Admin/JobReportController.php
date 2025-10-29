@@ -7,342 +7,227 @@ use App\Models\JobReport;
 use App\Models\Job;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Models\JobFavorite;
+use App\Models\Task;
+use App\Models\Comment;
+use App\Models\JobApply;
+use App\Models\JobDetail;
+use App\Models\JobView;
+use App\Models\Account;
 class JobReportController extends Controller
 {
     /**
-     * Hiển thị danh sách báo cáo job
+     * Trang liệt kê các job bị report (có tìm kiếm nhẹ).
      */
     public function index(Request $request)
     {
-        // Lấy danh sách job_id và số lượng báo cáo
-        $reportCounts = JobReport::select('job_id', DB::raw('COUNT(*) as report_count'))
-            ->groupBy('job_id')
-            ->orderBy('report_count', 'desc')
-            ->pluck('report_count', 'job_id');
+        $q = trim((string) $request->input('q', ''));
 
-        if ($reportCounts->isEmpty()) {
-            return view('admin.job-reports.index', [
-                'reportsData' => [],
-                'totalReports' => 0,
-                'totalJobsReported' => 0,
-                'jobsReportedThisWeek' => 0,
-                'jobsReportedThisMonth' => 0,
-            ]);
-        }
-
-        $jobIds = $reportCounts->keys()->toArray();
-
-        // Load tất cả jobs cùng lúc với eager loading
-        $jobs = Job::with('account.profile')
-            ->whereIn('job_id', $jobIds)
-            ->get()
-            ->keyBy('job_id');
-
-        // Load tất cả reports cùng lúc với eager loading
-        $allJobReports = JobReport::with('user.profile')
-            ->whereIn('job_id', $jobIds)
-            ->orderBy('created_at', 'desc')
-            ->get()
+        // Gom báo cáo theo job_id trước
+        $agg = JobReport::query()
+            ->select([
+                'job_id',
+                DB::raw('COUNT(*) AS report_count'),
+                DB::raw('MAX(status) AS status') // 1/2
+            ])
             ->groupBy('job_id');
 
-        // Lấy trạng thái locked cho tất cả jobs (status = 2)
-        $lockedJobs = JobReport::whereIn('job_id', $jobIds)
-            ->where('status', 2)
-            ->distinct()
-            ->pluck('job_id')
-            ->toArray();
+        // Join sang jobs → accounts → profiles
+        $rows = DB::query()
+            ->fromSub($agg, 'jr') // jr: (job_id, report_count, status)
+            ->Join('jobs', 'jobs.job_id', '=', 'jr.job_id')
+            ->Join('accounts', 'accounts.account_id', '=', 'jobs.account_id')   // <= dùng account_id như bạn
+            ->leftJoin('profiles', 'profiles.account_id', '=', 'accounts.account_id')
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->where(function ($w) use ($q) {
+                    $w->where('jobs.title', 'like', "%{$q}%")
+                        ->orWhere('profiles.fullname', 'like', "%{$q}%")
+                        ->orWhere('profiles.username', 'like', "%{$q}%")
+                        ->orWhere('accounts.name', 'like', "%{$q}%")
+                        ->orWhere('accounts.email', 'like', "%{$q}%")
+                        ->orWhere('jr.job_id', '=', (int) $q);
+                });
+            })
+            ->select([
+                'jr.job_id',
+                'jobs.title AS job_title',
+                // Ưu tiên fullname → username → accounts.name
+                DB::raw("COALESCE(profiles.fullname, profiles.username, accounts.name, 'N/A') AS owner_name"),
+                'accounts.email AS owner_email',
+                'accounts.account_id AS owner_id',
+                'jr.report_count',
+                'jr.status'
+            ])
+            ->orderByDesc('jr.report_count')
+            ->paginate(12)
+            ->withQueryString();
 
-        // Xử lý dữ liệu
-        $reportsData = [];
-        foreach ($reportCounts as $jobId => $reportCount) {
-            $job = $jobs->get($jobId);
-            
-            // Thông tin job
-            $jobTitle = $job ? $job->title : '[Job đã bị xóa]';
-            $jobOwner = 'N/A';
-            $jobOwnerEmail = 'N/A';
-            
-            if ($job && $job->account) {
-                if ($job->account->profile && !empty($job->account->profile->username)) {
-                    $jobOwner = $job->account->profile->username;
-                } elseif (!empty($job->account->name)) {
-                    $jobOwner = $job->account->name;
-                }
-                $jobOwnerEmail = $job->account->email ?? 'N/A';
-            }
-            
-            // Nhóm báo cáo theo người dùng
-            $reportsByUser = [];
-            $jobReports = $allJobReports->get($jobId, collect());
-            
-            foreach ($jobReports as $jobReport) {
-                $userId = $jobReport->user_id;
-                if (!isset($reportsByUser[$userId])) {
-                    $username = 'N/A';
-                    if ($jobReport->user && $jobReport->user->profile && !empty($jobReport->user->profile->username)) {
-                        $username = $jobReport->user->profile->username;
-                    } elseif ($jobReport->user && !empty($jobReport->user->name)) {
-                        $username = $jobReport->user->name;
-                    }
-                    
-                    $reportsByUser[$userId] = [
-                        'username' => $username,
-                        'email' => $jobReport->user->email ?? 'N/A',
-                        'report_count' => 0,
-                        'reports' => []
-                    ];
-                }
-                $reportsByUser[$userId]['report_count']++;
-                
-                // Xử lý ảnh
-                $images = [];
-                if ($jobReport->img) {
-                    $imageUrls = explode(',', $jobReport->img);
-                    $images = array_slice($imageUrls, 0, 5);
-                }
-                
-                $reportsByUser[$userId]['reports'][] = [
-                    'reason' => $jobReport->reason,
-                    'message' => $jobReport->message,
-                    'images' => $images,
-                    'created_at' => $jobReport->created_at->format('d/m/Y H:i'),
-                ];
-            }
-            
-            $reportsData[] = [
-                'job_id' => $jobId,
-                'job_title' => $jobTitle,
-                'job_owner' => $jobOwner,
-                'job_owner_email' => $jobOwnerEmail,
-                'report_count' => $reportCount,
-                'status' => in_array($jobId, $lockedJobs) ? 'locked' : 'active',
-                'reporters' => array_values($reportsByUser),
-            ];
-        }
-
-        // Thống kê
+        // Thống kê nhanh
         $startOfWeek = now()->startOfWeek();
         $endOfWeek = now()->endOfWeek();
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
-
+        $reportsPending  = JobReport::where('status',1)->distinct('job_id')->count('job_id');
+        $reportsResolved = JobReport::where('status',2)->distinct('job_id')->count('job_id');
         return view('admin.job-reports.index', [
-            'reportsData' => $reportsData,
+            'rows' => $rows,
             'totalReports' => JobReport::count(),
-            'totalJobsReported' => count($reportsData),
+            'totalJobsReported' => JobReport::distinct('job_id')->count('job_id'),
             'jobsReportedThisWeek' => JobReport::whereBetween('created_at', [$startOfWeek, $endOfWeek])->distinct('job_id')->count('job_id'),
             'jobsReportedThisMonth' => JobReport::whereBetween('created_at', [$startOfMonth, $endOfMonth])->distinct('job_id')->count('job_id'),
+            'q' => $q,
+             'reportsPending'        => $reportsPending,
+            'reportsResolved'       => $reportsResolved,
         ]);
     }
-
     /**
-     * Lấy chi tiết báo cáo của một job
+     * AJAX: Lấy người report + chi tiết trong 1 job.
      */
-    public function getDetails($jobId)
+    public function fetchReporters(int $jobId)
     {
-        $reports = JobReport::with(['user.profile', 'job'])
+        $reports = JobReport::with(['reporter.profile'])
             ->where('job_id', $jobId)
-            ->orderBy('created_at', 'desc')
+            ->latest('id')
             ->get();
 
-        $job = Job::with('account.profile')->find($jobId);
-
-        if (!$job) {
-            return response()->json(['error' => 'Job không tồn tại'], 404);
+        if ($reports->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'job_id' => $jobId,
+                'reporters' => [],
+            ]);
         }
 
-        // Nhóm báo cáo theo người dùng
-        $reportsByUser = [];
-        foreach ($reports as $report) {
-            $userId = $report->user_id;
-            if (!isset($reportsByUser[$userId])) {
-                // Lấy username, nếu rỗng thì lấy name
-                $username = 'N/A';
-                if ($report->user && $report->user->profile && !empty($report->user->profile->username)) {
-                    $username = $report->user->profile->username;
-                } elseif ($report->user && !empty($report->user->name)) {
-                    $username = $report->user->name;
-                }
-                
-                $reportsByUser[$userId] = [
-                    'user_id' => $userId,
-                    'username' => $username,
-                    'email' => $report->user->email ?? 'N/A',
-                    'avatar' => $report->user->avatar_url ?? null,
-                    'report_count' => 0,
-                    'reports' => []
-                ];
-            }
-            $reportsByUser[$userId]['report_count']++;
-            
-            // Xử lý ảnh - split theo dấu phẩy và giới hạn 5 ảnh
-            $images = [];
-            if ($report->img) {
-                $imageUrls = explode(',', $report->img);
-                $images = array_slice($imageUrls, 0, 5); // Giới hạn tối đa 5 ảnh
-            }
-            
-            $reportsByUser[$userId]['reports'][] = [
-                'id' => $report->id,
-                'reason' => $report->reason,
-                'message' => $report->message,
-                'images' => $images,
-                'created_at' => $report->created_at->format('d/m/Y H:i'),
+        $grouped = $reports->groupBy('user_id')->map(function ($items) {
+            $first = $items->first();
+            $acc = optional($first->reporter);
+            $profile = optional($acc->profile);
+
+            return [
+                'fullname' => $profile->fullname ?? $acc->name ?? 'N/A',
+                'email' => $profile->email ?? $acc->email ?? 'N/A',
+                'report_count' => $items->count(),
+                'reports' => $items->map(function (JobReport $r) {
+                    return [
+                        'reason' => $r->reason,
+                        'message' => $r->message,
+                        'created_at' => optional($r->created_at)->format('d/m/Y H:i'),
+                        'images' => $this->parseImages($r->img),
+                    ];
+                })->values()->all(),
             ];
-        }
+        })->values()->all();
 
-        // Lấy tên chủ job
-        $jobOwner = 'N/A';
-        if ($job->account) {
-            if ($job->account->profile && !empty($job->account->profile->username)) {
-                $jobOwner = $job->account->profile->username;
-            } elseif (!empty($job->account->name)) {
-                $jobOwner = $job->account->name;
-            }
-        }
-        
         return response()->json([
-            'job' => [
-                'id' => $job->job_id,
-                'title' => $job->title,
-                'owner' => $jobOwner,
-                'owner_email' => $job->account->email ?? 'N/A',
-            ],
-            'total_reports' => $reports->count(),
-            'reporters' => array_values($reportsByUser),
+            'success' => true,
+            'job_id' => $jobId,
+            'reporters' => $grouped,
         ]);
     }
 
-    /**
-     * Xóa một báo cáo
-     */
-    public function destroy($id)
+    private function parseImages(?string $img): array
     {
-        try {
-            $report = JobReport::findOrFail($id);
-            $report->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã xóa báo cáo thành công'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
-        }
+        if (!$img)
+            return [];
+        // tách bằng dấu phẩy, bỏ rỗng, giới hạn 5 ảnh
+        return array_slice(array_values(array_filter(array_map('trim', explode(',', $img)))), 0, 5);
     }
 
-    /**
-     * Xóa tất cả báo cáo của một job
-     */
-    public function destroyByJob($jobId)
-    {
-        try {
-            JobReport::where('job_id', $jobId)->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã xóa tất cả báo cáo của job này'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
-        }
+    public function deleteJob(int $jobId)
+{
+    $job = Job::find($jobId);
+    if (!$job) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Job không tồn tại hoặc đã bị xóa.'
+        ], 404);
     }
 
-    /**
-     * Toggle khóa/mở khóa tất cả báo cáo của một job
-     */
-    public function toggleLockByJob($jobId)
-    {
-        try {
-            // Kiểm tra trạng thái hiện tại (2 = locked)
-            $currentStatus = JobReport::where('job_id', $jobId)
-                ->where('status', 2)
-                ->exists();
-            
-            // Toggle status: 2 (locked) <-> 1 (active)
-            $newStatus = $currentStatus ? 1 : 2;
-            $actionText = $currentStatus ? 'mở khóa' : 'khóa';
-            
-            JobReport::where('job_id', $jobId)->update(['status' => $newStatus]);
+    try {
+        DB::transaction(function () use ($jobId, $job) {
+            // 🟢 1) Cập nhật trạng thái các báo cáo sang "đã xử lý" (2)
+            JobReport::where('job_id', $jobId)->update(['status' => 2]);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Đã {$actionText} tất cả báo cáo của job này",
-                'new_status' => $newStatus
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
-        }
+            // 🟢 2) Dọn toàn bộ bảng liên quan (nếu không dùng FK cascade)
+            JobFavorite::where('job_id', $jobId)->delete();
+            JobApply::where('job_id', $jobId)->delete();
+            JobDetail::where('job_id', $jobId)->delete();
+            JobView::where('job_id', $jobId)->delete();
+            Task::where('job_id', $jobId)->delete();
+            Comment::where('job_id', $jobId)->delete();
+
+            // 🟢 3) Xóa Job chính
+            $job->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã xóa Job và cập nhật trạng thái báo cáo thành công.'
+        ]);
+    } catch (\Throwable $th) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Không thể xóa job: ' . $th->getMessage(),
+        ], 500);
     }
+}
 
-    /**
-     * Khóa hàng loạt báo cáo
-     */
-    public function bulkLock(Request $request)
+public function lockAndPurge(int $accountId, Request $request)
     {
-        try {
-            $jobIds = $request->input('job_ids', []);
-            
-            if (empty($jobIds)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không có job nào được chọn'
-                ], 400);
-            }
-
-            // Cập nhật status = 2 (đã khóa)
-            JobReport::whereIn('job_id', $jobIds)->update(['status' => 2]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã khóa thành công báo cáo của ' . count($jobIds) . ' job',
-                'count' => count($jobIds)
-            ]);
-        } catch (\Exception $e) {
+        // 1) Tìm account
+        $account = Account::find($accountId);
+        if (!$account) {
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Không tìm thấy tài khoản.',
+            ], 404);
         }
-    }
 
-    /**
-     * Mở khóa hàng loạt báo cáo
-     */
-    public function bulkUnlock(Request $request)
-    {
         try {
-            $jobIds = $request->input('job_ids', []);
-            
-            if (empty($jobIds)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không có job nào được chọn'
-                ], 400);
-            }
+            DB::transaction(function () use ($account, $accountId) {
 
-            // Cập nhật status = 1 (chờ xử lý)
-            JobReport::whereIn('job_id', $jobIds)->update(['status' => 1]);
+                // 2) Khóa tài khoản
+                // (giả sử cột 'status' kiểu int: 1=active, 0=locked)
+                $account->status = 0;
+                $account->save();
+
+                // 3) Lấy các job thuộc tài khoản
+                $jobIds = Job::where('account_id', $accountId)->pluck('job_id')->all();
+
+                if (!empty($jobIds)) {
+
+                    // 3.1) Đánh dấu toàn bộ báo cáo của các job này là đã xử lý
+                    JobReport::whereIn('job_id', $jobIds)->update(['status' => 2]);
+
+                    // 3.2) Xóa dữ liệu liên quan (nếu không dùng FK cascade)
+                    JobFavorite::whereIn('job_id', $jobIds)->delete();
+                    JobApply::whereIn('job_id', $jobIds)->delete();
+                    JobDetail::whereIn('job_id', $jobIds)->delete();
+                    JobView::whereIn('job_id', $jobIds)->delete();
+                    Task::whereIn('job_id', $jobIds)->delete();
+                    Comment::whereIn('job_id', $jobIds)->delete();
+
+                    // 3.3) Xóa job
+                    // Nếu Job đang dùng SoftDeletes, forceDelete để xóa hẳn:
+                    $jobsQuery = Job::whereIn('job_id', $jobIds);
+                    $uses = class_uses(Job::class);
+                    if ($uses && in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, $uses)) {
+                        $jobsQuery->forceDelete();   // xóa vĩnh viễn
+                    } else {
+                        $jobsQuery->delete();        // xóa thường
+                    }
+                }
+            });
 
             return response()->json([
                 'success' => true,
-                'message' => 'Đã mở khóa thành công báo cáo của ' . count($jobIds) . ' job',
-                'count' => count($jobIds)
+                'message' => 'Đã khóa tài khoản và dọn toàn bộ job liên quan.',
             ]);
-        } catch (\Exception $e) {
+
+        } catch (\Throwable $th) {
             return response()->json([
                 'success' => false,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+                'message' => 'Không thể khóa tài khoản: '.$th->getMessage(),
             ], 500);
         }
     }

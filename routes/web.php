@@ -56,6 +56,7 @@ use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\JobReportController;
 use App\Http\Controllers\Admin\SkillController;
 use App\Http\Controllers\Admin\JobPaymentController as AdminJobPaymentController;
+use App\Http\Controllers\Admin\WithdrawalApprovalController;
 
 
 
@@ -136,7 +137,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/jobs/apply/{job}', [JobController::class, 'apply'])->name('jobs.apply');
     Route::post('/jobs/{job}/comments', [JobController::class, 'store'])->name('comments.store');
     Route::post('/jobs/report/{job}', [JobController::class, 'report'])->name('jobs.report');
-
 
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -438,15 +438,30 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     // ==========================================================
     // ROUTES QUẢN LÝ BÁO CÁO JOB
     // ==========================================================
-    Route::get('/job-reports', [JobReportController::class, 'index'])->name('job-reports.index');
-    Route::get('/job-reports/{jobId}/details', [JobReportController::class, 'getDetails'])->name('job-reports.details');
-    Route::delete('/job-reports/{id}', [JobReportController::class, 'destroy'])->name('job-reports.destroy');
-    Route::delete('/job-reports/job/{jobId}', [JobReportController::class, 'destroyByJob'])->name('job-reports.destroy-by-job');
-    Route::post('/job-reports/job/{jobId}/toggle-lock', [JobReportController::class, 'toggleLockByJob'])->name('job-reports.toggle-lock');
-    Route::post('/job-reports/bulk-lock', [JobReportController::class, 'bulkLock'])->name('job-reports.bulk-lock');
-    Route::post('/job-reports/bulk-unlock', [JobReportController::class, 'bulkUnlock'])->name('job-reports.bulk-unlock');
+    Route::get('/reported-jobs', [JobReportController::class, 'index'])
+            ->name('job-reports.index');
+    Route::delete('/reported-jobs/{jobId}/delete', [JobReportController::class, 'deleteJob'])
+        ->name('admin.reports.deleteJob');
+        // AJAX: lấy người report của 1 job
+        Route::get('/reported-jobs/{jobId}/reporters', [JobReportController::class, 'fetchReporters'])
+            ->whereNumber('jobId')->name('reports.fetchReporters');
+        Route::post('/accounts/{accountId}/lock', [JobReportController::class, 'lockAndPurge'])
+        ->name('admin.accounts.lock');
     // ==========================================================
+    // ROUTES RÚT TIỀN
+     Route::get('/withdrawals', [WithdrawalApprovalController::class, 'index'])->name('withdrawals.index');
 
+    // Lấy 1 bản ghi (dùng cho modal)
+    Route::get('/withdrawals/{id}', [WithdrawalApprovalController::class, 'show'])
+        ->name('withdrawals.show');
+
+    // Duyệt
+    Route::post('/withdrawals/{id}/approve', [WithdrawalApprovalController::class, 'approve'])
+        ->name('withdrawals.approve');
+
+    // Từ chối
+    Route::post('/withdrawals/{id}/reject', [WithdrawalApprovalController::class, 'reject'])
+        ->name('withdrawals.reject');
     // ==========================================================
     // ROUTES QUẢN LÝ KỸ NĂNG
     // ==========================================================
