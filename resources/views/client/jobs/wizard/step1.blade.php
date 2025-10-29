@@ -35,7 +35,7 @@
     <div class="col-lg-6">
       <form action="{{ route('client.jobs.wizard.store',1) }}" method="POST" class="help-card p-4">
         @csrf
-        <label class="form-label fw-semibold">Tiêu đề cho job của bạn</label>
+        <label class="form-label fw-semibold">Tiêu đề cho công việc của bạn</label>
         <input name="title" class="form-control form-control-lg @error('title') is-invalid @enderror"
                value="{{ old('title', $d['title'] ?? '') }}" placeholder="">
         @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
