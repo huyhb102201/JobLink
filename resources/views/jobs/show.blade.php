@@ -232,10 +232,16 @@
                         <div class="categories-widget widget-item">
                             <h3 class="widget-title">Danh mục</h3>
                             <ul class="mt-3">
-                                @php
+                                 @php
                                     use App\Models\JobCategory;
-                                    $categories = JobCategory::withCount('jobs')->get();
+
+                                    $categories = JobCategory::withCount([
+                                        'jobs as jobs_count' => function ($query) {
+                                            $query->whereNotIn('status', ['pending', 'cancelled']);
+                                        }
+                                    ])->get();
                                 @endphp
+
                                 @foreach($categories as $category)
                                     <li>
                                         <a href="{{ route('jobs.index') }}" class="filter-category"
@@ -244,6 +250,7 @@
                                         </a>
                                     </li>
                                 @endforeach
+
                             </ul>
                         </div>
                         <script>
