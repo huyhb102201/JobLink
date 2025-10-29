@@ -429,25 +429,25 @@
                     ['Thời gian', data.created_at ?? '—'],
                 ];
                 $('#wList').html(m.map(([k, v]) => `
-                              <dt class="col-sm-3 text-muted">${k}</dt>
-                              <dd class="col-sm-9">${v}</dd>
-                            `).join(''));
+                                  <dt class="col-sm-3 text-muted">${k}</dt>
+                                  <dd class="col-sm-9">${v}</dd>
+                                `).join(''));
 
                 // lịch sử cộng tiền
                 const hist = Array.isArray(data.history) ? data.history : [];
                 const rows = hist.length ? hist.map((h, i) => `
-                              <tr>
-                                <td>${i + 1}</td>
-                                <td>
-                                  ${h.job_title ? `<div class="fw-semibold">${h.job_title}</div>` : ''}
-                                  <div class="text-muted small">#${h.job_id ?? '—'}</div>
-                                </td>
-                                <td class="text-end"><span class="fw-semibold text-success">${vnd(h.amount_cents)}</span></td>
-                                <td><span class="badge text-bg-secondary">${h.type || '—'}</span></td>
-                                <td class="text-muted small">${h.note ?? '—'}</td>
-                                <td class="text-muted small">${h.created_at ?? ''}</td>
-                              </tr>
-                            `).join('') : `<tr><td colspan="6" class="text-center text-muted py-3">Không có lịch sử.</td></tr>`;
+                                  <tr>
+                                    <td>${i + 1}</td>
+                                    <td>
+                                      ${h.job_title ? `<div class="fw-semibold">${h.job_title}</div>` : ''}
+                                      <div class="text-muted small">#${h.job_id ?? '—'}</div>
+                                    </td>
+                                    <td class="text-end"><span class="fw-semibold text-success">${vnd(h.amount_cents)}</span></td>
+                                    <td><span class="badge text-bg-secondary">${h.type || '—'}</span></td>
+                                    <td class="text-muted small">${h.note ?? '—'}</td>
+                                    <td class="text-muted small">${h.created_at ?? ''}</td>
+                                  </tr>
+                                `).join('') : `<tr><td colspan="6" class="text-center text-muted py-3">Không có lịch sử.</td></tr>`;
                 $('#wHistory tbody').html(rows);
             }
 
@@ -513,16 +513,34 @@
 
             $(document).on('click', '.btn-reject', async function () {
                 const id = $(this).data('id');
-                const { value: reason, isConfirmed } = await Swal.fire({ icon: 'warning', title: 'Từ chối yêu cầu?', input: 'text', inputLabel: 'Lý do (tuỳ chọn)', showCancelButton: true, confirmButtonText: 'Từ chối' });
-                if (!isConfirmed) return;
+
+                const ok = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Từ chối yêu cầu?',
+                    text: `Xác nhận từ chối yêu cầu #${id}`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Từ chối',
+                    cancelButtonText: 'Hủy'
+                }).then(r => r.isConfirmed);
+
+                if (!ok) return;
+
                 const tr = $(`tr[data-id="${id}"]`);
-                const fd = new FormData(); if (reason) fd.append('reason', reason);
-                const resp = await fetch(`{{ url('/admin/withdrawals') }}/${id}/reject`, { method: 'POST', headers: { 'X-CSRF-TOKEN': token }, body: fd });
+                const resp = await fetch(`{{ url('/admin/withdrawals') }}/${id}/reject`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': token }
+                    // ❌ không gửi body/ lý do nữa
+                });
+
                 const j = await resp.json();
-                if (!resp.ok || !j.success) return Swal.fire('Lỗi', j.message || 'Không thể từ chối', 'error');
+                if (!resp.ok || !j.success) {
+                    return Swal.fire('Lỗi', j.message || 'Không thể từ chối', 'error');
+                }
+
                 updateRowUI(tr, 'rejected');
                 Swal.fire({ icon: 'success', title: 'Đã từ chối', timer: 1200, showConfirmButton: false });
             });
+
         });
     </script>
 @endpush
