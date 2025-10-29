@@ -11,10 +11,17 @@ class JobCategory extends Model
 
     protected $table = 'job_categories'; // tên bảng
     protected $primaryKey = 'category_id'; // khóa chính
+    public $timestamps = false; // Bảng không có created_at và updated_at
 
     protected $fillable = [
         'name',
         'description',
+        'img_url',
+        'isDeleted',
+    ];
+
+    protected $casts = [
+        'isDeleted' => 'boolean',
     ];
 
     // Quan hệ với Job (1 category có nhiều job)
@@ -22,4 +29,17 @@ class JobCategory extends Model
     {
         return $this->hasMany(Job::class, 'category_id', 'category_id');
     }
+
+    // Scope để chỉ lấy các category chưa bị xóa
+    public function scopeNotDeleted($query)
+    {
+        return $query->where('isDeleted', 0);
+    }
+
+    // Đếm số jobs của category
+    public function getJobsCountAttribute($value)
+    {
+        return $value !== null ? (int) $value : $this->jobs()->count();
+    }
+
 }

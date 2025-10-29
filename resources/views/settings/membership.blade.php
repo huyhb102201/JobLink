@@ -16,7 +16,6 @@
           </option>
         @endforeach
       </select>
-      <button class="btn btn-outline-primary btn-sm">Đổi gói</button>
     </form>
   </div>
 </section>

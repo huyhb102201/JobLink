@@ -175,41 +175,41 @@
                     </section><!-- /Blog Comments Section -->
                     <br>
                     <!-- Comment Form Section 
-                                                        <section id="comment-form" class="comment-form section">
-                                                            <div class="container">
+                                                                <section id="comment-form" class="comment-form section">
+                                                                    <div class="container">
 
-                                                                <form action="">
+                                                                        <form action="">
 
-                                                                    <h4>Post Comment</h4>
-                                                                    <p>Your email address will not be published. Required fields are marked * </p>
-                                                                    <div class="row">
-                                                                        <div class="col-md-6 form-group">
-                                                                            <input name="name" type="text" class="form-control" placeholder="Your Name*">
-                                                                        </div>
-                                                                        <div class="col-md-6 form-group">
-                                                                            <input name="email" type="text" class="form-control" placeholder="Your Email*">
-                                                                        </div>
+                                                                            <h4>Post Comment</h4>
+                                                                            <p>Your email address will not be published. Required fields are marked * </p>
+                                                                            <div class="row">
+                                                                                <div class="col-md-6 form-group">
+                                                                                    <input name="name" type="text" class="form-control" placeholder="Your Name*">
+                                                                                </div>
+                                                                                <div class="col-md-6 form-group">
+                                                                                    <input name="email" type="text" class="form-control" placeholder="Your Email*">
+                                                                                </div>
+                                                                            </div>
+                                                                            <div class="row">
+                                                                                <div class="col form-group">
+                                                                                    <input name="website" type="text" class="form-control" placeholder="Your Website">
+                                                                                </div>
+                                                                            </div>
+                                                                            <div class="row">
+                                                                                <div class="col form-group">
+                                                                                    <textarea name="comment" class="form-control"
+                                                                                        placeholder="Your Comment*"></textarea>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="text-center">
+                                                                                <button type="submit" class="btn btn-primary">Post Comment</button>
+                                                                            </div>
+
+                                                                        </form>
+
                                                                     </div>
-                                                                    <div class="row">
-                                                                        <div class="col form-group">
-                                                                            <input name="website" type="text" class="form-control" placeholder="Your Website">
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="row">
-                                                                        <div class="col form-group">
-                                                                            <textarea name="comment" class="form-control"
-                                                                                placeholder="Your Comment*"></textarea>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div class="text-center">
-                                                                        <button type="submit" class="btn btn-primary">Post Comment</button>
-                                                                    </div>
-
-                                                                </form>
-
-                                                            </div>
-                                                        </section> /Comment Form Section -->
+                                                                </section> /Comment Form Section -->
 
                 </div>
 
@@ -234,8 +234,14 @@
                             <ul class="mt-3">
                                 @php
                                     use App\Models\JobCategory;
-                                    $categories = JobCategory::withCount('jobs')->get();
+
+                                    $categories = JobCategory::withCount([
+                                        'jobs as jobs_count' => function ($query) {
+                                            $query->whereNotIn('status', ['pending', 'cancelled']);
+                                        }
+                                    ])->get();
                                 @endphp
+
                                 @foreach($categories as $category)
                                     <li>
                                         <a href="{{ route('jobs.index') }}" class="filter-category"
@@ -244,6 +250,7 @@
                                         </a>
                                     </li>
                                 @endforeach
+
                             </ul>
                         </div>
                         <script>
@@ -349,17 +356,22 @@
 
                 @if($isOpen && !$isExpired)
                     @if(!$hasApplied && in_array($accountTypeId, [1, 2]))
-                        <a href="javascript:void(0);" class="btn btn-success rounded-circle apply-floating apply-btn"
-                            data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
-                            title="Ứng Tuyển Ngay">
-                            <i class="bi bi-briefcase-fill"></i>
-                        </a>
-                        <!-- Nút Báo cáo -->
-                        <a href="javascript:void(0);" class="btn btn-danger rounded-circle report-floating"
-                            data-job-id="{{ $job->job_id }}" data-bs-toggle="tooltip" data-bs-placement="left"
+                        <!-- 🔴 Nút Báo cáo -->
+                        <a href="javascript:void(0);"
+                            class="btn btn-danger rounded-circle d-flex align-items-center justify-content-center position-fixed end-0 me-3"
+                            style="bottom: 150px; width:55px; height:55px;" data-bs-toggle="tooltip" data-bs-placement="left"
                             title="Báo cáo công việc này">
-                            <i class="bi bi-flag-fill"></i>
+                            <i class="bi bi-flag-fill fs-5"></i>
                         </a>
+
+                        <!-- 🟢 Nút Ứng tuyển -->
+                        <a href="javascript:void(0);"
+                            class="btn btn-success rounded-circle d-flex align-items-center justify-content-center position-fixed end-0 me-3"
+                            style="bottom: 85px; width:55px; height:55px;" data-bs-toggle="tooltip" data-bs-placement="left"
+                            title="Ứng Tuyển Ngay">
+                            <i class="bi bi-briefcase-fill fs-5"></i>
+                        </a>
+
                     @endif
                 @endif
 
@@ -651,11 +663,11 @@
                             selectedFiles.forEach((file, i) => {
                                 const url = URL.createObjectURL(file);
                                 const thumb = $(`
-                  <div class="thumb" data-index="${i}">
-                    <img src="${url}" alt="">
-                    <button type="button" class="remove-btn">&times;</button>
-                  </div>
-                `);
+                          <div class="thumb" data-index="${i}">
+                            <img src="${url}" alt="">
+                            <button type="button" class="remove-btn">&times;</button>
+                          </div>
+                        `);
 
                                 thumb.find('.remove-btn').on('click', (e) => {
                                     e.stopPropagation();
@@ -735,10 +747,10 @@
                             selectedFiles.forEach(f => formData.append('images[]', f));
 
                             alertBox.html(`
-                <div class="d-flex align-items-center justify-content-center my-3 text-muted">
-                  <div class="spinner-border spinner-border-sm text-danger me-2"></div> Đang gửi báo cáo...
-                </div>
-              `);
+                        <div class="d-flex align-items-center justify-content-center my-3 text-muted">
+                          <div class="spinner-border spinner-border-sm text-danger me-2"></div> Đang gửi báo cáo...
+                        </div>
+                      `);
 
                             $.ajax({
                                 url: '/jobs/report/' + jobId,
@@ -757,52 +769,6 @@
                         });
                     });
                 </script>
-
-
-                <style>
-                    .apply-floating {
-                        position: fixed;
-                        bottom: 75px;
-                        right: 8px;
-                        width: 55px;
-                        height: 55px;
-                        z-index: 9999;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 24px;
-                        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-                        transition: transform 0.2s, background-color 0.2s;
-                    }
-
-                    .apply-floating:hover {
-                        transform: translateY(-3px);
-                        background-color: #198754;
-                    }
-
-                    .report-floating {
-                        position: fixed;
-                        bottom: 140px;
-                        /* nằm phía trên nút apply */
-                        right: 8px;
-                        width: 55px;
-                        height: 55px;
-                        z-index: 9999;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 22px;
-                        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-                        background-color: #dc3545;
-                        color: #fff;
-                        transition: transform 0.2s, background-color 0.2s;
-                    }
-
-                    .report-floating:hover {
-                        transform: translateY(-3px);
-                        background-color: #bb2d3b;
-                    }
-                </style>
 
 
             </div>

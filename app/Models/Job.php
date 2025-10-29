@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 class Job extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
 
     protected $primaryKey = 'job_id';
 
@@ -16,7 +18,9 @@ class Job extends Model
         'title',
         'description',
         'category_id',
+        'quantity',
         'budget',
+        'total_budget',
         'payment_type',
         'status',
         'escrow_status',
@@ -81,10 +85,21 @@ class Job extends Model
         return $this->belongsTo(JobCategory::class, 'category_id', 'category_id');
     }
 
-   public function tasks()
-{
-    return $this->hasMany(Task::class, 'job_id', 'job_id');
-}
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'job_id', 'job_id');
+    }
+
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(Account::class, 'job_favorites', 'job_id', 'user_id')
+            ->withTimestamps();
+    }
+    // app/Models/Job.php
+    public function favorites()
+    {
+        return $this->hasMany(\App\Models\JobFavorite::class, 'job_id', 'job_id');
+    }
 
 
 }

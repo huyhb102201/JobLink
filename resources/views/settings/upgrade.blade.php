@@ -7,8 +7,8 @@
         <a href="{{ url()->previous() }}" class="text-decoration-none d-inline-flex align-items-center gap-2 mb-3">
             <i class="bi bi-arrow-left"></i> Back
         </a>
-        {{-- DEBUG: xoá khi xong --}}
-        <div class="alert alert-info small">currentCode = <strong>{{ $currentTypeCode ?? 'NULL' }}</strong></div>
+        {{--   <div class="alert alert-info small">currentCode = <strong>{{ $currentTypeCode ?? 'NULL' }}</strong></div>  --}}
+      
 
         <h1 class="fw-semibold mb-4">Membership plans</h1>
 
@@ -52,13 +52,14 @@
                                 <a href="mailto:sales@yourdomain.com" class="btn btn-outline-dark rounded-pill w-100 mb-3">Contact
                                     sales</a>
                             @else
-                                <form method="POST" action="{{ route('create.payment.link') }}">
-                                    @csrf
-                                    <input type="hidden" name="plan_id" value="{{ $plan->plan_id }}">
-                                    <button class="btn btn-dark rounded-pill w-100 mb-3">Select plan</button>
-                                </form>
-
-                            @endif
+  <button type="button"
+          class="btn btn-dark rounded-pill w-100 mb-3 btn-choose-method"
+          data-plan-id="{{ $plan->plan_id }}"
+          data-plan-name="{{ $plan->accountType->name ?? 'Plan' }}"
+          data-price-vnd="{{ (int) ($plan->discount_percent > 0 ? $plan->price * (1 - $plan->discount_percent/100) : $plan->price) }}">
+    Select plan
+  </button>
+@endif
 
                             <hr>
                             <p class="fw-semibold mt-3 mb-2">Bao gồm:</p>
@@ -76,6 +77,53 @@
         {{-- CARD 3: Pro --}}
     </div>
     </div>
+{{-- Modal chọn phương thức --}}
+<div class="modal fade" id="payMethodModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">Chọn hình thức thanh toán</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 small text-muted" id="chosenPlanText">Plan: —</div>
+
+        <div class="list-group">
+          <label class="list-group-item d-flex align-items-center gap-3">
+            <input class="form-check-input me-2" type="radio" name="payMethod" value="bank" checked>
+            <i class="bi bi-bank2 fs-5"></i>
+            <div>
+              <div class="fw-semibold">Chuyển khoản ngân hàng</div>
+              <div class="text-muted small">Sử dụng luồng cũ tạo payment link/QR</div>
+            </div>
+          </label>
+
+          <label class="list-group-item d-flex align-items-center gap-3">
+            <input class="form-check-input me-2" type="radio" name="payMethod" value="card">
+            <i class="bi bi-credit-card fs-5"></i>
+            <div>
+              <div class="fw-semibold">Thẻ Visa / MasterCard (Stripe)</div>
+              <div class="text-muted small">Thanh toán ngay qua Stripe (sandbox)</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button id="btnConfirmPay" class="btn btn-primary">
+          <span class="spinner-border spinner-border-sm me-2 d-none" id="pmSpin"></span>
+          Tiếp tục
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{-- Form ẩn: bank transfer (giữ nguyên route cũ) --}}
+<form id="bankForm" class="d-none" method="POST" action="{{ route('create.payment.link') }}">
+  @csrf
+  <input type="hidden" name="plan_id" id="bankPlanId">
+</form>
 
     {{-- Styles --}}
     <style>
@@ -139,4 +187,69 @@
             font-weight: 700;
         }
     </style>
+    <script>
+(function () {
+  let currentPlan = { id: null, name: '', priceVnd: 0 };
+
+  // mở modal khi nhấn "Select plan"
+  document.querySelectorAll('.btn-choose-method').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentPlan.id = btn.dataset.planId;
+      currentPlan.name = btn.dataset.planName || 'Membership';
+      currentPlan.priceVnd = parseInt(btn.dataset.priceVnd || '0', 10);
+
+      document.getElementById('chosenPlanText').textContent =
+        `Plan: ${currentPlan.name} • ${new Intl.NumberFormat('vi-VN').format(currentPlan.priceVnd)}đ/tháng`;
+
+      const modal = new bootstrap.Modal(document.getElementById('payMethodModal'));
+      modal.show();
+    });
+  });
+
+  // xác nhận phương thức
+  document.getElementById('btnConfirmPay').addEventListener('click', async () => {
+    const spin = document.getElementById('pmSpin');
+    const method = document.querySelector('input[name="payMethod"]:checked')?.value;
+    if (!currentPlan.id) return;
+
+    spin.classList.remove('d-none');
+
+    try {
+      if (method === 'bank') {
+        // submit form cũ (payment link/QR)
+        document.getElementById('bankPlanId').value = currentPlan.id;
+        document.getElementById('bankForm').submit();
+      } else {
+        // Stripe Checkout: gọi endpoint test đã tạo
+       // THAY THẾ toàn bộ payload & headers
+const fd = new FormData();
+fd.append('plan_id', String(currentPlan.id)); // << bắt buộc
+
+const res = await fetch('{{ route('stripe.checkout') }}', {
+  method: 'POST',
+  headers: {
+    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+    'Accept': 'application/json'             // << để 422/500 trả JSON, không redirect HTML
+  },
+  body: fd
+});
+
+const data = await res.json();               // giờ server sẽ trả JSON
+if (data.url) {
+  window.location.href = data.url;
+} else {
+  alert(data.error || 'Không tạo được phiên Stripe');
+}
+
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || 'Lỗi không xác định');
+    } finally {
+      spin.classList.add('d-none');
+    }
+  });
+})();
+</script>
+
 @endsection

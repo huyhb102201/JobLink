@@ -8,8 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
-use App\Models\AccountType;   // thêm dòng này trên đầu file
-
+use App\Models\AccountType;
+use App\Models\SocialAccount; // ✅ THÊM: dùng cho nhánh liên kết
+use App\Http\Controllers\OAuthController;
 class SocialController extends Controller
 {
     // --- GOOGLE ---
@@ -20,14 +21,14 @@ class SocialController extends Controller
 
     public function googleCallback(Request $request)
     {
-        $g = Socialite::driver('google')->stateless()->user(); // stateless an toàn hơn khi có proxy
+        $g = Socialite::driver('google')->stateless()->user();
 
         $payload = [
-            'provider' => 'google',
-            'provider_id' => $g->getId(),                     // sub
-            'email' => $g->getEmail(),                  // thường có
-            'name' => $g->getName() ?: 'User ' . Str::random(6),
-            'avatar_url' => $g->getAvatar(),
+            'provider'    => 'google',
+            'provider_id' => $g->getId(),
+            'email'       => $g->getEmail(),
+            'name'        => $g->getName() ?: 'User ' . Str::random(6),
+            'avatar_url'  => $g->getAvatar(),
         ];
 
         $account = $this->upsertAccountFromOAuth($payload, $request);
@@ -35,11 +36,10 @@ class SocialController extends Controller
         Auth::login($account, true);
         if ((int) $account->account_type_id === $this->typeIdByCode('GUEST')) {
             return redirect()->route('role.select');
-        }                          // session login
-        return redirect()->intended('/');                      // về trang chủ
+        }
+        return redirect()->intended('/');
     }
 
-    // --- FACEBOOK ---
     // --- Đăng xuất ---
     public function logout(Request $request)
     {
@@ -62,7 +62,7 @@ class SocialController extends Controller
 
         if (!$acc) {
             $acc = new Account();
-            $acc->account_type_id = $this->typeIdByCode('GUEST'); // <-- thay vì 5 cứng
+            $acc->account_type_id = $this->typeIdByCode('GUEST');
             $acc->status = 1;
         }
 
@@ -76,7 +76,6 @@ class SocialController extends Controller
         $acc->login_provider_last = $p['provider'];
         $acc->last_login_ip = $request->ip();
 
-        // nếu còn mới (chưa save lần nào) đảm bảo vẫn set là GUEST
         if (!$acc->exists) {
             $acc->account_type_id = $this->typeIdByCode('GUEST');
             $acc->status = 1;
@@ -94,7 +93,7 @@ class SocialController extends Controller
 
         $mapCode = [
             'client' => 'CLIENT',
-            'freelancer' => 'F_BASIC', // hoặc code nào bạn quy ước cho freelancer mặc định
+            'freelancer' => 'F_BASIC',
         ];
 
         $user->account_type_id = $this->typeIdByCode($mapCode[$data['role']]);
@@ -103,47 +102,35 @@ class SocialController extends Controller
         return redirect()->intended(route('home'))->with('status', 'Chọn vai trò thành công!');
     }
 
-    public function githubRedirect()
+    // =========================
+    //        G I T H U B
+    // =========================
+
+    public function githubRedirect(Request $request)
     {
-        return Socialite::driver('github')->redirect();
+        // proxy sang OAuthController, ép provider = 'github'
+        return app(OAuthController::class)->redirect($request, 'github');
     }
 
     public function githubCallback(Request $request)
     {
-        $gh = Socialite::driver('github')->stateless()->user();
+        // proxy sang OAuthController, ép provider = 'github'
+        return app(OAuthController::class)->callback($request, 'github');
+    }
 
-        // Fallback email nếu user ẩn email trên GitHub
-        $email = $gh->getEmail()
-            ?? ($gh->user['email'] ?? null)
-            ?? ($gh->getNickname() ? $gh->getNickname() . '@users.noreply.github.com' : null);
-
-        $payload = [
-            'provider' => 'github',
-            'provider_id' => (string) $gh->getId(),
-            'email' => $email,
-            'name' => $gh->getName() ?: $gh->getNickname() ?: 'GitHub User',
-            'avatar_url' => $gh->getAvatar(),
-            'username' => $gh->getNickname(),   // nếu muốn lưu username
-        ];
-
-        $account = $this->upsertAccountFromOAuth($payload, $request);
-
-        Auth::login($account, true);
-
-        if ((int) $account->account_type_id === $this->typeIdByCode('GUEST')) {
-            return redirect()->route('role.select');
-        }
-
-        return redirect()->intended('/');
+    private function githubProfileUrl(?string $nickname, $id): string
+    {
+        return $nickname
+            ? "https://github.com/{$nickname}"
+            : "https://github.com/" . urlencode((string) $id);
     }
 
     private function typeIdByCode(string $code): int
     {
         $code = strtoupper($code);
 
-        // cache 1h để đỡ query lại nhiều lần
         return cache()->remember("acct_type_id_$code", 3600, function () use ($code) {
             return (int) AccountType::where('code', $code)->value('account_type_id');
-        }) ?: 5; // fallback cuối cùng nếu bảng rỗng hoặc thiếu code
+        }) ?: 5;
     }
 }

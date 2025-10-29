@@ -10,7 +10,7 @@ use App\Http\Controllers\OnboardingController;
 // routes/web.php
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\MessageController;
-use App\Http\Controllers\FreelancerController;
+use App\Http\Controllers\JobFavoriteController;
 use App\Http\Controllers\PortfolioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -46,10 +46,19 @@ use App\Http\Controllers\SocialAuthController;
 use App\Http\Controllers\ConnectedServicesController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ProfileAiController;
+use App\Http\Controllers\JobCompletionController;
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\AdminLogController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\JobReportController;
+use App\Http\Controllers\Admin\SkillController;
+use App\Http\Controllers\Admin\JobPaymentController as AdminJobPaymentController;
+
+
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])
@@ -97,16 +106,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/messages/{partnerId}/{jobId}', [MessageController::class, 'getMessages']);
 
     Route::get('/jobs/{job}/chat', [MessageController::class, 'chat'])->name('chat.job');
-    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.portfolios');
+    Route::get('/portfolios/{username}/chat', [MessageController::class, 'chatWithUser'])->name('chat.username');
 
     // Chủ job vào chat với freelancer cụ thể
     Route::get('/jobs/{job}/chat/{freelancer}', [MessageController::class, 'chatWithFreelancer'])->name('chat.with');
+    Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
 
     // Gửi tin nhắn
     Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
 
     Route::get('/chat/box/{boxId}/messages', [MessageController::class, 'getBoxMessages']);
     Route::get('/chat/list', [MessageController::class, 'getChatList'])->name('messages.chat_list');
+
     Route::get('/header/summary', [NotificationController::class, 'headerSummary'])
         ->name('header.summary');
     Route::get('/notifications/header-data', [NotificationController::class, 'headerData'])
@@ -178,7 +189,11 @@ Route::get('/jobs/{job}', [JobController::class, 'show'])->name('jobs.show');
 
 
 // Hiển thị danh sách freelancer
-Route::get('/freelancers', [FreelancerController::class, 'index'])->name('freelancers.index');
+Route::get('/favorites', [JobFavoriteController::class, 'index'])
+    ->name('favorites.index');
+
+Route::post('/jobs/{job}/favorite', [JobFavoriteController::class, 'toggle'])
+    ->name('jobs.favorite.toggle');
 Route::get('/orgs', [OrgsController::class, 'index'])->name('orgs.index');
 
 // Hiển thị danh sách portfolio
@@ -360,17 +375,17 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::get('/account-types', [AccountController::class, 'getAccountTypes'])->name('account-types.index');
     Route::put('/account-types/{id}', [AccountController::class, 'updateAccountType'])->name('account-types.update');
     Route::delete('/account-types/{id}', [AccountController::class, 'destroyAccountType'])->name('account-types.destroy');
-    
+
     // THÊM ROUTE EXPORT PAYMENTS
     Route::get('/payments/export', [AdminPaymentController::class, 'export'])->name('payments.export');
-    
+
     // TEST ROUTE
-    Route::get('/test-simple', function() {
+    Route::get('/test-simple', function () {
         return 'Server hoạt động bình thường!';
     });
-    
-    
-    Route::get('/test-accounts', function() {
+
+
+    Route::get('/test-accounts', function () {
         $start = microtime(true);
         $accounts = App\Models\Account::limit(5)->get();
         $end = microtime(true);
@@ -387,7 +402,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/membership-plans/{id}', [AdminPaymentController::class, 'deleteMembershipPlan'])->name('membership-plans.destroy');
     Route::put('/membership-plans/{id}', [AdminPaymentController::class, 'updateMembershipPlan'])->name('membership-plans.update');
     Route::get('/membership-plans/{id}', [AdminPaymentController::class, 'getMembershipPlan'])->name('membership-plans.show');
-    
+
     // ==========================================================
     // THÊM ROUTES QUẢN LÝ XÁC MINH DOANH NGHIỆP
     // ==========================================================
@@ -400,7 +415,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::post('/verifications/bulk-approve', [AdminVerificationController::class, 'bulkApprove'])->name('verifications.bulk-approve');
     Route::post('/verifications/bulk-reject', [AdminVerificationController::class, 'bulkReject'])->name('verifications.bulk-reject');
     // ==========================================================
-    
+
     // ==========================================================
     // ROUTES QUẢN LÝ DANH MỤC
     // ==========================================================
@@ -410,7 +425,7 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
     // ==========================================================
-    
+
     // ==========================================================
     // ROUTES QUẢN LÝ ĐÁNH GIÁ
     // ==========================================================
@@ -419,7 +434,30 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     Route::post('/reviews/destroy-multiple', [ReviewController::class, 'destroyMultiple'])->name('reviews.destroy-multiple');
     // ==========================================================
+
+    // ==========================================================
+    // ROUTES QUẢN LÝ BÁO CÁO JOB
+    // ==========================================================
+    Route::get('/job-reports', [JobReportController::class, 'index'])->name('job-reports.index');
+    Route::get('/job-reports/{jobId}/details', [JobReportController::class, 'getDetails'])->name('job-reports.details');
+    Route::delete('/job-reports/{id}', [JobReportController::class, 'destroy'])->name('job-reports.destroy');
+    Route::delete('/job-reports/job/{jobId}', [JobReportController::class, 'destroyByJob'])->name('job-reports.destroy-by-job');
+    Route::post('/job-reports/job/{jobId}/toggle-lock', [JobReportController::class, 'toggleLockByJob'])->name('job-reports.toggle-lock');
+    Route::post('/job-reports/bulk-lock', [JobReportController::class, 'bulkLock'])->name('job-reports.bulk-lock');
+    Route::post('/job-reports/bulk-unlock', [JobReportController::class, 'bulkUnlock'])->name('job-reports.bulk-unlock');
+    // ==========================================================
+
+    // ==========================================================
+    // ROUTES QUẢN LÝ KỸ NĂNG
+    // ==========================================================
+    Route::get('/skills', [SkillController::class, 'index'])->name('skills.index');
+    Route::get('/skills/{id}', [SkillController::class, 'show'])->name('skills.show');
+    Route::post('/skills', [SkillController::class, 'store'])->name('skills.store');
+    Route::put('/skills/{id}', [SkillController::class, 'update'])->name('skills.update');
+    Route::delete('/skills/{id}', [SkillController::class, 'destroy'])->name('skills.destroy');
+    // ==========================================================
 });
+
 
 Route::get('/payment/success', [CheckoutController::class, 'paymentSuccess'])->name('payment.success');
 Route::get('/payment/cancel', [CheckoutController::class, 'paymentCancel'])->name('payment.cancel');
@@ -474,23 +512,25 @@ Route::delete('/settings/connected/unlink/{provider}', [ConnectedServicesControl
     ->name('settings.connected.unlink');
 
 // OAuth
-Route::get('/auth/redirect/{provider}', [SocialAuthController::class, 'redirect'])
-    ->whereIn('provider', ['github', 'facebook'])
+// routes/web.php
+use App\Http\Controllers\OAuthController;
+
+Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])
     ->name('oauth.redirect');
 
-Route::get('/auth/callback/{provider}', [SocialAuthController::class, 'callback'])
-    ->whereIn('provider', ['github', 'facebook'])
+Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])
     ->name('oauth.callback');
+
 
 // LEGAL PAGES
 Route::view('/terms', 'legal.terms')->name('legal.terms');
 Route::view('/privacy', 'legal.privacy')->name('legal.privacy');
 
 Route::post('/profile/avatar', [PortfolioController::class, 'upload'])
-        ->name('profile.avatar.upload');
+    ->name('profile.avatar.upload');
 
 Route::patch('/portfolios/location', [PortfolioController::class, 'updateLocation'])
-        ->name('portfolios.location.update');
+    ->name('portfolios.location.update');
 
 Route::get('/settings/billing', [BillingController::class, 'index'])->name('settings.billing');
 Route::post('/settings/billing/add-card', [BillingController::class, 'addCard'])->name('settings.billing.addCard');
@@ -500,6 +540,49 @@ Route::get('/api/momo/bankcodes', [BillingController::class, 'bankcodes'])->name
 Route::middleware('auth')->post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
 Route::post('/profile/about/ai-build', [ProfileAiController::class, 'buildAbout'])->name('profile.about.ai');
-Route::post('/profiles/{profile:profile_id}/skills',[PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
+Route::post('/profiles/{profile:profile_id}/skills', [PortfolioController::class, 'updateSkills'])->name('profiles.skills.update');
 Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 
+Route::post('/client/tasks', [\App\Http\Controllers\TaskController::class, 'store'])
+    ->name('client.tasks.store')->middleware('auth');
+Route::patch('/client/jobs/{job}/complete', [JobCompletionController::class, 'complete'])
+    ->name('client.jobs.complete')
+    ->middleware(['auth']);
+
+Route::patch('/client/tasks/extend', [\App\Http\Controllers\TaskController::class, 'extendDueDate'])
+    ->name('client.tasks.extend')
+    ->middleware(['auth']);
+Route::post('/settings/billing/withdraw', [BillingController::class, 'withdraw'])
+    ->name('settings.billing.withdraw')
+    ->middleware('auth');
+
+// Bulk trước
+Route::patch('/client/jobs/{job_id}/applications/bulk', [MyJobsController::class, 'bulkUpdate'])
+    ->whereNumber('job_id')
+    ->name('client.jobs.applications.bulk');
+
+// Update 1 người sau, ràng buộc user_id là số
+Route::patch('/client/jobs/{job_id}/applications/{user_id}', [MyJobsController::class, 'update'])
+    ->whereNumber('job_id')
+    ->whereNumber('user_id')
+    ->name('client.jobs.applications.update');
+
+
+use App\Http\Controllers\StripeCheckoutController;
+
+Route::post('/checkout/stripe', [StripeCheckoutController::class, 'createCheckout'])->name('stripe.checkout');
+Route::get('/checkout/stripe/success', [StripeCheckoutController::class, 'success'])->name('stripe.success');
+Route::get('/checkout/stripe/cancel', [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
+
+// routes/api.php (webhook)
+Route::post('/stripe/webhook', [StripeCheckoutController::class, 'webhook'])->name('stripe.webhook');
+
+
+
+// ✅ Thêm cặp route “tổng quát” (dùng cho nút Liên kết có ?mode=link)
+Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->name('oauth.redirect');
+Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
+
+use App\Http\Controllers\ChatBotController;
+Route::post('/chat', [ChatBotController::class, 'handle']);
+Route::post('/chat/reset', [ChatBotController::class, 'reset']);

@@ -26,6 +26,7 @@ class Account extends Authenticatable implements MustVerifyEmail
         'email_verify_token',
         'password',
         'status',
+        'balance_cents',
         'last_login_at',
         'email_verified_at',
         'oauth_access_token',
@@ -49,7 +50,7 @@ class Account extends Authenticatable implements MustVerifyEmail
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'locked_until' => 'datetime',
-        'last_failed_at'  => 'datetime',
+        'last_failed_at' => 'datetime',
     ];
 
     // Laravel mặc định dùng cột 'email' làm username; nếu muốn đổi có thể override:
@@ -96,11 +97,6 @@ class Account extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Comment::class, 'account_id');
     }
-    public function socialAccounts()
-    {
-        return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
-    }
-
     // App\Models\Account.php
 
     public function ownedOrgs()
@@ -122,5 +118,16 @@ class Account extends Authenticatable implements MustVerifyEmail
             ->withPivot(['role', 'status', 'created_at', 'updated_at']);
     }
 
+
+    public function socialAccounts()
+    {
+        return $this->hasMany(\App\Models\SocialAccount::class, 'account_id', 'account_id');
+    }
+    
+public function favoriteJobs()
+{
+    return $this->belongsToMany(Job::class, 'job_favorites', 'user_id', 'job_id')
+        ->withTimestamps();
+}
 
 }

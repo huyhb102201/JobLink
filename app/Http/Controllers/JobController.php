@@ -15,12 +15,25 @@ use App\Services\NotificationService;
 use App\Events\CommentNotificationBroadcasted;
 use App\Events\NewCommentPosted;
 use Illuminate\Support\Facades\Cache;
+use Cloudinary\Api\Upload\UploadApi;
 
 class JobController extends Controller
 {
     public function index(Request $request)
     {
-        $jobs = Job::with('account.profile', 'jobCategory')
+        // Lấy user_id theo chuẩn dự án (accounts.account_id)
+        $userId = auth()->user()?->account_id ?? auth()->id();
+
+        $jobs = Job::query()
+            ->with('account.profile', 'jobCategory')
+            ->select('jobs.*')
+            ->when($userId, function ($q) use ($userId) {
+                $q->withExists([
+                    'favorites as is_favorited' => fn($x) => $x->where('user_id', $userId)
+                ]);
+            }, function ($q) {
+                $q->selectRaw('0 as is_favorited');
+            })
             ->whereNotIn('status', ['pending', 'cancelled']);
 
         // Lọc theo payment_type
@@ -267,13 +280,60 @@ class JobController extends Controller
         $request->validate([
             'reason' => 'required|string|max:255',
             'message' => 'nullable|string',
-            'images.*' => 'nullable|image|max:2048',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ]);
 
-        $paths = [];
+        $urls = [];
         if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                $paths[] = $file->store('reports', 'public');
+            try {
+                $uploadApi = new UploadApi();
+                foreach ($request->file('images') as $file) {
+                    if (!$file->isValid()) {
+                        Log::error('Invalid image file uploaded', ['tmp_path' => $file->getPathname()]);
+                        throw new \Exception('File ảnh không hợp lệ.', 422);
+                    }
+
+                    $originalName = $file->getClientOriginalName();
+                    $nameOnly = pathinfo($originalName, PATHINFO_FILENAME);
+                    $ext = $file->getClientOriginalExtension();
+
+                    // Upload to Cloudinary
+                    $uploadResult = $uploadApi->upload(
+                        $file->getRealPath(),
+                        [
+                            'resource_type' => 'image',
+                            'public_id' => "reports/{$nameOnly}_" . time(), // Unique public_id
+                            'format' => $ext,
+                            'overwrite' => true,
+                        ]
+                    );
+
+                    $imgUrl = $uploadResult['secure_url'] ?? null;
+                    if (!$imgUrl) {
+                        Log::error('Failed to upload image to Cloudinary', [
+                            'filename' => $originalName,
+                            'tmp_path' => $file->getPathname(),
+                        ]);
+                        throw new \Exception('Lỗi khi tải ảnh lên Cloudinary.', 500);
+                    }
+
+                    Log::info('Image uploaded to Cloudinary successfully', [
+                        'url' => $imgUrl,
+                        'public_id' => $uploadResult['public_id'],
+                        'filename' => $originalName,
+                    ]);
+
+                    $urls[] = $imgUrl;
+                }
+            } catch (\Exception $e) {
+                Log::error('Cloudinary upload failed', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lỗi khi tải ảnh lên Cloudinary: ' . $e->getMessage(),
+                ], 500);
             }
         }
 
@@ -282,7 +342,7 @@ class JobController extends Controller
             'user_id' => auth()->id(),
             'reason' => $request->reason,
             'message' => $request->message,
-            'img' => $paths ? implode(',', $paths) : null,
+            'img' => $urls ? implode(',', $urls) : null,
         ]);
 
         // === Gửi thông báo cho admin ===
@@ -349,7 +409,8 @@ class JobController extends Controller
             'job.account.profile',
             'job.tasks',
             'user.profile'
-        ])->where('user_id', $userId);
+        ])->where('user_id', $userId)->whereHas('job');
+        ;
 
         if ($request->has('status') && is_array($request->status)) {
             $query->whereIn('status', $request->status);
@@ -405,5 +466,8 @@ class JobController extends Controller
 
         return view('jobs.partials.user_tasks', compact('userTasks', 'otherTasks'))->render();
     }
+
+
+
 
 }
