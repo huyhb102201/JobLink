@@ -268,7 +268,7 @@
               }
               notifList.innerHTML = arr.map(n => `
         <li class="${!n.is_read ? 'unread' : ''}">
-          <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="/notifications/${n.id}">
+          <a class="dropdown-item py-2 d-flex align-items-start gap-2" href="#">
             <i class="bi bi-bell-fill text-primary fs-5 mt-1"></i>
             <div class="flex-grow-1">
               <div class="notif-title fw-semibold text-truncate" title="${n.title || ''}">
