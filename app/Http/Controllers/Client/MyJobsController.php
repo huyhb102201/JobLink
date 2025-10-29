@@ -14,6 +14,7 @@ use App\Services\NotificationService;
 use App\Events\CommentNotificationBroadcasted;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use App\Models\OrgMember;
 
 class MyJobsController extends Controller
 {
@@ -21,6 +22,7 @@ class MyJobsController extends Controller
     {
         $ownerId = $r->user()->account_id;
 
+        // ===================== 1) JOB CỦA TÔI =====================
         $jobs = Job::where('account_id', $ownerId)
             ->withCount('applicants')
             ->with([
@@ -30,23 +32,88 @@ class MyJobsController extends Controller
                         ->orderBy('job_apply.created_at', 'desc'),
                 'applicants.profile:profile_id,account_id,fullname,username,skill,description',
             ])
+            ->whereNotIn('status', ['pending', 'cancelled'])
             ->latest('job_id')
-            ->paginate(10);
+            ->paginate(10, ['*'], 'page'); // page chính
 
+        // ===================== 2) JOB CỦA CHỦ DN (cho THÀNH VIÊN xem) =====================
+        // Các org tôi đang ở (ACTIVE)
+        $memberOrgIds = OrgMember::query()
+            ->where('account_id', $ownerId)
+            ->where('status', OrgMember::STATUS_ACTIVE)
+            ->pluck('org_id');
+
+        // Tôi có phải owner ở bất kỳ org nào không?
+        $amOwnerSomewhere = OrgMember::query()
+            ->where('account_id', $ownerId)
+            ->where('status', OrgMember::STATUS_ACTIVE)
+            ->where('role', 'OWNER')
+            ->exists();
+
+        $orgOwnerJobs = collect(); // mặc định Collection rỗng để view an toàn
+        if ($memberOrgIds->isNotEmpty() && !$amOwnerSomewhere) {
+            // Lấy account_id của các OWNER ACTIVE trong những org tôi đang ở
+            $ownerAccountIds = OrgMember::query()
+                ->whereIn('org_id', $memberOrgIds)
+                ->where('status', OrgMember::STATUS_ACTIVE)
+                ->where('role', 'OWNER')
+                ->pluck('account_id')
+                ->unique()
+                ->values();
+
+            if ($ownerAccountIds->isNotEmpty()) {
+                $orgOwnerJobs = Job::query()
+                    ->whereIn('account_id', $ownerAccountIds)
+                    ->whereNotIn('status', ['pending', 'cancelled'])
+                    ->withCount('applicants')
+                    ->with([
+                        'categoryRef',
+                        'account.profile:profile_id,account_id,fullname,username',
+                        'applicants' => fn($q) =>
+                            $q->select('accounts.account_id', 'accounts.name', 'accounts.email', 'accounts.avatar_url')
+                                ->orderBy('job_apply.created_at', 'desc'),
+                        'applicants.profile:profile_id,account_id,fullname,username,skill,description',
+                    ])
+                    ->latest('job_id')
+                    ->paginate(10, ['*'], 'org_page'); // phân trang độc lập
+            }
+        }
+
+        // ===================== 3) SKILL MAP + TASK MAP (cho cả 2 tập) =====================
         $skillMap = Skill::pluck('name', 'skill_id');
 
-        $jobIds = $jobs->pluck('job_id')->all();
-        $taskRows = DB::table('tasks')
-            ->whereIn('job_id', $jobIds)
-            ->select('id', 'task_id', 'job_id', 'title', 'description', 'status', 'start_date', 'due_date', 'assigned_to', 'file_url', 'created_at', 'updated_at')
-            ->orderBy('task_id')->orderBy('id')
-            ->get();
+        $myJobIds = $jobs->pluck('job_id')->all();
+        $orgOwnerJobIds = ($orgOwnerJobs instanceof \Illuminate\Contracts\Pagination\Paginator)
+            ? $orgOwnerJobs->pluck('job_id')->all()
+            : [];
+
+        $allJobIds = array_values(array_unique(array_merge($myJobIds, $orgOwnerJobIds)));
 
         $tasksByJobAndUser = [];
-        foreach ($taskRows as $t)
-            $tasksByJobAndUser[$t->job_id][$t->assigned_to][] = $t;
+        if (!empty($allJobIds)) {
+            $taskRows = DB::table('tasks')
+                ->whereIn('job_id', $allJobIds)
+                ->select('id', 'task_id', 'job_id', 'title', 'description', 'status', 'start_date', 'due_date', 'assigned_to', 'file_url', 'created_at', 'updated_at')
+                ->orderBy('task_id')->orderBy('id')
+                ->get();
 
-        return view('client.jobs.mine', compact('jobs', 'skillMap', 'tasksByJobAndUser'));
+            foreach ($taskRows as $t) {
+                $tasksByJobAndUser[$t->job_id][$t->assigned_to][] = $t;
+            }
+        }
+        if ($r->query('debug') === 'dd') {
+            dd([
+                'me' => $ownerId,
+                'my_jobs_count' => $jobs->total(),                         // tổng số job của tôi
+                'my_jobs_ids' => $jobs->pluck('job_id')->all(),
+                'org_jobs_on?' => $orgOwnerJobs instanceof \Illuminate\Contracts\Pagination\Paginator,
+                'org_jobs_count' => ($orgOwnerJobs instanceof \Illuminate\Contracts\Pagination\Paginator) ? $orgOwnerJobs->total() : 0,
+                'org_jobs_ids' => ($orgOwnerJobs instanceof \Illuminate\Contracts\Pagination\Paginator) ? $orgOwnerJobs->pluck('job_id')->all() : [],
+                'tasks_keys' => array_keys($tasksByJobAndUser),          // job_id nào có task
+                'sample_tasks' => array_slice($tasksByJobAndUser, 0, 1, true), // xem thử 1 job có task
+            ]);
+        }
+        return view('client.jobs.mine', compact('jobs', 'orgOwnerJobs', 'skillMap', 'tasksByJobAndUser'));
     }
 
     public function update(Request $request, int $job_id, int $user_id)

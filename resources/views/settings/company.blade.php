@@ -117,6 +117,10 @@
                                                     <i class="bi bi-hourglass me-1"></i> Đã gửi xác minh
                                                 </button>
                                             @endif
+                                             <button class="btn btn-outline-danger btn-sm rounded-pill"
+                                                data-bs-toggle="modal" data-bs-target="#dissolveOrgModal">
+                                            <i class="bi bi-building-down me-1"></i> Giải tán doanh nghiệp
+                                        </button>
                                         @endif
                                     </div>
                                 </div>
@@ -505,6 +509,58 @@
     </div>
   </div>
 </div>
+@if($isOwner && $org)
+<div class="modal fade" id="dissolveOrgModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <form method="POST" action=" {{ route('settings.company.destroy', $org->org_id) }}">
+        @csrf
+        @method('DELETE')
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-danger">
+            <i class="bi bi-building-down me-2"></i> Giải tán doanh nghiệp
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="alert alert-warning rounded-3">
+            <div class="fw-semibold mb-1">Hành động không thể hoàn tác.</div>
+            <ul class="mb-0 small">
+              <li>Toàn bộ ghế thành viên và lời mời sẽ bị xoá.</li>
+              <li>Các quyền truy cập theo tổ chức không còn hiệu lực.</li>
+              <li>Job thuộc tài khoản cá nhân của bạn <b>không bị xoá</b>.</li>
+            </ul>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Nhập chính xác tên doanh nghiệp để xác nhận</label>
+            <input id="confirmOrgName" type="text" class="form-control"
+                   placeholder="Gõ: {{ $org->name }}">
+            <div class="form-text">Tên cần khớp: <b>{{ $org->name }}</b></div>
+          </div>
+
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="ackDissolve">
+            <label class="form-check-label" for="ackDissolve">
+              Tôi hiểu mọi dữ liệu tổ chức sẽ bị xoá và không thể khôi phục.
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Huỷ</button>
+          <button id="btnDissolveSubmit" type="submit" class="btn btn-danger rounded-pill px-4" disabled>
+            <i class="bi bi-trash me-1"></i> Giải tán
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+@endif
+
     @push('styles')
         <style>
             .surface {
@@ -835,236 +891,166 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 @endpush
 
-    @push('scripts')
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                // Focus tên DN khi mở modal tạo org
-                const createEl = document.getElementById('createOrgModal');
-                if (createEl) {
-                    createEl.addEventListener('shown.bs.modal', function () {
-                        const input = document.getElementById('orgName'); if (input) input.focus();
-                    });
-                }
-
-                // Tự mở lại modal tương ứng nếu có lỗi
-                @if($errors->any() && old('_modal') === 'create_org')
-                    new bootstrap.Modal(document.getElementById('createOrgModal')).show();
-                @endif
-                    @if($errors->any() && old('_modal') === 'add_member')
-                        const addEl = document.getElementById('addMemberModal');
-                        if (addEl) new bootstrap.Modal(addEl).show();
-                    @endif
-        });
-
-            // Xoá thành viên (chỉ Owner mới render nút)
-            // Xoá thành viên bằng Bootstrap Modal xác nhận
+   @push('scripts')
+<script>
 document.addEventListener('DOMContentLoaded', function () {
-  const modalEl = document.getElementById('confirmRemoveModal');
-  if (!modalEl) return;
+  // ===== Focus tên DN khi mở modal tạo org =====
+  const createEl = document.getElementById('createOrgModal');
+  if (createEl) {
+    createEl.addEventListener('shown.bs.modal', function () {
+      const input = document.getElementById('orgName');
+      if (input) input.focus();
+    });
+  }
 
-  const nameEl  = modalEl.querySelector('#confirmRemoveName');
-  const okBtn   = modalEl.querySelector('#btnConfirmRemove');
-  const bsModal = new bootstrap.Modal(modalEl);
+  // ===== Tự mở lại modal tương ứng nếu có lỗi validate =====
+  @if($errors->any() && old('_modal') === 'create_org')
+    new bootstrap.Modal(document.getElementById('createOrgModal')).show();
+  @endif
+  @if($errors->any() && old('_modal') === 'add_member')
+    const addEl = document.getElementById('addMemberModal');
+    if (addEl) new bootstrap.Modal(addEl).show();
+  @endif
+  @if($errors->any() && old('_modal') === 'verify_org')
+    const verifyEl = document.getElementById('verifyOrgModal');
+    if (verifyEl) new bootstrap.Modal(verifyEl).show();
+  @endif
 
-  let pendingForm = null;   // form sẽ submit sau khi xác nhận
-  let triggerBtn  = null;   // nút X để restore trạng thái nếu cần
-  let savedHtml   = '';     // HTML gốc của nút
+  // ===== Toast helper (nếu chưa có) =====
+  window.showToast = window.showToast || function (message, type = 'success') {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      container.style.zIndex = 1090;
+      document.body.appendChild(container);
+    }
+    const cls = { success:'bg-success text-white', error:'bg-danger text-white', warning:'bg-warning text-dark', info:'bg-info text-dark' }[type] || 'bg-success text-white';
+    const el = document.createElement('div');
+    el.className = `toast align-items-center border-0 ${cls}`;
+    el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    container.appendChild(el);
+    const t = new bootstrap.Toast(el, { delay: 3000, autohide: true });
+    t.show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+  };
 
-  // Gán click cho các nút xoá
-  document.querySelectorAll('.js-remove-form .btn-icon').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const name = this.dataset.name?.trim() || 'thành viên';
+  // ===== Xoá thành viên bằng modal xác nhận (uỷ quyền sự kiện, 1 nơi duy nhất) =====
+  (function setupRemoveMember() {
+    const modalEl = document.getElementById('confirmRemoveModal');
+    if (!modalEl) return;
+
+    const nameEl  = modalEl.querySelector('#confirmRemoveName');
+    const okBtn   = modalEl.querySelector('#btnConfirmRemove');
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    let pendingForm = null;
+    let triggerBtn  = null;
+    let savedHtml   = '';
+
+    // Bắt click nút X trong list (ủy quyền sự kiện)
+    document.body.addEventListener('click', function (e) {
+      const btn = e.target.closest('.js-remove-form .btn-icon');
+      if (!btn) return;
+
+      const form = btn.closest('form');
+      if (!form) return;
+
+      const name = btn.dataset.name?.trim() || 'thành viên';
       nameEl.textContent = name;
 
-      // Lưu lại context
-      pendingForm = this.closest('form');
-      triggerBtn  = this;
-      savedHtml   = this.innerHTML;
+      pendingForm = form;
+      triggerBtn  = btn;
+      savedHtml   = btn.innerHTML;
 
-      // Mở modal
       bsModal.show();
     });
-  });
 
-  // Khi bấm xác nhận
- // Khi bấm xác nhận
-okBtn.addEventListener('click', async function () {
-  if (!pendingForm || !triggerBtn) return;
+    // Xác nhận xoá (AJAX)
+    okBtn.addEventListener('click', async function () {
+      if (!pendingForm || !triggerBtn) return;
 
-  // --- Loading state trên NÚT XÁC NHẬN ---
-  const okOriginal = okBtn.innerHTML;
-  okBtn.disabled = true;
-  okBtn.innerHTML =
-    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xoá...';
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      const url  = pendingForm.action;
+      const fd   = new FormData(pendingForm); // _token + _method=DELETE
 
-  // (tuỳ chọn) khoá nút X cho chắc, nhưng KHÔNG đổi icon/text của nó
-  triggerBtn.disabled = true;
+      // Loading
+      const okOriginal = okBtn.innerHTML;
+      okBtn.disabled = true;
+      okBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xoá...';
+      triggerBtn.disabled = true;
 
-  const url  = pendingForm.action;
-  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  const fd   = new FormData(pendingForm); // có _token + _method=DELETE
-
-  try {
-    const res  = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
-      },
-      body: fd
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || !data?.success) {
-      window.showToast(data?.message || 'Không thể xoá thành viên.', 'error');
-      return;
-    }
-
-    // Xoá item trên UI
-    const item = pendingForm.closest('.list-group-item');
-    if (item) item.remove();
-
-    window.showToast(data.message || 'Đã xoá thành viên khỏi tổ chức.', 'success');
-    bsModal.hide();
-  } catch (e) {
-    window.showToast('Lỗi mạng, vui lòng thử lại.', 'error');
-  } finally {
-    // Khôi phục trạng thái nút xác nhận & nút X
-    okBtn.disabled = false;
-    okBtn.innerHTML = okOriginal;
-    if (triggerBtn) triggerBtn.disabled = false;
-
-    pendingForm = null;
-    triggerBtn  = null;
-  }
-});
-
-
-            // Nếu có lỗi xác minh thì tự mở modal (chỉ mở nếu modal tồn tại — tức Owner)
-            document.addEventListener('DOMContentLoaded', function () {
-                @if($errors->any() && old('_modal') === 'verify_org')
-                    const el = document.getElementById('verifyOrgModal');
-                    if (el) new bootstrap.Modal(el).show();
-                @endif
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json', ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}) },
+          body: fd
         });
-        </script>
-        <script>
-window.showToast = window.showToast || function (message, type = 'success') {
-  let container = document.getElementById('toastContainer');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.className = 'toast-container position-fixed top-0 end-0 p-3';
-    container.style.zIndex = 1090;
-    document.body.appendChild(container);
-  }
-  const cls = { success:'bg-success text-white', error:'bg-danger text-white', warning:'bg-warning text-dark', info:'bg-info text-dark' }[type] || 'bg-success text-white';
-  const el = document.createElement('div');
-  el.className = `toast align-items-center border-0 ${cls}`;
-  el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
-  el.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-  container.appendChild(el);
-  const t = new bootstrap.Toast(el, { delay: 3000, autohide: true });
-  t.show();
-  el.addEventListener('hidden.bs.toast', () => el.remove());
-};
+        const data = await res.json().catch(() => null);
 
-document.addEventListener('DOMContentLoaded', function () {
-  const modalEl = document.getElementById('confirmRemoveModal');
-  if (!modalEl) { console.warn('confirmRemoveModal not found'); return; }
+        if (!res.ok || !data?.success) {
+          window.showToast(data?.message || 'Không thể xoá thành viên.', 'error');
+          return;
+        }
 
-  const nameEl  = modalEl.querySelector('#confirmRemoveName');
-  const okBtn   = modalEl.querySelector('#btnConfirmRemove');
-  const bsModal = new bootstrap.Modal(modalEl);
+        const item = pendingForm.closest('.list-group-item');
+        if (item) item.remove();
 
-  let pendingForm = null;
-  let triggerBtn  = null;
-  let savedHtml   = '';
+        window.showToast(data.message || 'Đã xoá thành viên khỏi tổ chức.', 'success');
+        bsModal.hide();
+      } catch (err) {
+        window.showToast('Lỗi mạng, vui lòng thử lại.', 'error');
+      } finally {
+        okBtn.disabled = false;
+        okBtn.innerHTML = okOriginal;
+        if (triggerBtn) triggerBtn.disabled = false;
 
-  // 1) UỶ QUYỀN SỰ KIỆN: bắt mọi click vào nút X
-  document.body.addEventListener('click', function (e) {
-    const btn = e.target.closest('.js-remove-form .btn-icon');
-    if (!btn) return;
-
-    const form = btn.closest('form');
-    if (!form) return;
-
-    const name = btn.dataset.name?.trim() || 'thành viên';
-    nameEl.textContent = name;
-
-    pendingForm = form;
-    triggerBtn  = btn;
-    savedHtml   = btn.innerHTML;
-
-    bsModal.show();
-  });
-
-  // 2) XÁC NHẬN XOÁ (AJAX)
-  okBtn.addEventListener('click', async function () {
-    if (!pendingForm || !triggerBtn) return;
-
-    okBtn.disabled = true;
-    triggerBtn.disabled = true;
-    const originalHtml = triggerBtn.innerHTML;
-    triggerBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-
-    const url  = pendingForm.action;
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const fd   = new FormData(pendingForm); // có _token + _method=DELETE
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST', // Laravel hiểu method qua _method
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-          ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {})
-        },
-        body: fd
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data?.success) {
-        window.showToast(data?.message || 'Không thể xoá thành viên.', 'error');
-        return;
+        pendingForm = null;
+        triggerBtn  = null;
+        savedHtml   = '';
       }
+    });
 
-      // Remove item khỏi UI
-      const item = pendingForm.closest('.list-group-item');
-      if (item) item.remove();
-
-      window.showToast(data.message || 'Đã xoá thành viên khỏi tổ chức.', 'success');
-      bsModal.hide();
-    } catch (err) {
-      window.showToast('Lỗi mạng, vui lòng thử lại.', 'error');
-    } finally {
+    // Reset khi modal đóng
+    modalEl.addEventListener('hidden.bs.modal', () => {
       okBtn.disabled = false;
-      if (triggerBtn) {
-        triggerBtn.disabled = false;
-        triggerBtn.innerHTML = savedHtml || originalHtml;
-      }
-      pendingForm = null;
-      triggerBtn  = null;
-      savedHtml   = '';
-    }
-  });
+      if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.innerHTML = savedHtml || triggerBtn.innerHTML; }
+      pendingForm = null; triggerBtn = null; savedHtml = '';
+    });
+  })();
 
-  // 3) Reset khi modal đóng (phòng trường hợp user bấm Hủy)
-  modalEl.addEventListener('hidden.bs.modal', () => {
-    okBtn.disabled = false;
-    if (triggerBtn) {
-      triggerBtn.disabled = false;
-      triggerBtn.innerHTML = savedHtml || triggerBtn.innerHTML;
+  // ===== (Tuỳ chọn) Bật nút “Giải tán DN” khi khớp tên + tick checkbox =====
+  (function setupDissolveGuard() {
+    const modal = document.getElementById('dissolveOrgModal');
+    if (!modal) return;
+
+    const mustRaw = @json($org?->name ?? '');
+    const input   = modal.querySelector('#confirmOrgName');
+    const ack     = modal.querySelector('#ackDissolve');
+    const btn     = modal.querySelector('#btnDissolveSubmit');
+
+    function normalize(s) {
+      return String(s || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
     }
-    pendingForm = null;
-    triggerBtn  = null;
-    savedHtml   = '';
-  });
+    const must = normalize(mustRaw);
+
+    function update() {
+      btn.disabled = !(normalize(input.value) === must && ack.checked);
+    }
+
+    input.addEventListener('input', update);
+    ack.addEventListener('change', update);
+    modal.addEventListener('shown.bs.modal', () => { input.focus(); update(); });
+  })();
+
 });
 </script>
-
-    @endpush
+@endpush
 
 @endsection

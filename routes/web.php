@@ -158,7 +158,9 @@ Route::middleware('auth')->group(function () {
     // tuỳ chọn: đổi gói
     Route::post('/settings/membership/change', [SettingsController::class, 'changeMembership'])
         ->name('settings.membership.change');
-
+    //Giải tán doanh nghiệp
+    Route::delete('/settings/company/{org}/destroy', [CompanyController::class, 'destroy'])
+        ->name('settings.company.destroy');
     Route::post('/jobs/{job_id}/payment/create', [JobPaymentController::class, 'createPaymentLink'])
         ->name('job-payments.create');
 

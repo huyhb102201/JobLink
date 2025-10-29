@@ -35,11 +35,11 @@
       {{-- Tổng ngân sách --}}
       <div class="col-md-6">
         <label class="form-label fw-semibold">Tổng ngân sách (VND)</label>
-        <input type="number" step="1" min="0"
+        <input type="number" step="1000" min="1000"
                name="total_budget" id="f_total_budget"
                class="form-control @error('total_budget') is-invalid @enderror"
                value="{{ $oldTotal }}"
-               placeholder="VD: 5000000">
+               placeholder="VD: 5000000" required>
         @error('total_budget') <div class="invalid-feedback">{{ $message }}</div> @enderror
       </div>
     </div>
@@ -73,6 +73,7 @@
       <button class="btn btn-primary">Tiếp tục</button>
     </div>
   </form>
+  
 </div>
 @endsection
 
