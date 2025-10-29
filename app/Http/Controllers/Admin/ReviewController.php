@@ -104,7 +104,7 @@ class ReviewController extends Controller
             $review->update(['isDeleted' => 1]);
 
             // Log admin action
-            AdminLogService::logDelete(
+        /*    AdminLogService::logDelete(
                 'Review',
                 $review->review_id,
                 "Xóa đánh giá ID: {$review->review_id}",
@@ -113,7 +113,7 @@ class ReviewController extends Controller
                     'reviewee_id' => $review->reviewee_id,
                     'rating' => $review->rating
                 ]
-            );
+            ); */
 
             DB::commit();
 
@@ -179,13 +179,13 @@ class ReviewController extends Controller
             Review::whereIn('review_id', $ids)->update(['isDeleted' => 1]);
 
             // Log admin action
-            AdminLogService::logBulk(
+     /*       AdminLogService::logBulk(
                 'delete',
                 'Review',
                 $ids,
                 'Xóa hàng loạt ' . count($ids) . ' đánh giá'
             );
-
+            */
             DB::commit();
 
             return response()->json([
