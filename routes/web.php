@@ -442,17 +442,20 @@ Route::middleware(['auth', 'role:ADMIN'])->prefix('admin')->name('admin.')->grou
     // ROUTES QUẢN LÝ BÁO CÁO JOB
     // ==========================================================
     Route::get('/reported-jobs', [JobReportController::class, 'index'])
-            ->name('job-reports.index');
+        ->name('job-reports.index');
     Route::delete('/reported-jobs/{jobId}/delete', [JobReportController::class, 'deleteJob'])
         ->name('admin.reports.deleteJob');
-        // AJAX: lấy người report của 1 job
-        Route::get('/reported-jobs/{jobId}/reporters', [JobReportController::class, 'fetchReporters'])
-            ->whereNumber('jobId')->name('reports.fetchReporters');
-        Route::post('/accounts/{accountId}/lock', [JobReportController::class, 'lockAndPurge'])
+    // AJAX: lấy người report của 1 job
+    Route::get('/reported-jobs/{jobId}/reporters', [JobReportController::class, 'fetchReporters'])
+        ->whereNumber('jobId')->name('reports.fetchReporters');
+    Route::post('/accounts/{accountId}/lock', [JobReportController::class, 'lockAndPurge'])
         ->name('admin.accounts.lock');
+    // routes/web.php (khu admin)
+    Route::post('/reported-jobs/{job}/reject', [JobReportController::class, 'reject']);
+
     // ==========================================================
     // ROUTES RÚT TIỀN
-     Route::get('/withdrawals', [WithdrawalApprovalController::class, 'index'])->name('withdrawals.index');
+    Route::get('/withdrawals', [WithdrawalApprovalController::class, 'index'])->name('withdrawals.index');
 
     // Lấy 1 bản ghi (dùng cho modal)
     Route::get('/withdrawals/{id}', [WithdrawalApprovalController::class, 'show'])
