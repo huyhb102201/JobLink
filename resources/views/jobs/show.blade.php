@@ -175,41 +175,41 @@
                     </section><!-- /Blog Comments Section -->
                     <br>
                     <!-- Comment Form Section 
-                                                        <section id="comment-form" class="comment-form section">
-                                                            <div class="container">
+                                                            <section id="comment-form" class="comment-form section">
+                                                                <div class="container">
 
-                                                                <form action="">
+                                                                    <form action="">
 
-                                                                    <h4>Post Comment</h4>
-                                                                    <p>Your email address will not be published. Required fields are marked * </p>
-                                                                    <div class="row">
-                                                                        <div class="col-md-6 form-group">
-                                                                            <input name="name" type="text" class="form-control" placeholder="Your Name*">
+                                                                        <h4>Post Comment</h4>
+                                                                        <p>Your email address will not be published. Required fields are marked * </p>
+                                                                        <div class="row">
+                                                                            <div class="col-md-6 form-group">
+                                                                                <input name="name" type="text" class="form-control" placeholder="Your Name*">
+                                                                            </div>
+                                                                            <div class="col-md-6 form-group">
+                                                                                <input name="email" type="text" class="form-control" placeholder="Your Email*">
+                                                                            </div>
                                                                         </div>
-                                                                        <div class="col-md-6 form-group">
-                                                                            <input name="email" type="text" class="form-control" placeholder="Your Email*">
+                                                                        <div class="row">
+                                                                            <div class="col form-group">
+                                                                                <input name="website" type="text" class="form-control" placeholder="Your Website">
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <div class="row">
-                                                                        <div class="col form-group">
-                                                                            <input name="website" type="text" class="form-control" placeholder="Your Website">
+                                                                        <div class="row">
+                                                                            <div class="col form-group">
+                                                                                <textarea name="comment" class="form-control"
+                                                                                    placeholder="Your Comment*"></textarea>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <div class="row">
-                                                                        <div class="col form-group">
-                                                                            <textarea name="comment" class="form-control"
-                                                                                placeholder="Your Comment*"></textarea>
+
+                                                                        <div class="text-center">
+                                                                            <button type="submit" class="btn btn-primary">Post Comment</button>
                                                                         </div>
-                                                                    </div>
 
-                                                                    <div class="text-center">
-                                                                        <button type="submit" class="btn btn-primary">Post Comment</button>
-                                                                    </div>
+                                                                    </form>
 
-                                                                </form>
-
-                                                            </div>
-                                                        </section> /Comment Form Section -->
+                                                                </div>
+                                                            </section> /Comment Form Section -->
 
                 </div>
 
@@ -232,12 +232,15 @@
                         <div class="categories-widget widget-item">
                             <h3 class="widget-title">Danh mục</h3>
                             <ul class="mt-3">
-                                 @php
+                                @php
                                     use App\Models\JobCategory;
 
                                     $categories = JobCategory::withCount([
                                         'jobs as jobs_count' => function ($query) {
-                                            $query->whereNotIn('status', ['pending', 'cancelled']);
+                                            $query->whereNotIn('status', ['pending', 'cancelled'])
+                                                ->whereHas('account', function ($q) {
+                                                    $q->where('status', '!=', 0);
+                                                });
                                         }
                                     ])->get();
                                 @endphp
@@ -250,6 +253,7 @@
                                         </a>
                                     </li>
                                 @endforeach
+
 
                             </ul>
                         </div>
@@ -658,11 +662,11 @@
                             selectedFiles.forEach((file, i) => {
                                 const url = URL.createObjectURL(file);
                                 const thumb = $(`
-                  <div class="thumb" data-index="${i}">
-                    <img src="${url}" alt="">
-                    <button type="button" class="remove-btn">&times;</button>
-                  </div>
-                `);
+                      <div class="thumb" data-index="${i}">
+                        <img src="${url}" alt="">
+                        <button type="button" class="remove-btn">&times;</button>
+                      </div>
+                    `);
 
                                 thumb.find('.remove-btn').on('click', (e) => {
                                     e.stopPropagation();
@@ -742,10 +746,10 @@
                             selectedFiles.forEach(f => formData.append('images[]', f));
 
                             alertBox.html(`
-                <div class="d-flex align-items-center justify-content-center my-3 text-muted">
-                  <div class="spinner-border spinner-border-sm text-danger me-2"></div> Đang gửi báo cáo...
-                </div>
-              `);
+                    <div class="d-flex align-items-center justify-content-center my-3 text-muted">
+                      <div class="spinner-border spinner-border-sm text-danger me-2"></div> Đang gửi báo cáo...
+                    </div>
+                  `);
 
                             $.ajax({
                                 url: '/jobs/report/' + jobId,

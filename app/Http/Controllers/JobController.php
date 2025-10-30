@@ -34,7 +34,10 @@ class JobController extends Controller
             }, function ($q) {
                 $q->selectRaw('0 as is_favorited');
             })
-            ->whereNotIn('status', ['pending', 'cancelled']);
+            ->whereNotIn('status', ['pending', 'cancelled'])
+            ->whereHas('account', function ($q) {
+                $q->where('status', '!=', 0);
+            });
 
         // Lọc theo payment_type
         if ($request->has('payment_type') && is_array($request->payment_type)) {
@@ -97,6 +100,7 @@ class JobController extends Controller
             ->where('job_id', '!=', $job->job_id)
             ->where('category_id', $job->category_id)
             ->whereNotIn('status', ['pending', 'cancelled'])
+            ->whereHas('account', fn($q) => $q->where('status', '!=', 0))
             ->latest()
             ->take(5)
             ->get();
@@ -107,6 +111,7 @@ class JobController extends Controller
                 ->where('job_id', '!=', $job->job_id)
                 ->where('account_id', $job->account_id)
                 ->whereNotIn('status', ['pending', 'cancelled'])
+                 ->whereHas('account', fn($q) => $q->where('status', '!=', 0))
                 ->latest()
                 ->take(5 - $relatedJobs->count())
                 ->get();
