@@ -605,5 +605,21 @@ Route::get('/oauth/{provider}/redirect', [OAuthController::class, 'redirect'])->
 Route::get('/oauth/{provider}/callback', [OAuthController::class, 'callback'])->name('oauth.callback');
 
 use App\Http\Controllers\ChatBotController;
+
 Route::post('/chatbot', [ChatBotController::class, 'handle'])->name('chatbot.handle');
 Route::post('/chatbot/reset', [ChatBotController::class, 'reset'])->name('chatbot.reset');
+
+
+Route::post('/jobs/{job}/stripe/create', [\App\Http\Controllers\JobPaymentController::class, 'createStripeSession'])
+    ->name('job-payments.stripe.create');
+
+Route::get('/jobs/stripe/success', [\App\Http\Controllers\JobPaymentController::class, 'stripeSuccess'])
+    ->name('job-payments.stripe.success');
+
+Route::get('/jobs/stripe/cancel', [\App\Http\Controllers\JobPaymentController::class, 'stripeCancel'])
+    ->name('job-payments.stripe.cancel');
+
+// Webhook (optional - production)
+Route::post('/webhooks/stripe/job', [\App\Http\Controllers\JobPaymentController::class, 'stripeWebhook'])
+    ->name('job-payments.stripe.webhook');
+
