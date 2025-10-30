@@ -14,19 +14,22 @@ class JobPaymentController extends Controller
     public function index(Request $request)
     {
         // Load tất cả payments với job và client
-        $jobPayments = JobPayment::with(['job' => function($query) {
-                $query->withTrashed()->with(['client' => function($q) {
-                    $q->with('profile');
-                }]);
-            }])
-            ->orderByDesc('created_at')
-            ->get();
+        $jobPayments = JobPayment::with([
+            'job' => function ($q) {
+                $q->with([
+                    'client' => function ($q2) {
+                        $q2->with('profile');
+                    }
+                ]);
+            }
+        ])->orderByDesc('created_at')->get();
+
 
         // Group payments by client (email + name)
         $groupedPayments = [];
         foreach ($jobPayments as $payment) {
             $job = $payment->job;
-            
+
             // Xử lý trường hợp job hoặc client bị xóa
             if (!$job || !$job->client) {
                 // Tạo group cho giao dịch không có client (job đã xóa)
@@ -36,14 +39,14 @@ class JobPaymentController extends Controller
             } else {
                 $client = $job->client;
                 $profile = $client->profile;
-                
+
                 $clientName = $profile ? $profile->fullname : ($client->name ?? 'N/A');
                 $clientEmail = $client->email ?? 'N/A';
-                
+
                 // Create unique key based on client name and email
                 $clientKey = $clientEmail . '|' . $clientName;
             }
-            
+
             if (!isset($groupedPayments[$clientKey])) {
                 $groupedPayments[$clientKey] = [
                     'client_name' => $clientName,
@@ -53,7 +56,7 @@ class JobPaymentController extends Controller
                     'jobs' => []
                 ];
             }
-            
+
             // Group by job within client
             $jobId = $payment->job_id;
             if (!isset($groupedPayments[$clientKey]['jobs'][$jobId])) {
@@ -64,7 +67,7 @@ class JobPaymentController extends Controller
                     'payments' => []
                 ];
             }
-            
+
             // Add payment to job
             $statusBadge = match ($payment->status) {
                 'paid' => '<span class="badge bg-success">Đã thanh toán</span>',
@@ -74,7 +77,7 @@ class JobPaymentController extends Controller
                 'failed' => '<span class="badge bg-danger">Thất bại</span>',
                 default => '<span class="badge bg-secondary">' . $payment->status . '</span>',
             };
-            
+
             $groupedPayments[$clientKey]['jobs'][$jobId]['payments'][] = [
                 'id' => $payment->id,
                 'orderCode' => $payment->orderCode ?? 'N/A',
@@ -85,7 +88,7 @@ class JobPaymentController extends Controller
                 'description' => $payment->description,
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : 'N/A',
             ];
-            
+
             // Tính tổng tiền chỉ cho giao dịch thành công
             if (in_array(strtolower($payment->status), ['paid', 'success'])) {
                 $groupedPayments[$clientKey]['total_amount'] += $payment->amount ?? 0;
@@ -93,19 +96,19 @@ class JobPaymentController extends Controller
             // Đếm TẤT CẢ giao dịch (kể cả pending, failed...)
             $groupedPayments[$clientKey]['payment_count']++;
         }
-        
+
         // Convert jobs to indexed array for each client
         foreach ($groupedPayments as &$group) {
             $group['jobs'] = array_values($group['jobs']);
         }
-        
+
         // Convert to indexed array
         $groupedPayments = array_values($groupedPayments);
 
         // Tính tổng tiền và số giao dịch TRỰC TIẾP từ database để chính xác
         $totalPaidAmount = JobPayment::where('status', 'paid')->sum('amount') ?? 0;
         $totalPaidTransactions = JobPayment::where('status', 'paid')->count();
-        
+
         // Tổng số giao dịch và số tiền đang chờ (tính từ DB)
         $totalPendingAmount = JobPayment::whereIn('status', ['pending', 'processing', 'PENDING'])->sum('amount');
         $totalPayments = JobPayment::count();
