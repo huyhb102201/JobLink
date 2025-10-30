@@ -237,12 +237,10 @@
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('.quick-suggest');
     if (!btn) return;
-
     const text = btn.getAttribute('data-text') || btn.textContent || '';
     if (!text.trim()) return;
-
-    msgInput.value = text.trim();
-    sendMessage();
+    document.getElementById('message').value = text.trim();
+    (typeof sendMessage === 'function') && sendMessage();
   });
-
 </script>
+
