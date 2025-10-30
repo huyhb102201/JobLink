@@ -67,8 +67,8 @@ class JobReportController extends Controller
         $endOfWeek = now()->endOfWeek();
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now()->endOfMonth();
-        $reportsPending  = JobReport::where('status',1)->distinct('job_id')->count('job_id');
-        $reportsResolved = JobReport::where('status',2)->distinct('job_id')->count('job_id');
+        $reportsPending = JobReport::where('status', 1)->distinct('job_id')->count('job_id');
+        $reportsResolved = JobReport::where('status', 2)->distinct('job_id')->count('job_id');
         return view('admin.job-reports.index', [
             'rows' => $rows,
             'totalReports' => JobReport::count(),
@@ -76,8 +76,8 @@ class JobReportController extends Controller
             'jobsReportedThisWeek' => JobReport::whereBetween('created_at', [$startOfWeek, $endOfWeek])->distinct('job_id')->count('job_id'),
             'jobsReportedThisMonth' => JobReport::whereBetween('created_at', [$startOfMonth, $endOfMonth])->distinct('job_id')->count('job_id'),
             'q' => $q,
-             'reportsPending'        => $reportsPending,
-            'reportsResolved'       => $reportsResolved,
+            'reportsPending' => $reportsPending,
+            'reportsResolved' => $reportsResolved,
         ]);
     }
     /**
@@ -134,45 +134,45 @@ class JobReportController extends Controller
     }
 
     public function deleteJob(int $jobId)
-{
-    $job = Job::find($jobId);
-    if (!$job) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Job không tồn tại hoặc đã bị xóa.'
-        ], 404);
+    {
+        $job = Job::find($jobId);
+        if (!$job) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Job không tồn tại hoặc đã bị xóa.'
+            ], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($jobId, $job) {
+                // 🟢 1) Cập nhật trạng thái các báo cáo sang "đã xử lý" (2)
+                JobReport::where('job_id', $jobId)->update(['status' => 2]);
+
+                // 🟢 2) Dọn toàn bộ bảng liên quan (nếu không dùng FK cascade)
+                JobFavorite::where('job_id', $jobId)->delete();
+                JobApply::where('job_id', $jobId)->delete();
+                JobDetail::where('job_id', $jobId)->delete();
+                JobView::where('job_id', $jobId)->delete();
+                Task::where('job_id', $jobId)->delete();
+                Comment::where('job_id', $jobId)->delete();
+
+                // 🟢 3) Xóa Job chính
+                $job->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã xóa Job và cập nhật trạng thái báo cáo thành công.'
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể xóa job: ' . $th->getMessage(),
+            ], 500);
+        }
     }
 
-    try {
-        DB::transaction(function () use ($jobId, $job) {
-            // 🟢 1) Cập nhật trạng thái các báo cáo sang "đã xử lý" (2)
-            JobReport::where('job_id', $jobId)->update(['status' => 2]);
-
-            // 🟢 2) Dọn toàn bộ bảng liên quan (nếu không dùng FK cascade)
-            JobFavorite::where('job_id', $jobId)->delete();
-            JobApply::where('job_id', $jobId)->delete();
-            JobDetail::where('job_id', $jobId)->delete();
-            JobView::where('job_id', $jobId)->delete();
-            Task::where('job_id', $jobId)->delete();
-            Comment::where('job_id', $jobId)->delete();
-
-            // 🟢 3) Xóa Job chính
-            $job->delete();
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Đã xóa Job và cập nhật trạng thái báo cáo thành công.'
-        ]);
-    } catch (\Throwable $th) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Không thể xóa job: ' . $th->getMessage(),
-        ], 500);
-    }
-}
-
-public function lockAndPurge(int $accountId, Request $request)
+    public function lockAndPurge(int $accountId, Request $request)
     {
         // 1) Tìm account
         $account = Account::find($accountId);
@@ -227,8 +227,25 @@ public function lockAndPurge(int $accountId, Request $request)
         } catch (\Throwable $th) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không thể khóa tài khoản: '.$th->getMessage(),
+                'message' => 'Không thể khóa tài khoản: ' . $th->getMessage(),
             ], 500);
         }
     }
+
+    public function reject(int $jobId)
+    {
+        $affected = JobReport::where('job_id', $jobId)->update(['status' => 0]);
+
+        // Tạm ghi log để kiểm tra
+        \Log::info("[reject] job_id=$jobId, affected=$affected, db=" . \DB::connection()->getDatabaseName());
+
+        if ($affected === 0) {
+            return response()->json(['success' => false, 'message' => 'Không có bản ghi nào được cập nhật. Kiểm tra job_id hoặc điều kiện WHERE.'], 422);
+        }
+
+        return response()->json(['success' => true, 'affected' => $affected]);
+    }
+
+
+
 }

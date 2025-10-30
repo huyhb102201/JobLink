@@ -160,14 +160,15 @@
                         {{-- Thanh toán (khi cọc chưa thanh toán & chưa huỷ) --}}
                         @if(($job->escrow_status ?? 'pending') === 'pending' && $job->status !== 'cancelled')
                           <li>
-                            <form action="{{ route('job-payments.create', $job->job_id) }}" method="POST">
-                              @csrf
-                              <button type="submit" class="dropdown-item">
-                                <i class="bi bi-credit-card me-1"></i> Thanh toán cọc
-                              </button>
-                            </form>
+                            <button type="button" class="dropdown-item btn-open-escrow" data-job-id="{{ $job->job_id }}"
+                              data-title="{{ \Illuminate\Support\Str::limit(strip_tags($job->title), 60) }}"
+                              data-amount="{{ $job->total_budget ?? '' }}"
+                              data-action="{{ route('job-payments.create', $job->job_id) }}">
+                              <i class="bi bi-credit-card me-1"></i> Thanh toán cọc
+                            </button>
                           </li>
                         @endif
+
 
                         {{-- Giao/Xem task (chỉ khi đã funded) --}}
                         <li>
@@ -212,7 +213,14 @@
                         </li>
 
                         {{-- Xoá job (chỉ khi đã huỷ) --}}
-                        @if($job->status === 'cancelled')
+                        {{-- Xoá job (đã hủy HOẶC chưa thanh toán & chưa có ai được nhận) --}}
+                        @php
+                          $escrowIsPending = ($job->escrow_status ?? 'pending') === 'pending';
+                          $canShowDelete = $job->status === 'cancelled'
+                            || ($escrowIsPending && ($acceptedCount === 0));
+                        @endphp
+
+                        @if($canShowDelete)
                           <li>
                             <hr class="dropdown-divider">
                           </li>
@@ -227,6 +235,7 @@
                             </form>
                           </li>
                         @endif
+
                       </ul>
                     </div>
                   </div>
@@ -673,86 +682,86 @@
               </div>
             </div>
             {{-- MODAL: XEM TASK (view-only) --}}
-<div class="modal fade" id="viewTasksModal-{{ $job->job_id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header">
-        <h5 class="modal-title">
-          Task – {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 50) }} (Chỉ xem)
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body">
-        @php
-          // Map task đã được controller truyền vào: $tasksByJobAndUser[job_id][account_id] = [task...]
-          $jobTasksMap   = $tasksByJobAndUser[$job->job_id] ?? [];
-          $acceptedUsers = collect(($job->applicants ?? collect()))
-                            ->filter(fn($u) => (int) ($u->pivot->status ?? -1) === 2)
-                            ->values();
-          $firstUserId   = optional($acceptedUsers->first())->account_id;
-          $firstUserTasks = $firstUserId ? ($jobTasksMap[$firstUserId] ?? []) : [];
-        @endphp
-
-        <div class="row g-3 align-items-end">
-          <div class="col-md-6">
-            <label class="form-label">Freelancer</label>
-            <select class="form-select" disabled>
-              @forelse($acceptedUsers as $u)
-                @php
-                  $p = $u->profile ?? null;
-                  $n = $p->fullname ?? $u->name ?? ('#'.$u->account_id);
-                @endphp
-                <option value="{{ $u->account_id }}" @selected($u->account_id == $firstUserId)>{{ $n }}</option>
-              @empty
-                <option>(Chưa có freelancer được nhận)</option>
-              @endforelse
-            </select>
-            <div class="form-text">Chế độ chỉ xem</div>
-          </div>
-        </div>
-
-        <div class="mt-3">
-          @if($firstUserId && !empty($firstUserTasks))
-            <div class="list-group small">
-              @foreach($firstUserTasks as $t)
-                @php
-                  $fileUrls = collect(explode('|', (string) ($t->file_url ?? '')))
-                    ->map(fn($u) => trim($u))->filter()->values();
-                  $prettyName = function ($u) {
-                    $p = parse_url($u, PHP_URL_PATH) ?? '';
-                    return urldecode($p ? basename($p) : 'file');
-                  };
-                @endphp
-                <div class="list-group-item border-0 ps-0">
-                  <div class="fw-semibold">
-                    #{{ $t->task_id }}
-                    <span class="fw-normal text-secondary">· {{ $t->title }}</span>
-                    <small class="text-muted ms-2">
-                      <i class="bi bi-clock-history"></i>
-                      {{ \Illuminate\Support\Carbon::parse($t->updated_at)->format('Y-m-d H:i') }}
-                    </small>
+            <div class="modal fade" id="viewTasksModal-{{ $job->job_id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 shadow">
+                  <div class="modal-header">
+                    <h5 class="modal-title">
+                      Task – {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 50) }} (Chỉ xem)
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
-                  @if($fileUrls->count())
-                    <ul class="mb-0 mt-1">
-                      @foreach($fileUrls as $u)
-                        <li><a href="{{ $u }}" target="_blank" rel="noopener" download>{{ $prettyName($u) }}</a></li>
-                      @endforeach
-                    </ul>
-                  @else
-                    <div class="text-muted small">Không có tệp đính kèm.</div>
-                  @endif
+
+                  <div class="modal-body">
+                    @php
+                      // Map task đã được controller truyền vào: $tasksByJobAndUser[job_id][account_id] = [task...]
+                      $jobTasksMap = $tasksByJobAndUser[$job->job_id] ?? [];
+                      $acceptedUsers = collect(($job->applicants ?? collect()))
+                        ->filter(fn($u) => (int) ($u->pivot->status ?? -1) === 2)
+                        ->values();
+                      $firstUserId = optional($acceptedUsers->first())->account_id;
+                      $firstUserTasks = $firstUserId ? ($jobTasksMap[$firstUserId] ?? []) : [];
+                    @endphp
+
+                    <div class="row g-3 align-items-end">
+                      <div class="col-md-6">
+                        <label class="form-label">Freelancer</label>
+                        <select class="form-select" disabled>
+                          @forelse($acceptedUsers as $u)
+                            @php
+                              $p = $u->profile ?? null;
+                              $n = $p->fullname ?? $u->name ?? ('#' . $u->account_id);
+                            @endphp
+                            <option value="{{ $u->account_id }}" @selected($u->account_id == $firstUserId)>{{ $n }}</option>
+                          @empty
+                            <option>(Chưa có freelancer được nhận)</option>
+                          @endforelse
+                        </select>
+                        <div class="form-text">Chế độ chỉ xem</div>
+                      </div>
+                    </div>
+
+                    <div class="mt-3">
+                      @if($firstUserId && !empty($firstUserTasks))
+                        <div class="list-group small">
+                          @foreach($firstUserTasks as $t)
+                            @php
+                              $fileUrls = collect(explode('|', (string) ($t->file_url ?? '')))
+                                ->map(fn($u) => trim($u))->filter()->values();
+                              $prettyName = function ($u) {
+                                $p = parse_url($u, PHP_URL_PATH) ?? '';
+                                return urldecode($p ? basename($p) : 'file');
+                              };
+                            @endphp
+                            <div class="list-group-item border-0 ps-0">
+                              <div class="fw-semibold">
+                                #{{ $t->task_id }}
+                                <span class="fw-normal text-secondary">· {{ $t->title }}</span>
+                                <small class="text-muted ms-2">
+                                  <i class="bi bi-clock-history"></i>
+                                  {{ \Illuminate\Support\Carbon::parse($t->updated_at)->format('Y-m-d H:i') }}
+                                </small>
+                              </div>
+                              @if($fileUrls->count())
+                                <ul class="mb-0 mt-1">
+                                  @foreach($fileUrls as $u)
+                                    <li><a href="{{ $u }}" target="_blank" rel="noopener" download>{{ $prettyName($u) }}</a></li>
+                                  @endforeach
+                                </ul>
+                              @else
+                                <div class="text-muted small">Không có tệp đính kèm.</div>
+                              @endif
+                            </div>
+                          @endforeach
+                        </div>
+                      @else
+                        <div class="text-muted small"><i class="bi bi-info-circle"></i> Chưa có task.</div>
+                      @endif
+                    </div>
+                  </div>
                 </div>
-              @endforeach
+              </div>
             </div>
-          @else
-            <div class="text-muted small"><i class="bi bi-info-circle"></i> Chưa có task.</div>
-          @endif
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
           @endforeach
         </div>
@@ -763,10 +772,188 @@
       @endif
 
     </div>
+    {{-- ===== MODAL: Thanh toán cọc (đẹp + gọn) ===== --}}
+    <div class="modal fade" id="escrowPayModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+          {{-- Header --}}
+          <div class="modal-header py-3 border-0 header-pay">
+            <div class="d-flex align-items-center gap-3">
+              <div class="badge bg-white text-primary rounded-circle p-3 shadow-sm">
+                <i class="bi bi-shield-lock-fill fs-5"></i>
+              </div>
+              <div>
+                <h5 class="modal-title mb-0">Thanh toán cọc an toàn</h5>
+                <div class="text-white-50 small">Tiền được giữ trong ví trung gian cho tới khi bạn giải ngân</div>
+              </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          {{-- Body --}}
+          <div class="modal-body p-0">
+            {{-- Top info strip --}}
+            <div class="pay-top px-4 py-3 d-md-flex align-items-center justify-content-between gap-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 bg-primary-subtle text-primary p-2 px-3 fw-semibold">
+                  JOB #<span id="escrowJobId">—</span>
+                </div>
+                <div class="text-truncate">
+                  <div class="small text-muted">Công việc</div>
+                  <div class="fw-semibold" id="escrowJobTitle">—</div>
+                </div>
+              </div>
+              <div class="text-end mt-3 mt-md-0">
+                <div class="small text-muted mb-1">Số tiền cần cọc</div>
+                <div class="fs-4 fw-bold text-success" id="escrowAmount">—</div>
+              </div>
+            </div>
+
+            {{-- Methods --}}
+            <div class="px-4 pt-3">
+              <ul class="nav nav-pills gap-2 pay-pills" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active d-flex align-items-center gap-2" id="pill-bank-tab" data-bs-toggle="pill"
+                    data-bs-target="#pill-bank" type="button" role="tab">
+                    <i class="bi bi-bank2"></i> Chuyển khoản ngân hàng (luồng cũ)
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link d-flex align-items-center gap-2" id="pill-card-tab" data-bs-toggle="pill"
+                    data-bs-target="#pill-card" type="button" role="tab">
+                    <i class="bi bi-credit-card-2-front"></i> Thẻ Visa / MasterCard (Stripe)
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div class="tab-content p-4 pt-3">
+              {{-- TAB 1: Bank transfer (luồng cũ) --}}
+              <div class="tab-pane fade show active" id="pill-bank" role="tabpanel" aria-labelledby="pill-bank-tab">
+                <div class="card border-0 shadow-sm overflow-hidden">
+                  <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                      <div class="badge bg-info-subtle text-info p-3 rounded-3">
+                        <i class="bi bi-cash-coin fs-5"></i>
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">Chuyển khoản qua ngân hàng</div>
+                        <div class="text-muted small">
+                          Bạn sẽ được điều hướng sang luồng tạo link thanh toán cũ. Sau khi thanh toán xong, trạng thái
+                          cọc sẽ chuyển sang
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">ĐÃ THANH
+                            TOÁN</span>.
+                        </div>
+                      </div>
+                    </div>
+
+                    <form id="bankTransferForm" method="POST" class="mt-3">
+                      @csrf
+                      <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="submit" class="btn btn-primary">
+                          <i class="bi bi-bank me-2"></i> Tạo link & thanh toán
+                        </button>
+                        <span class="text-muted small">
+                          <i class="bi bi-info-circle me-1"></i> Hỗ trợ chuyển khoản nội địa, Internet Banking.
+                        </span>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              {{-- TAB 2: Stripe card --}}
+              <div class="tab-pane fade" id="pill-card" role="tabpanel" aria-labelledby="pill-card-tab">
+                <div class="card border-0 shadow-sm overflow-hidden">
+                  <div class="card-body">
+                    <div class="d-flex align-items-start gap-3">
+                      <div class="badge bg-warning-subtle text-warning p-3 rounded-3">
+                        <i class="bi bi-credit-card fs-5"></i>
+                      </div>
+                      <div class="flex-grow-1">
+                        <div class="fw-semibold">Thanh toán bằng thẻ Visa / MasterCard (Stripe)</div>
+                        <div class="text-muted small">
+                          Hệ thống sẽ chuyển bạn sang trang thanh toán Stripe bảo mật. Phí xử lý thẻ có thể áp dụng theo
+                          Stripe.
+                        </div>
+                      </div>
+                    </div>
+
+                    <form id="stripeForm" method="POST" class="mt-3">
+                      @csrf
+                      <div class="row g-3 align-items-center">
+                        <div class="col-auto">
+                          <button type="submit" class="btn btn-dark d-flex align-items-center gap-2">
+                            <i class="bi bi-lock-fill"></i>
+                            <span>Thanh toán qua Stripe</span>
+                          </button>
+                        </div>
+                        <div class="col">
+                          <div class="small text-muted d-flex align-items-center gap-2 flex-wrap">
+                            <span>Chấp nhận:</span>
+                            <span class="badge bg-light text-dark border">Visa</span>
+                            <span class="badge bg-light text-dark border">MasterCard</span>
+                            <span class="badge bg-light text-dark border">JCB</span>
+                            <span class="badge bg-light text-dark border">Apple Pay</span>
+                            <span class="badge bg-light text-dark border">Google Pay</span>
+                          </div>
+                        </div>
+                      </div>
+                    </form>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {{-- Secure note --}}
+            <div class="px-4 pb-4">
+              <div class="rounded-3 bg-light p-3 small d-flex align-items-start gap-2">
+                <i class="bi bi-shield-check text-success fs-5"></i>
+                <div>
+                  <div class="fw-semibold">Bảo vệ thanh toán</div>
+                  Tiền của bạn sẽ được giữ an toàn cho tới khi job hoàn tất và bạn thực hiện “Hoàn thành & giải ngân”.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {{-- Footer --}}
+          <div class="modal-footer border-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+            <span class="small text-muted d-flex align-items-center gap-2">
+              <i class="bi bi-patch-check-fill text-primary"></i> Mã hóa TLS 1.2 • Không lưu thông tin thẻ
+            </span>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
   </main>
 
   <style>
+    .header-pay {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0b1730 100%);
+      color: #e8f0ff;
+    }
+
+    .pay-top {
+      background: linear-gradient(0deg, rgba(2, 6, 23, .02), rgba(2, 6, 23, .02)), #fff;
+      border-bottom: 1px dashed rgba(0, 0, 0, .06);
+    }
+
+    .pay-pills .nav-link {
+      padding: .5rem .9rem;
+      border-radius: 999px;
+    }
+
+    .pay-pills .nav-link.active {
+      background: #0d6efd;
+    }
+
     .job-card {
       transition: box-shadow .2s, transform .05s;
     }
@@ -791,6 +978,7 @@
   <script>window.TASKS_BY_JOB = @json($tasksByJobAndUser ?? []);</script>
 
   <script>
+
     document.addEventListener('DOMContentLoaded', function () {
       if (!window.bootstrap) return;
 
@@ -1140,10 +1328,10 @@
         overlay.style.background = 'rgba(255,255,255,.6)';
         overlay.style.backdropFilter = 'blur(1px)';
         overlay.innerHTML = `
-            <div class="position-absolute top-50 start-50 translate-middle">
-              <div class="spinner-border" role="status" aria-hidden="true"></div>
-              <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
-            </div>`;
+                        <div class="position-absolute top-50 start-50 translate-middle">
+                          <div class="spinner-border" role="status" aria-hidden="true"></div>
+                          <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
+                        </div>`;
         // bọc collapse relative để overlay định vị đúng
         const collapse = document.getElementById('applicants-' + jobId);
         if (collapse && !collapse.classList.contains('position-relative')) {
@@ -1206,8 +1394,8 @@
           const prev = btn.innerHTML;
           btn.setAttribute('disabled', 'disabled');
           btn.innerHTML = `
-              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              <span>${text}</span>`;
+                          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          <span>${text}</span>`;
           return () => {
             btn.innerHTML = prev;
             btn.removeAttribute('disabled');
@@ -1322,15 +1510,15 @@
           }).join('');
 
           html += `
-                  <div class="list-group-item border-0 ps-0">
-                    <div class="fw-semibold">
-                      #${t.task_id ?? ''}
-                      ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
-                      ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
-                    </div>
-                    ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
-                  </div>
-                `;
+                              <div class="list-group-item border-0 ps-0">
+                                <div class="fw-semibold">
+                                  #${t.task_id ?? ''}
+                                  ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
+                                  ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
+                                </div>
+                                ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
+                              </div>
+                            `;
         }
         html += '</div>';
         return html;
@@ -1348,5 +1536,70 @@
         Swal.fire({ title: 'Lỗi', text: msg || 'Có lỗi xảy ra, vui lòng thử lại.', icon: 'error', confirmButtonText: 'Đóng' });
       }
     });
+
+  </script>
+@endpush
+@push('scripts')
+  <script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.bootstrap) return;
+
+  document.body.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-open-escrow');
+    if (!btn) return;
+
+    const jobId   = btn.getAttribute('data-job-id');
+    const title   = btn.getAttribute('data-title')  || 'Job';
+    const amount  = btn.getAttribute('data-amount') || '';
+    const actBank = btn.getAttribute('data-action');   // ✅ lấy trực tiếp
+
+    // Fill info
+    const titleEl  = document.getElementById('escrowJobTitle');
+    const idEl     = document.getElementById('escrowJobId');
+    const amountEl = document.getElementById('escrowAmount');
+    if (titleEl)  titleEl.textContent  = title;
+    if (idEl)     idEl.textContent     = jobId;
+    if (amountEl) amountEl.textContent = formatCurrency(amount) || '—';
+
+    // Set action cho 2 form
+    const bankForm   = document.getElementById('bankTransferForm');
+    const stripeForm = document.getElementById('stripeForm');
+
+    // Nếu bạn vẫn dùng template URL cho Stripe thì giữ nguyên phần Stripe:
+    const urlStripeTpl = @json(route('job-payments.stripe.create', ['job' => '__JOB__']));
+    if (stripeForm) stripeForm.setAttribute('action', urlStripeTpl.replace('__JOB__', jobId));
+
+    // ✅ Bank: dùng thẳng data-action (đã là URL đầy đủ /jobs/{job_id}/payment/create)
+    if (bankForm) {
+      if (!actBank) {
+        console.error('Missing data-action on .btn-open-escrow');
+        bankForm.removeAttribute('action'); // tránh submit nhầm
+      } else {
+        bankForm.setAttribute('action', actBank);
+      }
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('escrowPayModal'));
+    modal.show();
+  });
+
+  // Chặn submit nếu chưa có action (phòng thủ)
+  const bankForm = document.getElementById('bankTransferForm');
+  if (bankForm) {
+    bankForm.addEventListener('submit', function (ev) {
+      if (!this.getAttribute('action')) {
+        ev.preventDefault();
+        alert('Không tìm thấy đường dẫn tạo thanh toán. Vui lòng thử lại.');
+      }
+    });
+  }
+
+  function formatCurrency(n) {
+    const num = Number(n);
+    if (Number.isNaN(num)) return n;
+    return num.toLocaleString('vi-VN') + '₫';
+  }
+});
   </script>
 @endpush

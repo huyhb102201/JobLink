@@ -16,7 +16,7 @@ use App\Events\CommentNotificationBroadcasted;
 use App\Events\NewCommentPosted;
 use Illuminate\Support\Facades\Cache;
 use Cloudinary\Api\Upload\UploadApi;
-
+use Illuminate\Support\Facades\DB;
 class JobController extends Controller
 {
     public function index(Request $request)
@@ -390,18 +390,51 @@ class JobController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        // 1) Lấy job
         $job = Job::findOrFail($id);
 
-        // Kiểm tra quyền sở hữu nếu cần
-        if (auth()->id() !== $job->account_id) {
+        // 2) Quyền sở hữu (đổi field nếu bạn dùng owner_id)
+        if ((int) auth()->id() !== (int) $job->account_id) {
             abort(403, 'Bạn không có quyền xóa job này.');
         }
 
-        $job->delete();
+        // OPTIONAL: Nếu muốn giới hạn chỉ cho xoá khi chưa thanh toán hoặc đã huỷ
+        // $escrowPending = ($job->escrow_status ?? 'pending') === 'pending';
+        // $acceptedCount  = DB::table('job_applications')
+        //                    ->where('job_id', $job->job_id)
+        //                    ->where('status', 2)->count();
+        // if (!($job->status === 'cancelled' || ($escrowPending && $acceptedCount === 0))) {
+        //     return back()->with('error', 'Chỉ xoá khi job đã huỷ hoặc chưa thanh toán & chưa có ai được nhận.');
+        // }
 
-        return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc thành công.');
+        DB::transaction(function () use ($job) {
+            $jid = (int) $job->job_id;
+
+            // 3) Xoá các bảng con liên quan tới job_id
+            // Đổi tên bảng/column cho đúng schema của bạn
+            DB::table('job_detail')->where('job_id', $jid)->delete();        // chi tiết job
+            DB::table('job_apply')->where('job_id', $jid)->delete();   // job_apply / applications
+            DB::table('tasks')->where('job_id', $jid)->delete();          // task giao cho freelancer (nếu có)
+            DB::table('job_reports')->where('job_id', $jid)->delete();        // báo cáo/ report
+            DB::table('job_favorites')->where('job_id', $jid)->delete();      // yêu thích (nếu có)
+            DB::table('jobs_view')->where('job_id', $jid)->delete();          // lượt xem (nếu có)
+            DB::table('messages')->where('job_id', $jid)->delete();           // tin nhắn theo job (nếu có)
+                // thông báo theo job (nếu có)       // file đính kèm (nếu có)
+
+            // Nếu bạn đang dùng quan hệ many-to-many qua pivot tên khác, xoá pivot:
+            // $job->applicants()->detach();
+
+            // 4) Cuối cùng mới xoá job (soft hoặc hard)
+            // $job->forceDelete(); // nếu muốn xoá hẳn, bỏ qua SoftDeletes
+            $job->delete();
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Đã xóa công việc.']);
+        }
+        return redirect()->route('client.jobs.mine')->with('success', 'Đã xóa công việc.');
     }
 
     public function submitted_jobs(Request $request)
