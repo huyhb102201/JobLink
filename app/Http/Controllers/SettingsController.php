@@ -9,6 +9,7 @@ use App\Models\Job;
 use App\Models\JobApply;
 use App\Models\Account;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 class SettingsController extends Controller
 {
     // helper: load user + relations dùng chung
@@ -166,4 +167,120 @@ public function updateSecurity(Request $request)
         $user->save();
         return back()->with('ok', 'Đã đổi gói tài khoản.');
     }
+     public function destroyAccount(Request $request)
+{
+    // 1) Validate với named error bag 'delete' để lỗi hiển thị trong modal xoá
+    $v = Validator::make($request->all(), [
+        'password'     => 'required|string|min:6',
+        'confirm_text' => 'required|string',
+        'agree'        => 'accepted',
+    ], [
+        'agree.accepted' => 'Bạn cần tick xác nhận xoá vĩnh viễn.',
+    ]);
+
+    if ($v->fails()) {
+        return back()->withErrors($v, 'delete')->withInput();
+    }
+
+    if (strtoupper(trim($request->confirm_text)) !== 'DELETE') {
+        return back()->withErrors(['confirm_text' => 'Bạn phải nhập chính xác DELETE để xác nhận.'], 'delete')
+                     ->withInput();
+    }
+
+    /** @var \App\Models\Account $user */
+    $user = Auth::user();
+    if (!$user) {
+        return redirect()->route('login');
+    }
+
+    // (Tuỳ chọn) Không cho xóa super admin
+    if (method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin()) {
+        return back()->withErrors(['password' => 'Tài khoản quản trị tối cao không thể bị xoá.'], 'delete');
+    }
+
+    if (!Hash::check($request->password, $user->password)) {
+        return back()->withErrors(['password' => 'Mật khẩu không đúng.'], 'delete')->withInput();
+    }
+
+    DB::beginTransaction();
+    try {
+        $aid = (int) $user->account_id;
+
+        // 2) Thu hồi session/token trước để ngắt truy cập
+        // Sanctum/Passport/Personal Access Token (tuỳ bạn dùng gì)
+        if (method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
+        // Laravel sessions table (nếu dùng database driver cho session)
+        try {
+            DB::table('sessions')->where('user_id', $aid)->delete();
+        } catch (\Throwable $e) {
+            // Bỏ qua nếu không dùng DB sessions
+        }
+
+        // 3) Xoá dữ liệu phụ thuộc THEO THỨ TỰ AN TOÀN
+        // === Các bảng LIÊN QUAN tới jobs (xoá phụ thuộc trước rồi mới xoá jobs) ===
+        $jobIds = DB::table('jobs')->where('account_id', $aid)->pluck('job_id');
+        if ($jobIds->count()) {
+            // Ví dụ các bảng phụ thuộc job_id — tuỳ schema của bạn, thêm bớt tại đây
+            DB::table('tasks')->whereIn('job_id', $jobIds)->delete();
+            DB::table('comments')->whereIn('job_id', $jobIds)->delete();
+            DB::table('jobs_view')->whereIn('job_id', $jobIds)->delete();
+            DB::table('job_favorites')->whereIn('job_id', $jobIds)->delete();
+            DB::table('job_reports')->whereIn('job_id', $jobIds)->delete();
+              DB::table('job_detail')->whereIn('job_id', $jobIds)->delete();
+            // Cuối cùng mới xoá jobs
+            DB::table('jobs')->whereIn('job_id', $jobIds)->delete();
+        }
+
+        // === Các bảng phụ thuộc account_id / user liên quan ===
+        // Ví dụ (tuỳ schema của bạn, thêm bớt tại đây):
+        DB::table('profiles')->where('account_id', $aid)->delete();
+        DB::table('bank_accounts')->where('account_id', $aid)->delete();
+        DB::table('withdrawal_logs')->where('account_id', $aid)->delete();
+        DB::table('notifications')->where('user_id', $aid)->delete();
+        DB::table('job_favorites')->where('user_id', $aid)->delete();
+        DB::table('jobs_view')->where('account_id', $aid)->delete();
+        DB::table('payments')->where('account_id', $aid)->delete();;
+        // ratings: có thể lưu cả rater_id và ratee_id
+        // message/chat nếu có:
+        try {
+            DB::table('messages')->where('sender_id', $aid)->orWhere('receiver_id', $aid)->delete();
+            DB::table('box_chat_members')->where('account_id', $aid)->delete();
+            // Nếu có bảng box_chats không còn thành viên, bạn có thể dọn dẹp thêm...
+        } catch (\Throwable $e) {
+            // Bỏ qua nếu app chưa có các bảng này
+        }
+
+        // Personal access tokens (bảng mặc định của Sanctum)
+        try {
+            DB::table('personal_access_tokens')->where('tokenable_type', get_class($user))
+                                               ->where('tokenable_id', $aid)->delete();
+        } catch (\Throwable $e) {
+            // Bỏ qua nếu không dùng Sanctum
+        }
+
+        // 4) Cuối cùng xoá account (Hard delete hoặc forceDelete nếu SoftDeletes)
+        if (in_array('Illuminate\\Database\\Eloquent\\SoftDeletes', class_uses($user))) {
+            $user->forceDelete();
+        } else {
+            $user->delete();
+        }
+
+        DB::commit();
+
+        // 5) Đăng xuất & xoá session hiện tại
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('home')->with('status', 'Tài khoản đã được xoá vĩnh viễn.');
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        return back()->withErrors([
+            'general' => 'Xoá tài khoản thất bại: ' . $e->getMessage() .
+                         ' (hãy kiểm tra khoá ngoại ON DELETE CASCADE hoặc xoá thủ công các bản ghi liên quan).'
+        ], 'delete');
+    }
+}
 }
