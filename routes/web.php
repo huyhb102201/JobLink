@@ -148,7 +148,8 @@ Route::middleware('auth')->group(function () {
         ->name('profile.about.update');
     Route::put('/settings/my-info', [SettingsController::class, 'updateMyInfo'])
         ->name('settings.myinfo.update');
-
+    Route::post('/settings/account/delete', [SettingsController::class, 'destroyAccount'])
+        ->name('settings.account.destroy');
     Route::put('/settings/security', [SettingsController::class, 'updateSecurity'])
         ->name('settings.security.update');
 
