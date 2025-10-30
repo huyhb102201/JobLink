@@ -212,7 +212,14 @@
                         </li>
 
                         {{-- Xoá job (chỉ khi đã huỷ) --}}
-                        @if($job->status === 'cancelled')
+                        {{-- Xoá job (đã hủy HOẶC chưa thanh toán & chưa có ai được nhận) --}}
+                        @php
+                          $escrowIsPending = ($job->escrow_status ?? 'pending') === 'pending';
+                          $canShowDelete = $job->status === 'cancelled'
+                            || ($escrowIsPending && ($acceptedCount === 0));
+                        @endphp
+
+                        @if($canShowDelete)
                           <li>
                             <hr class="dropdown-divider">
                           </li>
@@ -227,6 +234,7 @@
                             </form>
                           </li>
                         @endif
+
                       </ul>
                     </div>
                   </div>
@@ -673,86 +681,86 @@
               </div>
             </div>
             {{-- MODAL: XEM TASK (view-only) --}}
-<div class="modal fade" id="viewTasksModal-{{ $job->job_id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header">
-        <h5 class="modal-title">
-          Task – {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 50) }} (Chỉ xem)
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <div class="modal-body">
-        @php
-          // Map task đã được controller truyền vào: $tasksByJobAndUser[job_id][account_id] = [task...]
-          $jobTasksMap   = $tasksByJobAndUser[$job->job_id] ?? [];
-          $acceptedUsers = collect(($job->applicants ?? collect()))
-                            ->filter(fn($u) => (int) ($u->pivot->status ?? -1) === 2)
-                            ->values();
-          $firstUserId   = optional($acceptedUsers->first())->account_id;
-          $firstUserTasks = $firstUserId ? ($jobTasksMap[$firstUserId] ?? []) : [];
-        @endphp
-
-        <div class="row g-3 align-items-end">
-          <div class="col-md-6">
-            <label class="form-label">Freelancer</label>
-            <select class="form-select" disabled>
-              @forelse($acceptedUsers as $u)
-                @php
-                  $p = $u->profile ?? null;
-                  $n = $p->fullname ?? $u->name ?? ('#'.$u->account_id);
-                @endphp
-                <option value="{{ $u->account_id }}" @selected($u->account_id == $firstUserId)>{{ $n }}</option>
-              @empty
-                <option>(Chưa có freelancer được nhận)</option>
-              @endforelse
-            </select>
-            <div class="form-text">Chế độ chỉ xem</div>
-          </div>
-        </div>
-
-        <div class="mt-3">
-          @if($firstUserId && !empty($firstUserTasks))
-            <div class="list-group small">
-              @foreach($firstUserTasks as $t)
-                @php
-                  $fileUrls = collect(explode('|', (string) ($t->file_url ?? '')))
-                    ->map(fn($u) => trim($u))->filter()->values();
-                  $prettyName = function ($u) {
-                    $p = parse_url($u, PHP_URL_PATH) ?? '';
-                    return urldecode($p ? basename($p) : 'file');
-                  };
-                @endphp
-                <div class="list-group-item border-0 ps-0">
-                  <div class="fw-semibold">
-                    #{{ $t->task_id }}
-                    <span class="fw-normal text-secondary">· {{ $t->title }}</span>
-                    <small class="text-muted ms-2">
-                      <i class="bi bi-clock-history"></i>
-                      {{ \Illuminate\Support\Carbon::parse($t->updated_at)->format('Y-m-d H:i') }}
-                    </small>
+            <div class="modal fade" id="viewTasksModal-{{ $job->job_id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 shadow">
+                  <div class="modal-header">
+                    <h5 class="modal-title">
+                      Task – {{ \Illuminate\Support\Str::limit(strip_tags($job->title), 50) }} (Chỉ xem)
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
-                  @if($fileUrls->count())
-                    <ul class="mb-0 mt-1">
-                      @foreach($fileUrls as $u)
-                        <li><a href="{{ $u }}" target="_blank" rel="noopener" download>{{ $prettyName($u) }}</a></li>
-                      @endforeach
-                    </ul>
-                  @else
-                    <div class="text-muted small">Không có tệp đính kèm.</div>
-                  @endif
+
+                  <div class="modal-body">
+                    @php
+                      // Map task đã được controller truyền vào: $tasksByJobAndUser[job_id][account_id] = [task...]
+                      $jobTasksMap = $tasksByJobAndUser[$job->job_id] ?? [];
+                      $acceptedUsers = collect(($job->applicants ?? collect()))
+                        ->filter(fn($u) => (int) ($u->pivot->status ?? -1) === 2)
+                        ->values();
+                      $firstUserId = optional($acceptedUsers->first())->account_id;
+                      $firstUserTasks = $firstUserId ? ($jobTasksMap[$firstUserId] ?? []) : [];
+                    @endphp
+
+                    <div class="row g-3 align-items-end">
+                      <div class="col-md-6">
+                        <label class="form-label">Freelancer</label>
+                        <select class="form-select" disabled>
+                          @forelse($acceptedUsers as $u)
+                            @php
+                              $p = $u->profile ?? null;
+                              $n = $p->fullname ?? $u->name ?? ('#' . $u->account_id);
+                            @endphp
+                            <option value="{{ $u->account_id }}" @selected($u->account_id == $firstUserId)>{{ $n }}</option>
+                          @empty
+                            <option>(Chưa có freelancer được nhận)</option>
+                          @endforelse
+                        </select>
+                        <div class="form-text">Chế độ chỉ xem</div>
+                      </div>
+                    </div>
+
+                    <div class="mt-3">
+                      @if($firstUserId && !empty($firstUserTasks))
+                        <div class="list-group small">
+                          @foreach($firstUserTasks as $t)
+                            @php
+                              $fileUrls = collect(explode('|', (string) ($t->file_url ?? '')))
+                                ->map(fn($u) => trim($u))->filter()->values();
+                              $prettyName = function ($u) {
+                                $p = parse_url($u, PHP_URL_PATH) ?? '';
+                                return urldecode($p ? basename($p) : 'file');
+                              };
+                            @endphp
+                            <div class="list-group-item border-0 ps-0">
+                              <div class="fw-semibold">
+                                #{{ $t->task_id }}
+                                <span class="fw-normal text-secondary">· {{ $t->title }}</span>
+                                <small class="text-muted ms-2">
+                                  <i class="bi bi-clock-history"></i>
+                                  {{ \Illuminate\Support\Carbon::parse($t->updated_at)->format('Y-m-d H:i') }}
+                                </small>
+                              </div>
+                              @if($fileUrls->count())
+                                <ul class="mb-0 mt-1">
+                                  @foreach($fileUrls as $u)
+                                    <li><a href="{{ $u }}" target="_blank" rel="noopener" download>{{ $prettyName($u) }}</a></li>
+                                  @endforeach
+                                </ul>
+                              @else
+                                <div class="text-muted small">Không có tệp đính kèm.</div>
+                              @endif
+                            </div>
+                          @endforeach
+                        </div>
+                      @else
+                        <div class="text-muted small"><i class="bi bi-info-circle"></i> Chưa có task.</div>
+                      @endif
+                    </div>
+                  </div>
                 </div>
-              @endforeach
+              </div>
             </div>
-          @else
-            <div class="text-muted small"><i class="bi bi-info-circle"></i> Chưa có task.</div>
-          @endif
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
           @endforeach
         </div>
@@ -1140,10 +1148,10 @@
         overlay.style.background = 'rgba(255,255,255,.6)';
         overlay.style.backdropFilter = 'blur(1px)';
         overlay.innerHTML = `
-            <div class="position-absolute top-50 start-50 translate-middle">
-              <div class="spinner-border" role="status" aria-hidden="true"></div>
-              <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
-            </div>`;
+              <div class="position-absolute top-50 start-50 translate-middle">
+                <div class="spinner-border" role="status" aria-hidden="true"></div>
+                <div class="small text-muted mt-2 text-center">Đang xử lý...</div>
+              </div>`;
         // bọc collapse relative để overlay định vị đúng
         const collapse = document.getElementById('applicants-' + jobId);
         if (collapse && !collapse.classList.contains('position-relative')) {
@@ -1206,8 +1214,8 @@
           const prev = btn.innerHTML;
           btn.setAttribute('disabled', 'disabled');
           btn.innerHTML = `
-              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              <span>${text}</span>`;
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span>${text}</span>`;
           return () => {
             btn.innerHTML = prev;
             btn.removeAttribute('disabled');
@@ -1322,15 +1330,15 @@
           }).join('');
 
           html += `
-                  <div class="list-group-item border-0 ps-0">
-                    <div class="fw-semibold">
-                      #${t.task_id ?? ''}
-                      ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
-                      ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
+                    <div class="list-group-item border-0 ps-0">
+                      <div class="fw-semibold">
+                        #${t.task_id ?? ''}
+                        ${t.title ? `<span class="fw-normal text-secondary">· ${escapeHtml(t.title)}</span>` : ''}
+                        ${t.updated_at ? `<small class="text-muted ms-2"><i class="bi bi-clock-history"></i> ${t.updated_at}</small>` : ''}
+                      </div>
+                      ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
                     </div>
-                    ${files.length ? `<ul class="mb-0 mt-1">${fileLis}</ul>` : `<div class="text-muted small">Không có tệp đính kèm.</div>`}
-                  </div>
-                `;
+                  `;
         }
         html += '</div>';
         return html;
