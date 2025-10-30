@@ -80,10 +80,60 @@
     @php
       $accObj       = $account ?? null;
       $accId        = $accObj->id ?? auth()->id();
-      $balanceCents = (int) ($accObj->balance_cents ?? ($balance_cents ?? 0)); // VND
+      $balanceCents = (int) ($accObj->balance_cents ?? ($balance_cents ?? 0)); // VND (đơn vị đồng)
       $balanceVnd   = number_format($balanceCents) . 'đ';
       $hasCards     = !empty($cards) && count($cards) > 0;
+
+      $m            = $withdraw_meter ?? null;
+      $vnd = fn($n) => number_format((int)$n, 0, ',', '.') . 'đ';
+
+      $limitCents   = (int)($m['limit_cents']  ?? 0);
+      $usedCents    = (int)($m['used_cents']   ?? 0);
+      $remainCents  = (int)($m['remain_cents'] ?? 0);
+      $percentUsed  = (int)($m['percent']      ?? 0);
+      $monthLabel   = $m['month_label'] ?? now()->format('m/Y');
+
+      $withdrawDisabledByLimit = $limitCents > 0 && $remainCents <= 0;
+      $withdrawDisabled = (!$hasCards) || ($balanceCents <= 0) || $withdrawDisabledByLimit;
     @endphp
+
+    {{-- Hạn mức rút tháng --}}
+    @if($m)
+      <div class="card border-0 rounded-4 shadow-xs mb-3">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <h5 class="m-0 fw-semibold text-dark">
+              Hạn mức rút tháng {{ $monthLabel }}
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill bg-light text-dark">
+                Đã dùng: <strong class="ms-1" id="meterUsedText">{{ $vnd($usedCents) }}</strong>
+              </span>
+              <span class="badge rounded-pill bg-primary">
+                Hạn mức: <strong class="ms-1 text-white" id="meterLimitText">{{ $vnd($limitCents) }}</strong>
+              </span>
+              <span class="badge rounded-pill" style="background:#e9f7ef;color:#0f5132;">
+                Còn lại: <strong class="ms-1" id="meterRemainText">{{ $vnd($remainCents) }}</strong>
+              </span>
+            </div>
+          </div>
+
+          <div class="progress rounded-pill" style="height:10px;background:#eef2ff;">
+            <div id="meterProgressBar" class="progress-bar" role="progressbar"
+                 style="width: {{ $percentUsed }}%;"
+                 aria-valuenow="{{ $percentUsed }}" aria-valuemin="0" aria-valuemax="100">
+            </div>
+          </div>
+
+          @if($withdrawDisabledByLimit)
+            <div class="alert alert-warning rounded-3 mt-3 mb-0">
+              Bạn đã dùng hết hạn mức rút của tháng {{ $monthLabel }}.
+              Vui lòng đợi sang tháng sau hoặc nâng cấp lên gói cao hơn.
+            </div>
+          @endif
+        </div>
+      </div>
+    @endif
 
     {{-- Balance card --}}
     <div class="card border-0 shadow-sm">
@@ -96,13 +146,16 @@
         </div>
         <div class="text-end">
           <button id="btnOpenWithdraw"
-  class="btn btn-gradient px-4 py-2 fw-semibold shadow-sm"
-  data-balance-cents="{{ $balanceCents }}"
-  data-bs-toggle="modal"
-  data-bs-target="#withdrawModal"
-  @if(!$hasCards || $balanceCents <= 0) disabled @endif>
-  <i class="bi bi-cash-coin me-1"></i> Rút tiền
-</button>
+                  class="btn btn-gradient px-4 py-2 fw-semibold shadow-sm"
+                  data-balance-cents="{{ $balanceCents }}"
+                  data-limit-remain-cents="{{ $remainCents }}"
+                  data-limit-total-cents="{{ $limitCents }}"
+                  data-limit-used-cents="{{ $usedCents }}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#withdrawModal"
+                  @if($withdrawDisabled) disabled @endif>
+            <i class="bi bi-cash-coin me-1"></i> Rút tiền
+          </button>
 
 <style>
 .btn-gradient {
@@ -112,16 +165,8 @@
   border-radius: 0.5rem;
   transition: all 0.25s ease;
 }
-.btn-gradient:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3);
-}
-.btn-gradient:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
+.btn-gradient:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3); }
+.btn-gradient:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 </style>
 
           <div id="withdrawHint" class="small text-muted mt-2">
@@ -129,6 +174,8 @@
               Hãy thêm thẻ ngân hàng trước khi rút.
             @elseif($balanceCents <= 0)
               Số dư hiện tại không đủ để rút.
+            @elseif($withdrawDisabledByLimit)
+              Đã hết hạn mức rút của tháng {{ $monthLabel }}.
             @endif
           </div>
         </div>
@@ -264,7 +311,12 @@
 </div>
 
 {{-- Hidden meta for JS --}}
-<button id="openWithdrawBtn" class="d-none" data-balance-cents="{{ $balanceCents }}"></button>
+<button id="openWithdrawBtn"
+        class="d-none"
+        data-balance-cents="{{ $balanceCents }}"
+        data-limit-remain-cents="{{ $remainCents }}"
+        data-limit-total-cents="{{ $limitCents }}"
+        data-limit-used-cents="{{ $usedCents }}"></button>
 
 {{-- =========================== --}}
 {{-- MODALS                      --}}
@@ -331,7 +383,12 @@
 
         <label class="form-label mt-3">Số tiền muốn rút (VND)</label>
         <input id="withdrawAmount" name="amount" type="text" class="form-control" placeholder="Ví dụ: 100000" inputmode="numeric" autocomplete="off">
-        <div class="form-text">Tối thiểu 10,000đ. Phí (10%) sẽ trừ vào số nhận.</div>
+        <div class="form-text">
+          Tối thiểu 10,000đ. Phí (10%) sẽ trừ vào số nhận.
+          @if($limitCents > 0)
+            <br/>Tối đa còn có thể rút trong tháng: <strong id="modalRemainText">{{ number_format($remainCents) }}đ</strong>
+          @endif
+        </div>
 
         <label class="form-label mt-3">Rút về thẻ</label>
         <select id="withdrawCardSelect" name="to_account_number" class="form-select" @if(!$hasCards) disabled @endif>
@@ -354,7 +411,7 @@
 
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-        <button id="withdrawSubmit" class="btn btn-primary" type="submit" disabled>Xác nhận rút</button>
+        <button id="withdrawSubmit" class="btn btn-primary" type="submit" @if($withdrawDisabled) disabled @endif>Xác nhận rút</button>
       </div>
     </form>
   </div>
@@ -410,22 +467,55 @@
     toastEl.addEventListener('hidden.bs.toast',()=>toastEl.remove());
   }
 
-  // Enable/disable Withdraw button
+  // Cập nhật trạng thái nút Rút tiền theo thẻ/số dư/hạn mức
   function updateWithdrawButtonState() {
     const btn   = document.getElementById('btnOpenWithdraw');
     const hint  = document.getElementById('withdrawHint');
-    const select= document.getElementById('withdrawCardSelect');
-    if (!btn) return;
-
     const hasAnyCard = !!document.querySelector('#cardList .list-group-item');
-    const balance = parseInt(btn.getAttribute('data-balance-cents') || '0', 10);
-    const enough  = balance > 0;
 
-    btn.disabled = !(hasAnyCard && enough);
+    const balance = parseInt(btn?.getAttribute('data-balance-cents') || '0', 10);
+    const remain  = parseInt(btn?.getAttribute('data-limit-remain-cents') || '0', 10);
+
+    const enoughBalance = balance > 0;
+    const hasLimitLeft  = (remain > 0) || (isNaN(remain) && true); // nếu không có hạn mức thì coi như true
+
+    const disable = !(hasAnyCard && enoughBalance && hasLimitLeft);
+    if (btn) btn.disabled = disable;
+
     if (!hasAnyCard)      hint && (hint.textContent = 'Hãy thêm thẻ ngân hàng trước khi rút.');
-    else if (!enough)     hint && (hint.textContent = 'Số dư hiện tại không đủ để rút.');
-    else                  hint && (hint.textContent = '');
-    if (select) select.disabled = !hasAnyCard;
+    else if (!enoughBalance) hint && (hint.textContent = 'Số dư hiện tại không đủ để rút.');
+    else if (!hasLimitLeft)  hint && (hint.textContent = 'Đã hết hạn mức rút của tháng này.');
+    else                   hint && (hint.textContent = '');
+  }
+
+  // Cập nhật UI hạn mức (thanh tiến độ + badge) sau khi rút thành công
+  function updateLimitUI({limit, used, remain}) {
+    const usedEl   = document.getElementById('meterUsedText');
+    const limitEl  = document.getElementById('meterLimitText');
+    const remainEl = document.getElementById('meterRemainText');
+    const bar      = document.getElementById('meterProgressBar');
+    const modalRemain = document.getElementById('modalRemainText');
+    const btn   = document.getElementById('btnOpenWithdraw');
+
+    const fmt = (n)=> new Intl.NumberFormat('vi-VN').format(n) + 'đ';
+    const percent = limit > 0 ? Math.min(100, Math.round(used / limit * 100)) : 0;
+
+    if (usedEl)   usedEl.textContent = fmt(used);
+    if (limitEl)  limitEl.textContent = fmt(limit);
+    if (remainEl) remainEl.textContent = fmt(Math.max(0,remain));
+    if (modalRemain) modalRemain.textContent = fmt(Math.max(0,remain));
+    if (bar) {
+      bar.style.width = percent + '%';
+      bar.setAttribute('aria-valuenow', String(percent));
+    }
+
+    // Cập nhật data-* để logic nút dựa vào hạn mức mới
+    if (btn) {
+      btn.setAttribute('data-limit-used-cents',   String(used));
+      btn.setAttribute('data-limit-remain-cents', String(Math.max(0,remain)));
+      btn.setAttribute('data-limit-total-cents',  String(limit));
+    }
+    updateWithdrawButtonState();
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -579,7 +669,10 @@
 
       function updateWithdrawCalc() {
         const metaBtn = document.getElementById('openWithdrawBtn');
-        const balance = parseInt(metaBtn?.dataset.balanceCents || '0', 10);
+        const btnOpen = document.getElementById('btnOpenWithdraw');
+        const balance = parseInt(metaBtn?.dataset.balanceCents || btnOpen?.dataset.balanceCents || '0', 10);
+        const remainLimit = parseInt(metaBtn?.dataset.limitRemainCents || btnOpen?.dataset.limitRemainCents || '0', 10);
+
         const amountEl = document.getElementById('withdrawAmount');
         const cardSel  = document.getElementById('withdrawCardSelect');
         const feeEl    = document.getElementById('withdrawFee');
@@ -593,14 +686,15 @@
         const recv   = Math.max(0, amount - fee);
         const total  = amount; // phí trừ vào tiền nhận
 
-        feeEl.textContent = fmtVND(fee);
-        recvEl.textContent= fmtVND(recv);
-        totalEl.textContent=fmtVND(total);
+        feeEl.textContent  = fmtVND(fee);
+        recvEl.textContent = fmtVND(recv);
+        totalEl.textContent= fmtVND(total);
 
         let error = '';
         if (amount < MIN_WITHDRAW) error = `Số tiền tối thiểu là ${fmtVND(MIN_WITHDRAW)}.`;
         else if (!cardSel.value)  error = 'Vui lòng chọn thẻ nhận tiền.';
         else if (total > balance) error = `Số dư không đủ (cần ${fmtVND(total)}, đang có ${fmtVND(balance)}).`;
+        else if (!isNaN(remainLimit) && remainLimit > 0 && amount > remainLimit) error = `Vượt hạn mức tháng (tối đa còn lại ${fmtVND(remainLimit)}).`;
 
         if (error){ errEl.classList.remove('d-none'); errEl.textContent = error; submit.disabled = true; }
         else      { errEl.classList.add('d-none');   errEl.textContent = '';   submit.disabled = false; }
@@ -625,13 +719,14 @@
       const cardSel  = document.getElementById('withdrawCardSelect');
       const modalEl  = document.getElementById('withdrawModal');
       const metaBtn  = document.getElementById('openWithdrawBtn');
+      const btnOpen  = document.getElementById('btnOpenWithdraw');
 
       amountEl?.addEventListener('input', updateWithdrawCalc);
       cardSel?.addEventListener('change', updateWithdrawCalc);
 
       if (modalEl) modalEl.addEventListener('shown.bs.modal', () => {
         amountEl.value = '';
-        const bal = parseInt(metaBtn?.dataset.balanceCents || '0', 10);
+        const bal = parseInt(metaBtn?.dataset.balanceCents || btnOpen?.dataset.balanceCents || '0', 10);
         const balanceInput = document.getElementById('withdrawBalanceReadonly');
         if (balanceInput) balanceInput.value = fmtVND(bal);
         updateWithdrawCalc();
@@ -666,10 +761,34 @@
           document.getElementById('balanceDisplay')?.replaceChildren(document.createTextNode(new Intl.NumberFormat('vi-VN').format(newBal)+'đ'));
           document.getElementById('withdrawBalanceReadonly')?.setAttribute('value', new Intl.NumberFormat('vi-VN').format(newBal)+'đ');
           metaBtn && (metaBtn.dataset.balanceCents = String(newBal));
-          updateWithdrawButtonState?.();
+          btnOpen && btnOpen.setAttribute('data-balance-cents', String(newBal));
 
           // add row to withdrawal table
           prependWithdrawRow({bankLabel, receive, fee, total, status:'processing', createdAt:new Date().toLocaleString('vi-VN')});
+
+          // Update limit meter (used += amount, remain -= amount)
+          const limitTotal = parseInt(btnOpen?.dataset.limitTotalCents || metaBtn?.dataset.limitTotalCents || '0', 10);
+          let   usedCurr   = parseInt(btnOpen?.dataset.limitUsedCents  || metaBtn?.dataset.limitUsedCents  || '0', 10);
+          let   remainCurr = parseInt(btnOpen?.dataset.limitRemainCents|| metaBtn?.dataset.limitRemainCents|| '0', 10);
+
+          if (!isNaN(limitTotal) && limitTotal > 0) {
+            usedCurr   = Math.max(0, usedCurr + amount);
+            remainCurr = Math.max(0, limitTotal - usedCurr);
+            // push back to data-attrs
+            if (btnOpen) {
+              btnOpen.setAttribute('data-limit-used-cents',   String(usedCurr));
+              btnOpen.setAttribute('data-limit-remain-cents', String(remainCurr));
+              btnOpen.setAttribute('data-limit-total-cents',  String(limitTotal));
+            }
+            if (metaBtn) {
+              metaBtn.dataset.limitUsedCents   = String(usedCurr);
+              metaBtn.dataset.limitRemainCents = String(remainCurr);
+              metaBtn.dataset.limitTotalCents  = String(limitTotal);
+            }
+            updateLimitUI({limit: limitTotal, used: usedCurr, remain: remainCurr});
+          }
+
+          updateWithdrawButtonState();
 
           if (window.bootstrap && modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
           form.reset();

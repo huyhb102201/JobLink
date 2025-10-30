@@ -37,7 +37,7 @@
         @csrf
         <label class="form-label fw-semibold">Tiêu đề cho công việc của bạn</label>
         <input name="title" class="form-control form-control-lg @error('title') is-invalid @enderror"
-               value="{{ old('title', $d['title'] ?? '') }}" placeholder="">
+               value="{{ old('title', $d['title'] ?? '') }}" placeholder="" required>
         @error('title') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
         <div class="mt-4 d-flex justify-content-end gap-2">

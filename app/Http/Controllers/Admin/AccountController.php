@@ -28,7 +28,7 @@ class AccountController extends Controller
         $activeAccountsCount = Account::where('status', 1)->count();
         $lockedAccountsCount = Account::where('status', 0)->count();
         $unverifiedAccountsCount = Account::whereNull('email_verified_at')->count();
-        $accountTypes = AccountType::orderBy('name')->get(['account_type_id', 'name', 'description']);
+        $accountTypes = AccountType::orderBy('name')->get(['account_type_id', 'name', 'description', 'withdraw_monthly_limit_cents']);
 
         return view('admin.accounts.index', compact(
             'accounts',
@@ -548,49 +548,80 @@ class AccountController extends Controller
         }
     }
 
-    public function updateAccountType(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:account_types,name,' . $id . ',account_type_id',
-            'description' => 'nullable|string|max:500'
-        ], [
-            'name.required' => 'Vui lòng nhập tên loại tài khoản',
-            'name.unique' => 'Tên loại tài khoản này đã tồn tại'
+public function updateAccountType(Request $request, $id)
+{
+    $validator = Validator::make($request->all(), [
+        'name'  => 'required|string|max:255|unique:account_types,name,' . $id . ',account_type_id',
+        'description' => 'nullable|string|max:500',
+        // nhận đúng tên cột trong DB; cho phép null để không bắt buộc
+        'withdraw_monthly_limit_cents' => 'nullable|integer|min:0',
+    ], [
+        'name.required' => 'Vui lòng nhập tên loại tài khoản',
+        'name.unique'   => 'Tên loại tài khoản này đã tồn tại',
+        'withdraw_monthly_limit_cents.integer' => 'Hạn mức rút phải là số nguyên không âm',
+        'withdraw_monthly_limit_cents.min'     => 'Hạn mức rút phải >= 0',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'message' => $validator->errors()->first()
+        ], 422);
+    }
+
+    try {
+        $accountType = AccountType::where('account_type_id', $id)->firstOrFail();
+
+        // --- Lấy & chuẩn hoá hạn mức ---
+        // Ưu tiên field đúng tên; fallback cho name cũ 'withdrawmonthly'
+        $rawLimit = $request->input('withdraw_monthly_limit_cents', $request->input('withdrawmonthly'));
+
+        // Cho phép người dùng nhập "1.000.000" / "1,000,000"
+        if (!is_null($rawLimit)) {
+            $normalized = preg_replace('/[^\d]/', '', (string) $rawLimit);
+            // Lưu ý: cột tên *_cents, nếu hệ thống của bạn đang lưu theo "đồng" thì giữ nguyên.
+            // Nếu bạn thực sự lưu "cents" (nhân 100), hãy bật dòng dưới.
+            // $normalized = (int) $normalized * 100;
+            $withdrawCents = (int) $normalized;
+        } else {
+            $withdrawCents = $accountType->withdraw_monthly_limit_cents; // giữ nguyên nếu không gửi
+        }
+
+        // --- Cập nhật ---
+        $accountType->update([
+            'name'  => $request->name,
+            'description' => $request->description,
+            'withdraw_monthly_limit_cents' => $withdrawCents,
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first()
-            ], 422);
-        }
+        // Log admin action
+        AdminLogService::logUpdate(
+            'AccountType',
+            $accountType->account_type_id,
+            "Cập nhật loại tài khoản: {$accountType->name}",
+            [
+                'name' => $accountType->name,
+                'description' => $accountType->description,
+                'withdraw_monthly_limit_cents' => $accountType->withdraw_monthly_limit_cents,
+            ]
+        );
 
-        try {
-            $accountType = AccountType::where('account_type_id', $id)->firstOrFail();
-            
-            $accountType->update([
-                'name' => $request->name,
-                'description' => $request->description
-            ]);
-
-            // Log admin action
-            AdminLogService::logUpdate(
-                'AccountType',
-                $accountType->account_type_id,
-                "Cập nhật loại tài khoản: {$accountType->name}",
-                ['name' => $accountType->name, 'description' => $accountType->description]
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Đã cập nhật loại tài khoản thành công',
-                'accountType' => $accountType
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Có lỗi xảy ra khi cập nhật loại tài khoản: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã cập nhật loại tài khoản thành công',
+            'accountType' => [
+                'account_type_id' => $accountType->account_type_id,
+                'name' => $accountType->name,
+                'description' => $accountType->description,
+                'withdraw_monthly_limit_cents' => $accountType->withdraw_monthly_limit_cents,
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Có lỗi xảy ra khi cập nhật loại tài khoản: ' . $e->getMessage()
+        ], 500);
     }
+    
+}
 }
